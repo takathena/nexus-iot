@@ -1,363 +1,288 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Device Detail — NEXUS IoT</title>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    
-    <style>
-        :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-card: rgba(30, 41, 59, 0.6);
-            --bg-glass: rgba(255, 255, 255, 0.03);
-            --border-glass: rgba(255, 255, 255, 0.08);
-            --accent-cyan: #06b6d4;
-            --accent-purple: #8b5cf6;
-            --accent-emerald: #10b981;
-            --accent-rose: #f43f5e;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detail Perangkat — NEXUS</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+<style>
+:root{
+  --bg:#000;
+  --surface: rgba(28,28,30,.55);
+  --surface-2: rgba(255,255,255,.045);
+  --hairline: rgba(255,255,255,.09);
+  --hairline-soft: rgba(255,255,255,.06);
+  --text:#f5f5f7;
+  --text-2: rgba(235,235,245,.62);
+  --text-3: rgba(235,235,245,.34);
+  --blue:#0a84ff;
+  --green:#30d158;
+  --red:#ff453a;
+  --orange:#ff9f0a;
+  --purple:#bf5af2;
+  --teal:#64d2ff;
+  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  --ease: cubic-bezier(.16,1,.3,1);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+  position:relative;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(45% 32% at 82% 0%, rgba(191,90,242,.09), transparent 60%),
+    radial-gradient(45% 35% at 5% 12%, rgba(10,132,255,.08), transparent 60%);
+}
 
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-            background-image: radial-gradient(ellipse at top right, rgba(139, 92, 246, 0.08) 0%, transparent 50%), radial-gradient(ellipse at bottom left, rgba(6, 182, 212, 0.06) 0%, transparent 50%);
-        }
+.hero{
+  position:relative;
+  padding:28px 26px 56px;
+  border-bottom:1px solid var(--hairline-soft);
+  overflow:hidden;
+  z-index:1;
+}
+.hero-content{
+  max-width:1080px;margin:0 auto;position:relative;z-index:2;
+  display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;
+}
+.hero-left{display:flex;align-items:center;gap:15px;}
+.device-avatar{
+  width:52px;height:52px;border-radius:15px;
+  background:linear-gradient(155deg,#2c2c2e,#0f0f10);
+  border:1px solid var(--hairline);
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;color:var(--blue);flex-shrink:0;
+  box-shadow:0 8px 24px rgba(10,132,255,.16);
+}
+.hero-title h1{font-size:22px;font-weight:800;letter-spacing:-.02em;margin-bottom:6px;}
+.hero-meta{display:flex;align-items:center;gap:15px;font-size:12px;color:var(--text-3);font-weight:600;flex-wrap:wrap;}
+.hero-meta span{display:flex;align-items:center;gap:6px;}
+.hero-meta i{font-size:11px;}
 
-        .hero {
-            position: relative;
-            padding: 30px 25px 50px;
-            background: linear-gradient(135deg, rgba(30,41,59,0.9) 0%, rgba(15,23,42,0.95) 100%);
-            border-bottom: 1px solid var(--border-glass);
-            overflow: hidden;
-        }
+.back-btn{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 18px;background:var(--surface-2);border:1px solid var(--hairline);
+  border-radius:12px;color:var(--text-2);text-decoration:none;font-size:13px;font-weight:600;
+  transition:all .25s var(--ease);
+}
+.back-btn:hover{background:rgba(255,255,255,.08);color:var(--text);border-color:rgba(255,255,255,.18);transform:translateX(-3px);}
 
-        .hero::before { content: ''; position: absolute; top: -100px; right: -100px; width: 400px; height: 400px; background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%); animation: float-hero 8s ease-in-out infinite; }
-        .hero::after { content: ''; position: absolute; bottom: -50px; left: 10%; width: 300px; height: 300px; background: radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%); animation: float-hero 10s ease-in-out infinite reverse; }
-        @keyframes float-hero { 0%, 100% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-20px, 20px) scale(1.05); } }
+.container{
+  max-width:1080px;margin:-30px auto 40px;padding:0 22px;position:relative;z-index:3;
+  display:grid;gap:18px;
+}
 
-        .hero-content {
-            max-width: 1100px;
-            margin: 0 auto;
-            position: relative;
-            z-index: 2;
-            display: flex;
-            align-items: flex-start;
-            justify-content: space-between;
-            gap: 20px;
-            flex-wrap: wrap;
-        }
+.card{
+  background:var(--surface);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid var(--hairline);border-radius:22px;padding:24px;
+  transition:border-color .3s;
+  animation:rise .5s var(--ease) backwards;
+}
+@keyframes rise{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
+.card:hover{border-color:rgba(255,255,255,.16);}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
+.card-title{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:9px;letter-spacing:-.01em;}
+.card-title i{color:var(--blue);font-size:14px;}
 
-        .hero-left { display: flex; align-items: center; gap: 15px; }
-        .device-avatar {
-            width: 56px; height: 56px;
-            border-radius: 16px;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
-            display: flex; align-items: center; justify-content: center;
-            font-size: 24px;
-            flex-shrink: 0;
-            box-shadow: 0 8px 32px rgba(6, 182, 212, 0.3);
-            animation: float-avatar 4s ease-in-out infinite;
-        }
-        @keyframes float-avatar { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+.live-indicator{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 12px;
+  background:rgba(48,209,88,.1);border:1px solid rgba(48,209,88,.22);border-radius:20px;
+  font-size:10px;font-weight:800;color:#4ade80;text-transform:uppercase;letter-spacing:.05em;
+}
+.live-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
 
-        .hero-title h1 {
-            font-size: 24px;
-            font-weight: 800;
-            letter-spacing: -0.5px;
-            margin-bottom: 5px;
-            background: linear-gradient(135deg, var(--text-primary), var(--accent-cyan));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;}
+.info-item label{display:block;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
+.info-item .value{font-size:14px;font-weight:600;color:var(--text);}
+.info-item .value.mono{font-family:var(--mono);font-size:12.5px;}
 
-        .hero-meta { display: flex; align-items: center; gap: 15px; font-size: 12px; color: var(--text-muted); font-weight: 600; flex-wrap: wrap; }
-        .hero-meta span { display: flex; align-items: center; gap: 5px; }
+.status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;text-transform:capitalize;}
+.status-badge.online{background:rgba(48,209,88,.12);color:#4ade80;}
+.status-badge.offline{background:rgba(255,69,58,.12);color:#ff8078;}
+.status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+.status-badge.online .status-dot{animation:pulse 2s infinite;}
 
-        .back-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            padding: 10px 20px;
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: 12px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-size: 13px;
-            font-weight: 700;
-            transition: all 0.3s;
-            backdrop-filter: blur(10px);
-        }
-        .back-btn:hover { background: rgba(255,255,255,0.06); color: var(--text-primary); border-color: var(--accent-cyan); transform: translateX(-4px); }
+.sensor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
+.sensor-card{
+  background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:16px;padding:18px;
+  transition:transform .25s var(--ease), border-color .25s;
+}
+.sensor-card:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.14);}
+.sensor-icon{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:12px;}
+.sensor-name{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:5px;}
+.sensor-value{font-size:26px;font-weight:800;font-family:var(--mono);letter-spacing:-.01em;line-height:1.1;}
+.sensor-unit{font-size:11px;color:var(--text-3);font-weight:600;margin-top:2px;margin-bottom:12px;}
+.sensor-gauge{height:4px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;}
+.sensor-gauge-fill{height:100%;border-radius:3px;transition:width 1s var(--ease);}
 
-        .container {
-            max-width: 1100px;
-            margin: -25px auto 30px;
-            padding: 0 20px;
-            position: relative;
-            z-index: 3;
-            display: grid;
-            gap: 20px;
-        }
+.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;gap:14px;}
+.spinner{width:26px;height:26px;border:2.5px solid var(--hairline);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-size:12.5px;color:var(--text-3);font-weight:600;}
 
-        .card {
-            background: var(--bg-card);
-            backdrop-filter: blur(20px);
-            border: 1px solid var(--border-glass);
-            border-radius: 20px;
-            padding: 24px;
-            transition: all 0.3s;
-        }
-        .card:hover { border-color: rgba(255,255,255,0.12); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
-        .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-        .card-title { font-size: 15px; font-weight: 800; display: flex; align-items: center; gap: 8px; letter-spacing: -0.3px; }
-        .card-title i { color: var(--accent-cyan); font-size: 16px; }
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;text-align:center;gap:8px;}
+.empty-state i{font-size:30px;color:var(--text-3);margin-bottom:6px;}
+.empty-state h3{font-size:15px;font-weight:700;}
+.empty-state p{font-size:12.5px;color:var(--text-3);}
 
-        .live-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 5px 12px;
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.2);
-            border-radius: 20px;
-            font-size: 10px;
-            font-weight: 800;
-            color: var(--accent-emerald);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        .live-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-emerald); box-shadow: 0 0 10px var(--accent-emerald); animation: pulse-live 2s infinite; }
-        @keyframes pulse-live { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(0.8); } }
+.timeline{display:flex;flex-direction:column;gap:0;}
+.timeline-item{display:flex;gap:14px;padding-bottom:20px;position:relative;}
+.timeline-item:not(:last-child)::before{content:'';position:absolute;left:5px;top:16px;bottom:0;width:1px;background:var(--hairline);}
+.timeline-dot{width:11px;height:11px;border-radius:50%;background:var(--bg);border:2px solid var(--blue);flex-shrink:0;margin-top:3px;position:relative;z-index:1;}
+.timeline-time{font-size:11px;color:var(--text-3);font-weight:700;font-family:var(--mono);margin-bottom:3px;}
+.timeline-text{font-size:13px;color:var(--text-2);font-weight:500;}
 
-        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
-        .info-item {
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: 12px;
-            padding: 15px;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-        .info-item::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-purple)); opacity: 0; transition: opacity 0.3s; }
-        .info-item:hover { transform: translateY(-3px); border-color: rgba(255,255,255,0.12); }
-        .info-item:hover::before { opacity: 1; }
-        .info-item label { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 6px; display: block; }
-        .info-item .value { font-size: 14px; font-weight: 700; color: var(--text-primary); word-break: break-word; }
-        .info-item .value.mono { font-family: 'Courier New', monospace; color: var(--accent-cyan); font-size: 12px; background: rgba(6, 182, 212, 0.08); padding: 3px 8px; border-radius: 5px; display: inline-block; border: 1px solid rgba(6, 182, 212, 0.15); }
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
 
-        .status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
-        .status-badge.online { background: rgba(16, 185, 129, 0.1); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.2); }
-        .status-badge.offline { background: rgba(244, 63, 94, 0.1); color: #fb7185; border: 1px solid rgba(244, 63, 94, 0.2); }
-        .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; box-shadow: 0 0 8px currentColor; }
-        .status-badge.online .status-dot { animation: pulse-dot 2s infinite; }
-        @keyframes pulse-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-        .sensor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; }
-        .sensor-card {
-            background: var(--bg-glass);
-            border: 1px solid var(--border-glass);
-            border-radius: 15px;
-            padding: 20px;
-            text-align: center;
-            transition: all 0.4s;
-            position: relative;
-            overflow: hidden;
-        }
-        .sensor-card:hover { transform: translateY(-5px); border-color: rgba(255,255,255,0.15); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
-        .sensor-icon { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin: 0 auto 12px; }
-        .sensor-icon.default { background: rgba(255,255,255,0.05); color: var(--text-secondary); }
-        .sensor-name { font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.5px; font-weight: 700; margin-bottom: 10px; }
-        .sensor-value { font-size: 28px; font-weight: 800; color: var(--text-primary); letter-spacing: -1px; line-height: 1; }
-        .sensor-unit { font-size: 12px; color: var(--text-muted); margin-top: 6px; font-weight: 600; }
-        .sensor-gauge { width: 100%; height: 4px; background: var(--bg-glass); border-radius: 4px; margin-top: 12px; overflow: hidden; }
-        .sensor-gauge-fill { height: 100%; border-radius: 4px; transition: width 1s; }
-
-        .timeline { position: relative; padding-left: 25px; }
-        .timeline::before { content: ''; position: absolute; left: 8px; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, var(--accent-cyan), var(--accent-purple), transparent); border-radius: 2px; }
-        .timeline-item { position: relative; padding-bottom: 20px; }
-        .timeline-dot { position: absolute; left: -21px; top: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--bg-secondary); border: 2px solid var(--accent-cyan); box-shadow: 0 0 10px rgba(6, 182, 212, 0.3); }
-        .timeline-content { background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: 10px; padding: 14px; }
-        .timeline-time { font-size: 10px; color: var(--accent-cyan); font-weight: 700; margin-bottom: 4px; font-family: 'Courier New', monospace; }
-        .timeline-text { font-size: 12px; color: var(--text-secondary); font-weight: 600; }
-
-        .loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 50px 20px; gap: 12px; }
-        .spinner { width: 40px; height: 40px; border: 3px solid var(--border-glass); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text { font-size: 13px; color: var(--text-muted); font-weight: 600; }
-        .empty-state { text-align: center; padding: 50px 20px; color: var(--text-muted); }
-        .empty-state i { font-size: 40px; margin-bottom: 12px; opacity: 0.2; }
-        .empty-state h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text-secondary); }
-
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg-primary); }
-        ::-webkit-scrollbar-thumb { background: var(--bg-secondary); border-radius: 3px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
-
-        /* RESPONSIVE */
-        @media (max-width: 768px) {
-            .hero { padding: 20px 15px 40px; }
-            .hero-content { flex-direction: column; }
-            .hero-title h1 { font-size: 20px; }
-            .container { padding: 0 15px; margin-top: -20px; }
-            .card { padding: 18px; border-radius: 16px; }
-            .info-grid { grid-template-columns: repeat(2, 1fr); }
-            .sensor-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
-            .sensor-value { font-size: 22px; }
-        }
-
-        @media (max-width: 480px) {
-            .info-grid { grid-template-columns: 1fr; }
-            .sensor-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-            .sensor-card { padding: 15px; }
-            .sensor-value { font-size: 20px; }
-            .device-avatar { width: 45px; height: 45px; font-size: 20px; }
-        }
-    </style>
+@media (max-width:600px){
+  .hero{padding:22px 18px 50px;}
+  .container{margin:-26px auto 30px;padding:0 14px;}
+  .card{padding:18px;border-radius:18px;}
+}
+</style>
 </head>
 <body>
-    <div class="hero">
-        <div class="hero-content">
-            <div class="hero-left">
-                <div class="device-avatar">📡</div>
-                <div>
-                    <h1 id="deviceName">Memuat Perangkat...</h1>
-                    <div class="hero-meta">
-                        <span><i class="fas fa-fingerprint"></i> <span id="deviceIdDisplay">{{ device_id }}</span></span>
-                        <span><i class="fas fa-clock"></i> <span id="lastUpdate">--:--:--</span></span>
-                    </div>
-                </div>
-            </div>
-            <a href="/" class="back-btn"><i class="fas fa-arrow-left"></i> Kembali</a>
+  <div class="hero">
+    <div class="hero-content">
+      <div class="hero-left">
+        <div class="device-avatar"><i class="fa-solid fa-satellite-dish"></i></div>
+        <div>
+          <h1 id="deviceName">Memuat…</h1>
+          <div class="hero-meta">
+            <span><i class="fa-solid fa-fingerprint"></i> <span id="deviceIdDisplay">{{ device_id }}</span></span>
+            <span><i class="fa-regular fa-clock"></i> <span id="lastUpdate">--:--:--</span></span>
+          </div>
         </div>
+      </div>
+      <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa-solid fa-circle-info"></i> Informasi Perangkat</div>
+        <span class="live-indicator" id="liveIndicator" style="display:none;"><span class="live-dot"></span> Live</span>
+      </div>
+      <div id="infoContent"><div class="loading-state"><div class="spinner"></div><div class="loading-text">Memuat…</div></div></div>
     </div>
 
-    <div class="container">
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title"><i class="fas fa-info-circle"></i> Informasi Perangkat</div>
-                <span class="live-indicator" id="liveIndicator" style="display: none;"><span class="live-dot"></span> Live</span>
-            </div>
-            <div id="infoContent"><div class="loading-state"><div class="spinner"></div><div class="loading-text">Memuat...</div></div></div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <div class="card-title"><i class="fas fa-wave-square"></i> Data Sensor Terbaru</div>
-                <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;" id="sensorMeta"></span>
-            </div>
-            <div id="sensorContent"><div class="loading-state"><div class="spinner"></div><div class="loading-text">Memuat...</div></div></div>
-        </div>
-
-        <div class="card">
-            <div class="card-header"><div class="card-title"><i class="fas fa-history"></i> Riwayat Aktivitas</div></div>
-            <div class="timeline" id="timelineContent">
-                <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-time">--:--:--</div><div class="timeline-text">Menunggu data...</div></div></div>
-            </div>
-        </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-title"><i class="fa-solid fa-wave-square"></i> Data Sensor Terbaru</div>
+        <span style="font-size:11px;color:var(--text-3);font-weight:600;" id="sensorMeta"></span>
+      </div>
+      <div id="sensorContent"><div class="loading-state"><div class="spinner"></div><div class="loading-text">Memuat…</div></div></div>
     </div>
 
-    <script>
-        const deviceId = '{{ device_id }}';
-        const sensorIcons = { 'temperature': 'fa-temperature-high', 'humidity': 'fa-droplet', 'moisture': 'fa-water', 'lux': 'fa-sun', 'co2': 'fa-cloud', 'voc': 'fa-wind', 'gas_level': 'fa-fire', 'air_quality': 'fa-lungs' };
-        const sensorColors = { 'temperature': '#f43f5e', 'humidity': '#8b5cf6', 'moisture': '#06b6d4', 'lux': '#f59e0b', 'co2': '#10b981', 'voc': '#ec4899', 'gas_level': '#f97316', 'air_quality': '#6366f1' };
+    <div class="card">
+      <div class="card-header"><div class="card-title"><i class="fa-solid fa-timeline"></i> Riwayat Aktivitas</div></div>
+      <div class="timeline" id="timelineContent">
+        <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-time">--:--:--</div><div class="timeline-text">Menunggu data…</div></div></div>
+      </div>
+    </div>
+  </div>
 
-        function getSensorIcon(key) { return sensorIcons[key] || 'fa-microchip'; }
-        function getSensorColor(key) { return sensorColors[key] || '#94a3b8'; }
-        function getGaugePercent(key, value) {
-            const ranges = { 'temperature': { min: 0, max: 50 }, 'humidity': { min: 0, max: 100 }, 'moisture': { min: 0, max: 100 }, 'lux': { min: 0, max: 1000 }, 'co2': { min: 0, max: 2000 }, 'gas_level': { min: 0, max: 100 } };
-            const range = ranges[key];
-            if (!range) return 50;
-            return Math.min(100, Math.max(0, ((value - range.min) / (range.max - range.min)) * 100));
-        }
+  <script>
+    const deviceId = '{{ device_id }}';
+    const sensorIcons = { 'temperature': 'fa-temperature-half', 'humidity': 'fa-droplet', 'moisture': 'fa-water', 'lux': 'fa-sun', 'co2': 'fa-cloud', 'voc': 'fa-wind', 'gas_level': 'fa-fire', 'air_quality': 'fa-lungs' };
+    const sensorColors = { 'temperature': '#ff453a', 'humidity': '#bf5af2', 'moisture': '#64d2ff', 'lux': '#ff9f0a', 'co2': '#30d158', 'voc': '#ff375f', 'gas_level': '#ff9f0a', 'air_quality': '#0a84ff' };
 
-        function formatUptime(seconds) {
-            if (!seconds) return '-';
-            const d = Math.floor(seconds / 86400);
-            const h = Math.floor((seconds % 86400) / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            if (d > 0) return `${d}h ${h}j ${m}m`;
-            if (h > 0) return `${h}j ${m}m`;
-            return `${m}m`;
-        }
+    function getSensorIcon(key) { return sensorIcons[key] || 'fa-microchip'; }
+    function getSensorColor(key) { return sensorColors[key] || 'rgba(235,235,245,.6)'; }
+    function getGaugePercent(key, value) {
+      const ranges = { 'temperature': { min: 0, max: 50 }, 'humidity': { min: 0, max: 100 }, 'moisture': { min: 0, max: 100 }, 'lux': { min: 0, max: 1000 }, 'co2': { min: 0, max: 2000 }, 'gas_level': { min: 0, max: 100 } };
+      const range = ranges[key];
+      if (!range) return 50;
+      return Math.min(100, Math.max(0, ((value - range.min) / (range.max - range.min)) * 100));
+    }
 
-        async function loadDeviceDetail() {
-            try {
-                const response = await fetch(`/api/v1/devices/${deviceId}`);
-                const data = await response.json();
-                if (data.success) {
-                    const device = data.device;
-                    document.getElementById('deviceName').textContent = device.device_name;
-                    document.getElementById('deviceIdDisplay').textContent = device.device_id;
-                    document.getElementById('lastUpdate').textContent = device.last_seen ? new Date(device.last_seen).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB' : 'Belum pernah aktif';
+    function formatUptime(seconds) {
+      if (!seconds) return '-';
+      const d = Math.floor(seconds / 86400);
+      const h = Math.floor((seconds % 86400) / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      if (d > 0) return `${d}h ${h}j ${m}m`;
+      if (h > 0) return `${h}j ${m}m`;
+      return `${m}m`;
+    }
 
-                    const liveInd = document.getElementById('liveIndicator');
-                    if (device.status === 'online') liveInd.style.display = 'inline-flex';
-                    else liveInd.style.display = 'none';
+    async function loadDeviceDetail() {
+      try {
+        const response = await fetch(`/api/v1/devices/${deviceId}`);
+        const data = await response.json();
+        if (data.success) {
+          const device = data.device;
+          document.getElementById('deviceName').textContent = device.device_name;
+          document.getElementById('deviceIdDisplay').textContent = device.device_id;
+          document.getElementById('lastUpdate').textContent = device.last_seen ? new Date(device.last_seen).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB' : 'Belum pernah aktif';
 
-                    const statusHtml = `<span class="status-badge ${device.status}"><span class="status-dot"></span>${device.status}</span>`;
-                    const wifiSsid = device.latest_data ? (device.latest_data.wifi_ssid || '-') : '-';
-                    const uptimeDisplay = formatUptime(device.latest_data ? (device.latest_data.uptime_seconds || 0) : 0);
+          const liveInd = document.getElementById('liveIndicator');
+          liveInd.style.display = device.status === 'online' ? 'inline-flex' : 'none';
 
-                    document.getElementById('infoContent').innerHTML = `
-                        <div class="info-grid">
-                            <div class="info-item"><label>ID Perangkat</label><span class="value mono">${device.device_id}</span></div>
-                            <div class="info-item"><label>Tipe</label><span class="value">${device.device_type || 'Universal'}</span></div>
-                            <div class="info-item"><label>Lokasi</label><span class="value">${device.location || '<span style="color: var(--text-muted);">Belum diatur</span>'}</span></div>
-                            <div class="info-item"><label>Status</label>${statusHtml}</div>
-                            <div class="info-item"><label>WiFi SSID</label><span class="value"><i class="fas fa-wifi" style="color: var(--accent-emerald); margin-right: 5px;"></i>${wifiSsid}</span></div>
-                            <div class="info-item"><label>Uptime</label><span class="value"><i class="fas fa-clock" style="color: var(--accent-cyan); margin-right: 5px;"></i>${uptimeDisplay}</span></div>
-                            <div class="info-item"><label>Terakhir Aktif</label><span class="value">${device.last_seen ? new Date(device.last_seen).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Belum pernah'}</span></div>
-                            <div class="info-item"><label>Koordinat</label><span class="value mono">${device.latitude && device.longitude ? `${device.latitude}, ${device.longitude}` : 'N/A'}</span></div>
-                        </div>
-                    `;
+          const statusHtml = `<span class="status-badge ${device.status}"><span class="status-dot"></span>${device.status}</span>`;
+          const wifiSsid = device.latest_data ? (device.latest_data.wifi_ssid || '-') : '-';
+          const uptimeDisplay = formatUptime(device.latest_data ? (device.latest_data.uptime_seconds || 0) : 0);
 
-                    if (device.latest_data && device.latest_data.data) {
-                        const sensorData = device.latest_data.data;
-                        const units = { 'temperature': '°C', 'humidity': '%', 'moisture': '%', 'lux': 'lux', 'co2': 'ppm', 'voc': 'ppb', 'gas_level': 'ppm', 'air_quality': 'AQI' };
-                        let sensorHtml = '<div class="sensor-grid">';
-                        for (const [key, value] of Object.entries(sensorData)) {
-                            const unit = units[key] || '';
-                            const displayName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-                            const icon = getSensorIcon(key);
-                            const color = getSensorColor(key);
-                            const gaugePercent = getGaugePercent(key, value);
-                            sensorHtml += `<div class="sensor-card"><div class="sensor-icon default" style="background: ${color}15; color: ${color};"><i class="fas ${icon}"></i></div><div class="sensor-name">${displayName}</div><div class="sensor-value" style="color: ${color};">${value}</div><div class="sensor-unit">${unit}</div><div class="sensor-gauge"><div class="sensor-gauge-fill" style="width: ${gaugePercent}%; background: linear-gradient(90deg, ${color}80, ${color});"></div></div></div>`;
-                        }
-                        sensorHtml += '</div>';
-                        document.getElementById('sensorContent').innerHTML = sensorHtml;
-                        document.getElementById('sensorMeta').innerHTML = `<i class="fas fa-microchip"></i> ${device.latest_data.sensor_type || 'Unknown'} &bull; <i class="fas fa-clock"></i> ${new Date(device.latest_data.timestamp).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
+          document.getElementById('infoContent').innerHTML = `
+            <div class="info-grid">
+              <div class="info-item"><label>ID Perangkat</label><span class="value mono">${device.device_id}</span></div>
+              <div class="info-item"><label>Tipe</label><span class="value">${device.device_type || 'Universal'}</span></div>
+              <div class="info-item"><label>Lokasi</label><span class="value">${device.location || '<span style="color:var(--text-3);">Belum diatur</span>'}</span></div>
+              <div class="info-item"><label>Status</label>${statusHtml}</div>
+              <div class="info-item"><label>WiFi SSID</label><span class="value"><i class="fa-solid fa-wifi" style="color:var(--green);margin-right:6px;font-size:12px;"></i>${wifiSsid}</span></div>
+              <div class="info-item"><label>Uptime</label><span class="value"><i class="fa-regular fa-clock" style="color:var(--blue);margin-right:6px;font-size:12px;"></i>${uptimeDisplay}</span></div>
+              <div class="info-item"><label>Terakhir Aktif</label><span class="value">${device.last_seen ? new Date(device.last_seen).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Belum pernah'}</span></div>
+              <div class="info-item"><label>Koordinat</label><span class="value mono">${device.latitude && device.longitude ? `${device.latitude}, ${device.longitude}` : 'N/A'}</span></div>
+            </div>
+          `;
 
-                        const now = new Date();
-                        document.getElementById('timelineContent').innerHTML = `
-                            <div class="timeline-item"><div class="timeline-dot" style="border-color: var(--accent-emerald);"></div><div class="timeline-content"><div class="timeline-time">${now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</div><div class="timeline-text">Data sensor terbaru diterima — ${Object.keys(sensorData).length} parameter aktif</div></div></div>
-                            <div class="timeline-item"><div class="timeline-dot" style="border-color: var(--accent-cyan);"></div><div class="timeline-content"><div class="timeline-time">${new Date(device.last_seen).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</div><div class="timeline-text">Perangkat terakhir kali terhubung ke gateway</div></div></div>
-                            <div class="timeline-item"><div class="timeline-dot" style="border-color: var(--accent-purple);"></div><div class="timeline-content"><div class="timeline-time">--:--:--</div><div class="timeline-text">Perangkat terdaftar dalam sistem monitoring</div></div></div>
-                        `;
-                    } else {
-                        document.getElementById('sensorContent').innerHTML = `<div class="empty-state"><i class="fas fa-satellite-dish"></i><h3>Belum Ada Data</h3><p>Perangkat belum mengirimkan data sensor</p></div>`;
-                        document.getElementById('sensorMeta').textContent = '';
-                    }
-                }
-            } catch (error) {
-                document.getElementById('infoContent').innerHTML = `<div class="empty-state"><i class="fas fa-triangle-exclamation"></i><h3>Koneksi Gagal</h3><p>Tidak dapat memuat data perangkat.</p></div>`;
+          if (device.latest_data && device.latest_data.data) {
+            const sensorData = device.latest_data.data;
+            const units = { 'temperature': '°C', 'humidity': '%', 'moisture': '%', 'lux': 'lux', 'co2': 'ppm', 'voc': 'ppb', 'gas_level': 'ppm', 'air_quality': 'AQI' };
+            let sensorHtml = '<div class="sensor-grid">';
+            for (const [key, value] of Object.entries(sensorData)) {
+              const unit = units[key] || '';
+              const displayName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+              const icon = getSensorIcon(key);
+              const color = getSensorColor(key);
+              const gaugePercent = getGaugePercent(key, value);
+              sensorHtml += `<div class="sensor-card"><div class="sensor-icon" style="background:${color}1f;color:${color};"><i class="fa-solid ${icon}"></i></div><div class="sensor-name">${displayName}</div><div class="sensor-value" style="color:${color};">${value}</div><div class="sensor-unit">${unit}</div><div class="sensor-gauge"><div class="sensor-gauge-fill" style="width:${gaugePercent}%;background:linear-gradient(90deg, ${color}90, ${color});"></div></div></div>`;
             }
-        }
+            sensorHtml += '</div>';
+            document.getElementById('sensorContent').innerHTML = sensorHtml;
+            document.getElementById('sensorMeta').innerHTML = `<i class="fa-solid fa-microchip"></i> ${device.latest_data.sensor_type || 'Unknown'} &bull; <i class="fa-regular fa-clock"></i> ${new Date(device.latest_data.timestamp).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
 
-        loadDeviceDetail();
-        setInterval(loadDeviceDetail, 10000);
-    </script>
+            const now = new Date();
+            document.getElementById('timelineContent').innerHTML = `
+              <div class="timeline-item"><div class="timeline-dot" style="border-color:var(--green);"></div><div class="timeline-content"><div class="timeline-time">${now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</div><div class="timeline-text">Data sensor terbaru diterima — ${Object.keys(sensorData).length} parameter aktif</div></div></div>
+              <div class="timeline-item"><div class="timeline-dot" style="border-color:var(--blue);"></div><div class="timeline-content"><div class="timeline-time">${new Date(device.last_seen).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</div><div class="timeline-text">Perangkat terakhir kali terhubung ke gateway</div></div></div>
+              <div class="timeline-item"><div class="timeline-dot" style="border-color:var(--purple);"></div><div class="timeline-content"><div class="timeline-time">--:--:--</div><div class="timeline-text">Perangkat terdaftar dalam sistem monitoring</div></div></div>
+            `;
+          } else {
+            document.getElementById('sensorContent').innerHTML = `<div class="empty-state"><i class="fa-solid fa-satellite-dish"></i><h3>Belum Ada Data</h3><p>Perangkat belum mengirimkan data sensor</p></div>`;
+            document.getElementById('sensorMeta').textContent = '';
+          }
+        }
+      } catch (error) {
+        document.getElementById('infoContent').innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><h3>Koneksi Gagal</h3><p>Tidak dapat memuat data perangkat.</p></div>`;
+      }
+    }
+
+    loadDeviceDetail();
+    setInterval(loadDeviceDetail, 10000);
+  </script>
 </body>
 </html>
