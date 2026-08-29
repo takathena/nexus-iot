@@ -20,19 +20,106 @@
     --font: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', sans-serif;
     --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
   }
+
+  /* ============ LIGHT THEME ============ */
+  [data-theme="light"] {
+    --bg: #f0f0f5;
+    --surface: rgba(255,255,255,.7);
+    --surface-solid: #e5e5ea;
+    --hairline: rgba(0,0,0,.10);
+    --text: #1c1c1e;
+    --text-2: rgba(60,60,67,.6);
+    --text-3: rgba(60,60,67,.35);
+    --blue: #007aff;
+    --red: #ff3b30;
+  }
+
+  /* Background untuk lightmode */
+  [data-theme="light"] body::before {
+    background: radial-gradient(38% 30% at 22% 20%, rgba(0,122,255,.12), transparent 65%),
+                 radial-gradient(32% 26% at 82% 78%, rgba(175,82,222,.08), transparent 65%),
+                 radial-gradient(45% 40% at 50% 100%, rgba(0,122,255,.04), transparent 70%);
+  }
+
+  /* Background body langsung */
+  [data-theme="light"] body {
+    background: #f0f0f5;
+  }
+
+  [data-theme="light"] .card {
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    box-shadow: 0 30px 80px rgba(0,0,0,.15), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+
+  [data-theme="light"] .mark {
+    background: linear-gradient(155deg, #e5e5ea, #d1d1d6);
+    border: 1px solid var(--hairline);
+    box-shadow: 0 8px 24px rgba(0,122,255,.15), inset 0 1px 0 rgba(255,255,255,.5);
+  }
+
+  [data-theme="light"] .field-wrap input {
+    background: rgba(0,0,0,.04);
+    border: 1px solid var(--hairline);
+    color: var(--text);
+  }
+  [data-theme="light"] .field-wrap input::placeholder {
+    color: var(--text-3);
+  }
+  [data-theme="light"] .field-wrap input:focus {
+    border-color: rgba(0,122,255,.5);
+    background: rgba(0,122,255,.06);
+    box-shadow: 0 0 0 4px rgba(0,122,255,.1);
+  }
+  [data-theme="light"] .field-wrap i {
+    color: var(--text-3);
+  }
+
+  [data-theme="light"] .submit {
+    background: var(--blue);
+    color: #fff;
+    box-shadow: 0 8px 20px rgba(0,122,255,.25);
+  }
+  [data-theme="light"] .submit:hover {
+    background: #0066d9;
+    box-shadow: 0 10px 26px rgba(0,122,255,.32);
+  }
+
+  [data-theme="light"] .error {
+    background: rgba(255,59,48,.08);
+    border: 1px solid rgba(255,59,48,.2);
+    color: #ff3b30;
+  }
+
+  /* Theme toggle button di lightmode */
+  [data-theme="light"] .theme-toggle-login {
+    background: rgba(255,255,255,.85);
+    border: 1px solid var(--hairline);
+    box-shadow: 0 8px 24px rgba(0,0,0,.1);
+    color: var(--text-2);
+  }
+  [data-theme="light"] .theme-toggle-login:hover {
+    background: #ffffff;
+    color: var(--text);
+  }
+
+  /* ============ END LIGHT THEME ============ */
+
   *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
   html,body{height:100%;}
   body{
     font-family:var(--font);
-    background:#000;
+    background:var(--bg);
     color:var(--text);
     min-height:100vh;
-    display:flex;align-items:center;justify-content:center;
+    display:flex;
+    align-items:center;
+    justify-content:center;
     padding:24px;
     position:relative;
     overflow:hidden;
+    transition: background 0.3s ease, color 0.3s ease;
   }
-  /* Ambient aurora backdrop, restrained */
   body::before{
     content:'';
     position:absolute;
@@ -43,6 +130,7 @@
       radial-gradient(45% 40% at 50% 100%, rgba(10,132,255,.06), transparent 70%);
     filter:blur(60px);
     animation:drift 18s ease-in-out infinite alternate;
+    transition: background 0.3s ease;
   }
   @keyframes drift{
     0%{transform:translate3d(0,0,0) scale(1);}
@@ -65,6 +153,7 @@
     padding:44px 36px 36px;
     box-shadow:0 30px 80px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.06);
     animation:rise .6s cubic-bezier(.16,1,.3,1);
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
   @keyframes rise{from{opacity:0;transform:translateY(14px) scale(.98);}to{opacity:1;transform:translateY(0) scale(1);}}
 
@@ -77,6 +166,7 @@
     display:flex;align-items:center;justify-content:center;
     font-size:22px;color:var(--blue);
     box-shadow:0 8px 24px rgba(10,132,255,.18), inset 0 1px 0 rgba(255,255,255,.06);
+    transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
   }
   h1{
     text-align:center;
@@ -84,6 +174,7 @@
     font-weight:700;
     letter-spacing:-.02em;
     margin-bottom:6px;
+    color:var(--text);
   }
   .sub{
     text-align:center;
@@ -117,11 +208,14 @@
     letter-spacing:.06em;
     margin-bottom:7px;
     padding-left:2px;
+    transition: color 0.3s ease;
   }
   .field-wrap{position:relative;}
   .field-wrap i{
     position:absolute;left:15px;top:50%;transform:translateY(-50%);
-    color:var(--text-3);font-size:14px;
+    color:var(--text-3);
+    font-size:14px;
+    transition: color 0.3s ease;
   }
   .field-wrap input{
     width:100%;
@@ -133,7 +227,7 @@
     font-family:inherit;
     color:var(--text);
     outline:none;
-    transition:border-color .2s, background .2s, box-shadow .2s;
+    transition:border-color .2s, background .2s, box-shadow .2s, color 0.3s ease;
   }
   .field-wrap input::placeholder{color:var(--text-3);}
   .field-wrap input:focus{
@@ -167,11 +261,61 @@
     font-size:11px;
     color:var(--text-3);
     letter-spacing:.02em;
+    transition: color 0.3s ease;
+  }
+
+  /* ============ THEME TOGGLE BUTTON (BOTTOM LEFT) ============ */
+  .theme-toggle-login {
+    position: fixed;
+    bottom: 24px;
+    left: 24px;
+    z-index: 100;
+    background: rgba(28,28,30,.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--hairline);
+    border-radius: 14px;
+    padding: 12px 18px;
+    color: var(--text-2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font);
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  }
+  .theme-toggle-login:hover {
+    background: var(--surface-solid);
+    color: var(--text);
+  }
+  .theme-toggle-login i {
+    font-size: 16px;
+  }
+
+  @media (max-width:480px){
+    .card{padding:36px 24px 28px;}
+    .mark{width:48px;height:48px;font-size:18px;}
+    .theme-toggle-login {
+      bottom: 16px;
+      left: 16px;
+      padding: 10px 14px;
+      font-size: 12px;
+    }
   }
 </style>
 </head>
 <body>
   <div class="noise"></div>
+
+  <!-- Theme Toggle - Bottom Left -->
+  <button class="theme-toggle-login" onclick="toggleTheme()" id="themeToggleBtn">
+    <i class="fa-solid fa-moon" id="themeIcon"></i>
+    <span id="themeLabel">Tema Gelap</span>
+  </button>
+
   <div class="card">
     <div class="mark"><i class="fa-solid fa-satellite-dish"></i></div>
     <h1>NEXUS</h1>
@@ -201,5 +345,37 @@
 
     <div class="foot">NEXUS IoT Platform &nbsp;·&nbsp; 2026</div>
   </div>
+
+  <script>
+    // ============ THEME TOGGLE ============
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('nexus-theme', newTheme);
+      updateThemeUI(newTheme);
+    }
+
+    function updateThemeUI(theme) {
+      const icon = document.getElementById('themeIcon');
+      const label = document.getElementById('themeLabel');
+      if (theme === 'light') {
+        icon.className = 'fa-solid fa-sun';
+        label.textContent = 'Tema Terang';
+      } else {
+        icon.className = 'fa-solid fa-moon';
+        label.textContent = 'Tema Gelap';
+      }
+    }
+
+    function loadTheme() {
+      const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      updateThemeUI(savedTheme);
+    }
+
+    loadTheme();
+    // ============ END THEME TOGGLE ============
+  </script>
 </body>
 </html>
