@@ -1,8 +1,3 @@
-Baik! Berikut **README.md** lengkap untuk project NEXUS IoT Platform:
-
----
-
-```markdown
 # NEXUS IoT - Universal IoT Monitoring Platform
 
 Platform monitoring IoT universal dengan dashboard real-time, peta interaktif, dan multi-chart analytics. Dibangun menggunakan Flask, Chart.js, dan Leaflet.js.
