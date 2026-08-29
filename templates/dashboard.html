@@ -43,6 +43,217 @@
   --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
   --ease: cubic-bezier(.16,1,.3,1);
 }
+
+/* ============ LIGHT THEME ============ */
+[data-theme="light"] {
+  --bg: #f2f2f7;
+  --bg-radial: radial-gradient(60% 40% at 15% 0%, rgba(10,132,255,.05), transparent 60%),
+               radial-gradient(50% 35% at 100% 100%, rgba(191,90,242,.03), transparent 60%);
+  --surface: rgba(255,255,255,.7);
+  --surface-solid: #e5e5ea;
+  --surface-2: rgba(0,0,0,.04);
+  --surface-2-hover: rgba(0,0,0,.07);
+  --hairline: rgba(0,0,0,.10);
+  --hairline-soft: rgba(0,0,0,.06);
+  --text: #1c1c1e;
+  --text-2: rgba(60,60,67,.6);
+  --text-3: rgba(60,60,67,.35);
+  --blue: #007aff;
+  --green: #34c759;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --purple: #af52de;
+  --teal: #5ac8fa;
+}
+
+[data-theme="light"] body::before {
+  background: var(--bg-radial);
+}
+
+[data-theme="light"] .sidebar {
+  background: rgba(242,242,247,.85);
+  border-right: 1px solid var(--hairline-soft);
+}
+
+[data-theme="light"] .logo-ring {
+  background: linear-gradient(155deg, #e5e5ea, #d1d1d6);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 6px 18px rgba(0,122,255,.15);
+}
+
+[data-theme="light"] .nav-item.active {
+  background: linear-gradient(180deg, rgba(0,122,255,.12), rgba(0,122,255,.05));
+  color: #007aff;
+}
+[data-theme="light"] .nav-item.active .badge {
+  background: rgba(0,122,255,.15);
+  color: #007aff;
+}
+
+[data-theme="light"] .topbar {
+  background: rgba(242,242,247,.7);
+  border-bottom: 1px solid var(--hairline-soft);
+}
+
+[data-theme="light"] .search-box input {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+}
+[data-theme="light"] .search-box input:focus {
+  border-color: rgba(0,122,255,.5);
+  background: rgba(0,122,255,.06);
+}
+
+[data-theme="light"] .datetime-display {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+
+[data-theme="light"] .card,
+[data-theme="light"] .ring-card,
+[data-theme="light"] .stat-card,
+[data-theme="light"] .section-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  backdrop-filter: blur(20px);
+}
+
+[data-theme="light"] .ring-track {
+  stroke: rgba(0,0,0,.07);
+}
+
+[data-theme="light"] .stat-card:hover {
+  border-color: rgba(0,0,0,.16);
+}
+
+[data-theme="light"] .device-table tbody tr:hover {
+  background: rgba(0,0,0,.025);
+}
+
+[data-theme="light"] .device-id {
+  background: rgba(0,0,0,.05);
+}
+
+[data-theme="light"] .action-btn {
+  border: 1px solid var(--hairline);
+  background: var(--surface-2);
+  color: var(--text-3);
+}
+
+[data-theme="light"] .graph-tab.active {
+  background: var(--surface-solid);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0,0,0,.1);
+}
+
+[data-theme="light"] .graph-container {
+  background: rgba(0,0,0,.02);
+  border: 1px solid var(--hairline-soft);
+}
+
+[data-theme="light"] .btn-secondary {
+  background: var(--surface-2);
+  color: var(--text-2);
+  border: 1px solid var(--hairline);
+}
+[data-theme="light"] .btn-secondary:hover {
+  background: var(--surface-2-hover);
+  color: var(--text);
+}
+
+[data-theme="light"] .modal-content {
+  background: rgba(242,242,247,.95);
+  border: 1px solid var(--hairline);
+}
+
+[data-theme="light"] .api-key-display {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
+
+[data-theme="light"] .toast {
+  background: rgba(242,242,247,.92);
+  border: 1px solid var(--hairline);
+}
+
+[data-theme="light"] .status-badge.online {
+  background: rgba(52,199,89,.12);
+  color: #34c759;
+}
+[data-theme="light"] .status-badge.offline {
+  background: rgba(255,59,48,.12);
+  color: #ff3b30;
+}
+
+[data-theme="light"] .nav-item:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+[data-theme="light"] .sidebar-footer .nav-item:hover {
+  background: rgba(255,59,48,.1);
+  color: #ff3b30;
+}
+
+[data-theme="light"] .device-select-wrapper select {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+}
+
+[data-theme="light"] .leaflet-control-zoom a {
+  background: rgba(255,255,255,.9) !important;
+  color: #1c1c1e !important;
+  border-color: rgba(0,0,0,.1) !important;
+}
+
+[data-theme="light"] .leaflet-control-zoom a:hover {
+  background: #fff !important;
+}
+
+[data-theme="light"] .leaflet-tile-pane {
+  filter: none !important;
+}
+[data-theme="light"] #mapPreview,
+[data-theme="light"] #mapFull {
+  filter: none !important;
+}
+
+[data-theme="light"] .chartjs-tooltip {
+  background: rgba(255,255,255,.95) !important;
+  border-color: rgba(0,0,0,.1) !important;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,.15);
+}
+
+[data-theme="light"] .modal-close {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--text-2);
+}
+
+[data-theme="light"] .form-group input,
+[data-theme="light"] .form-group select,
+[data-theme="light"] .form-group textarea {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+}
+
+[data-theme="light"] .form-group input:focus,
+[data-theme="light"] .form-group select:focus {
+  border-color: rgba(0,122,255,.55);
+}
+
+[data-theme="light"] .ring-caption {
+  color: var(--text-2);
+}
+
+/* ============ END LIGHT THEME ============ */
+
 *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
 body{
   font-family:var(--font);
@@ -51,6 +262,7 @@ body{
   min-height:100vh;
   overflow-x:hidden;
   position:relative;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 body::before{
   content:'';
@@ -58,11 +270,16 @@ body::before{
   background:var(--bg-radial);
   pointer-events:none;
   z-index:0;
+  transition: background 0.3s ease;
 }
 
 .leaflet-pane,.leaflet-tile-pane,.leaflet-overlay-pane,.leaflet-shadow-pane,.leaflet-marker-pane,.leaflet-tooltip-pane,.leaflet-popup-pane{z-index:1 !important;}
 .leaflet-control{z-index:2 !important;}
-#mapPreview,#mapFull{position:relative;z-index:1;filter:grayscale(.15) invert(1) contrast(.9) brightness(.92) hue-rotate(180deg);}
+#mapPreview,#mapFull{position:relative;z-index:1;filter:grayscale(.15) invert(1) contrast(.9) brightness(.92) hue-rotate(180deg);transition: filter 0.3s ease;}
+[data-theme="light"] #mapPreview,
+[data-theme="light"] #mapFull {
+  filter: none !important;
+}
 
 /* ============ SIDEBAR ============ */
 .sidebar{
@@ -73,7 +290,7 @@ body::before{
   border-right:1px solid var(--hairline-soft);
   position:fixed; top:0; left:0; bottom:0;
   z-index:100;
-  transition:width .35s var(--ease);
+  transition:width .35s var(--ease), background .3s ease, border-color .3s ease;
   overflow-y:auto; overflow-x:hidden;
   display:flex; flex-direction:column;
 }
@@ -92,7 +309,7 @@ body::before{
   font-size:16px;color:var(--blue);
   flex-shrink:0;
   cursor:pointer;
-  transition:transform .25s var(--ease), box-shadow .25s;
+  transition:transform .25s var(--ease), box-shadow .25s, background .3s ease, border-color .3s ease;
   box-shadow:0 6px 18px rgba(10,132,255,.15);
 }
 .logo-ring:hover{transform:scale(1.08);}
@@ -103,6 +320,7 @@ body::before{
 .nav-section{
   font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;
   color:var(--text-3); margin:20px 12px 10px;
+  transition: color 0.3s ease;
 }
 .sidebar.collapsed .nav-section{display:none;}
 
@@ -136,6 +354,36 @@ body::before{
 .sidebar-footer .nav-item{color:#ff8078;}
 .sidebar-footer .nav-item:hover{background:rgba(255,69,58,.1);color:#ff8078;}
 
+/* Theme toggle button in sidebar footer */
+.theme-toggle-btn {
+  display:flex;
+  align-items:center;
+  gap:13px;
+  padding:10px 14px;
+  border-radius:11px;
+  cursor:pointer;
+  color:var(--text-3);
+  font-size:13.5px;
+  font-weight:600;
+  white-space:nowrap;
+  transition:background .2s, color .2s;
+  background:transparent;
+  border:none;
+  width:100%;
+  font-family:var(--font);
+}
+.theme-toggle-btn:hover {
+  background:var(--surface-2);
+  color:var(--text-2);
+}
+.theme-toggle-btn .icon {
+  width:19px;
+  text-align:center;
+  font-size:14.5px;
+}
+.sidebar.collapsed .theme-toggle-btn .label{display:none;}
+.sidebar.collapsed .theme-toggle-btn{justify-content:center;}
+
 /* ============ MAIN ============ */
 .main-content{margin-left:var(--sidebar-w);transition:margin-left .35s var(--ease);position:relative;z-index:1;min-height:100vh;}
 .main-content.expanded{margin-left:var(--sidebar-w-collapsed);}
@@ -149,6 +397,7 @@ body::before{
   -webkit-backdrop-filter:blur(24px) saturate(160%);
   border-bottom:1px solid var(--hairline-soft);
   flex-wrap:wrap; gap:14px;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 .topbar-left{display:flex;align-items:center;gap:12px;}
 .page-indicator{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(48,209,88,.15);animation:pulse-dot 2.4s infinite;}
@@ -174,6 +423,7 @@ body::before{
   background:var(--surface-2);
   border:1px solid var(--hairline);
   border-radius:11px;
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 .datetime-display .date{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;font-weight:600;}
 .datetime-display .time{font-size:15px;font-weight:700;font-family:var(--mono);color:var(--text);}
@@ -196,10 +446,11 @@ body::before{
   display:flex; flex-direction:column; align-items:center; justify-content:center;
   gap:6px;
   animation:rise .5s var(--ease);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 .ring-wrap{position:relative;width:150px;height:150px;}
 .ring-wrap svg{transform:rotate(-90deg);}
-.ring-track{fill:none;stroke:rgba(255,255,255,.07);stroke-width:11;}
+.ring-track{fill:none;stroke:rgba(255,255,255,.07);stroke-width:11;transition: stroke 0.3s ease;}
 .ring-progress{fill:none;stroke:url(#ringGrad);stroke-width:11;stroke-linecap:round;transition:stroke-dashoffset 1s var(--ease);}
 .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .ring-center .pct{font-size:30px;font-weight:800;letter-spacing:-.02em;font-family:var(--mono);}
@@ -218,7 +469,7 @@ body::before{
   border-radius:20px;
   padding:22px;
   display:flex; flex-direction:column; gap:16px;
-  transition:transform .3s var(--ease), border-color .3s;
+  transition:transform .3s var(--ease), border-color .3s, background .3s ease;
   cursor:default;
   animation:rise .5s var(--ease) backwards;
 }
@@ -245,6 +496,7 @@ body::before{
   margin-bottom:20px;
   overflow:hidden;
   animation:rise .5s var(--ease);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 .section-header{
   padding:19px 24px;
@@ -336,6 +588,7 @@ body::before{
   max-width:420px;width:100%;max-height:90vh;overflow-y:auto;
   animation:modalIn .3s var(--ease);
   box-shadow:0 30px 70px rgba(0,0,0,.6);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 @keyframes modalIn{from{opacity:0;transform:scale(.94) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
@@ -376,6 +629,8 @@ body::before{
   .sidebar{width:80px;}
   .sidebar .title,.sidebar .nav-item .label,.sidebar .nav-item .badge,.sidebar .nav-section{display:none;}
   .sidebar .nav-item{justify-content:center;}
+  .sidebar .theme-toggle-btn .label{display:none;}
+  .sidebar .theme-toggle-btn{justify-content:center;}
   .main-content{margin-left:80px;}
   .content-area{padding:22px;}
   .stats-grid{grid-template-columns:1fr 1fr;}
@@ -413,6 +668,11 @@ body::before{
       <div class="nav-item" onclick="showSection('devices')"><span class="icon"><i class="fa-solid fa-microchip"></i></span><span class="label">Perangkat</span><span class="badge" id="deviceBadge">0</span></div>
     </nav>
     <div class="sidebar-footer">
+      <!-- Theme Toggle Button -->
+      <button class="theme-toggle-btn" onclick="toggleTheme()" id="themeToggleBtn">
+        <span class="icon"><i class="fa-solid fa-moon" id="themeIcon"></i></span>
+        <span class="label" id="themeLabel">Tema Gelap</span>
+      </button>
       <div class="nav-item" onclick="logout()">
         <span class="icon"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
         <span class="label">Logout</span>
@@ -488,8 +748,23 @@ body::before{
       <!-- MAP SECTION -->
       <div id="mapSection" style="display:none;">
         <div class="section-card">
-          <div class="section-header"><div class="section-title"><i class="fa-solid fa-globe"></i> Peta Interaktif</div></div>
-          <div class="section-body"><div id="mapFull"></div><button class="btn btn-success" id="saveLocationBtn" style="display:none;margin-top:12px;"><i class="fa-solid fa-floppy-disk"></i> Simpan Lokasi</button></div>
+          <div class="section-header">
+            <div class="section-title"><i class="fa-solid fa-globe"></i> Peta Interaktif</div>
+            <!-- Dropdown untuk memilih perangkat di peta -->
+            <div class="device-select-wrapper">
+              <select id="mapDeviceSelect" style="min-width:200px;">
+                <option value="">Pilih Perangkat…</option>
+              </select>
+              <i class="fa-solid fa-chevron-down"></i>
+            </div>
+          </div>
+          <div class="section-body">
+            <div id="mapFull"></div>
+            <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+              <button class="btn btn-success" id="saveLocationBtn" style="display:none;"><i class="fa-solid fa-floppy-disk"></i> Simpan Lokasi</button>
+              <span id="mapSelectedInfo" style="font-size:12px;color:var(--text-3);display:flex;align-items:center;"></span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -594,11 +869,41 @@ body::before{
     let mapPreview, mapFull, marker;
     let combinedChart, sensorChart1, sensorChart2;
     let selectedLat = null, selectedLng = null;
+    let selectedMapDeviceId = null;
     let currentDevice1 = null, currentDevice2 = null;
     let combinedHours = 24, individual1Hours = 24, individual2Hours = 24;
     let allDevices = [];
 
     const CHART_FONT = "'Inter', -apple-system, sans-serif";
+
+    // ============ THEME TOGGLE ============
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('nexus-theme', newTheme);
+      updateThemeUI(newTheme);
+    }
+
+    function updateThemeUI(theme) {
+      const icon = document.getElementById('themeIcon');
+      const label = document.getElementById('themeLabel');
+      if (theme === 'light') {
+        icon.className = 'fa-solid fa-sun';
+        label.textContent = 'Tema Terang';
+      } else {
+        icon.className = 'fa-solid fa-moon';
+        label.textContent = 'Tema Gelap';
+      }
+    }
+
+    function loadTheme() {
+      const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      updateThemeUI(savedTheme);
+    }
+
+    // ============ END THEME TOGGLE ============
 
     function showToast(msg, type = 'success') {
       const t = document.getElementById('toast');
@@ -631,7 +936,10 @@ body::before{
       document.querySelectorAll('.sidebar-nav .nav-item').forEach((item, i) => {
         item.classList.toggle('active', ['dashboard','map','graph','devices'][i] === section);
       });
-      if (section === 'map' && !mapFull) setTimeout(initFullMap, 100);
+      if (section === 'map' && !mapFull) {
+        setTimeout(initFullMap, 100);
+        setTimeout(populateMapDeviceSelect, 150);
+      }
       if (section === 'dashboard') setTimeout(() => { if (mapPreview) mapPreview.invalidateSize(); }, 100);
     }
 
@@ -651,12 +959,57 @@ body::before{
       mapFull = L.map('mapFull').setView([-2.5489, 118.0149], 5);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mapFull);
       mapFull.on('click', e => {
-        selectedLat = e.latlng.lat; selectedLng = e.latlng.lng;
+        selectedLat = e.latlng.lat;
+        selectedLng = e.latlng.lng;
         if (marker) marker.setLatLng(e.latlng);
         else marker = L.marker(e.latlng).addTo(mapFull);
         document.getElementById('saveLocationBtn').style.display = 'inline-flex';
+        document.getElementById('saveLocationBtn').textContent = `Simpan Lokasi ke ${selectedMapDeviceId || 'perangkat'}`;
+        if (selectedMapDeviceId) {
+          const info = document.getElementById('mapSelectedInfo');
+          info.textContent = `📍 Klik peta untuk memilih lokasi untuk: ${selectedMapDeviceId}`;
+        }
       });
     }
+
+    function populateMapDeviceSelect() {
+      const select = document.getElementById('mapDeviceSelect');
+      select.innerHTML = '<option value="">Pilih Perangkat…</option>';
+      allDevices.forEach(d => {
+        select.innerHTML += `<option value="${d.device_id}">${d.device_name} (${d.device_id})</option>`;
+      });
+      // Pilih perangkat pertama jika ada
+      if (allDevices.length > 0) {
+        select.value = allDevices[0].device_id;
+        selectedMapDeviceId = allDevices[0].device_id;
+        updateMapDeviceInfo();
+      }
+    }
+
+    function updateMapDeviceInfo() {
+      const info = document.getElementById('mapSelectedInfo');
+      if (selectedMapDeviceId) {
+        info.textContent = `📍 Perangkat terpilih: ${selectedMapDeviceId}`;
+        document.getElementById('saveLocationBtn').textContent = `Simpan Lokasi ke ${selectedMapDeviceId}`;
+      } else {
+        info.textContent = '⚠️ Pilih perangkat terlebih dahulu';
+        document.getElementById('saveLocationBtn').textContent = 'Simpan Lokasi';
+      }
+    }
+
+    // Event listener untuk dropdown peta
+    document.getElementById('mapDeviceSelect').addEventListener('change', function() {
+      selectedMapDeviceId = this.value;
+      updateMapDeviceInfo();
+      // Reset marker
+      if (marker) {
+        marker.remove();
+        marker = null;
+      }
+      selectedLat = null;
+      selectedLng = null;
+      document.getElementById('saveLocationBtn').style.display = 'none';
+    });
 
     function loadMarkers(map) {
       allDevices.forEach(d => {
@@ -715,6 +1068,9 @@ body::before{
             select1.innerHTML += `<option value="${d.device_id}">${d.device_name}</option>`;
             select2.innerHTML += `<option value="${d.device_id}">${d.device_name}</option>`;
           });
+
+          // Update map dropdown juga
+          populateMapDeviceSelect();
 
           if (savedDevice1) {
             select1.value = savedDevice1;
@@ -914,6 +1270,46 @@ body::before{
       } catch (e) { console.error(e); }
     }
 
+    // Event listener untuk save location button - FIXED
+    document.getElementById('saveLocationBtn').addEventListener('click', function() {
+      const deviceId = selectedMapDeviceId;
+      if (!deviceId) {
+        showToast('Pilih perangkat terlebih dahulu!', 'error');
+        return;
+      }
+      if (!selectedLat || !selectedLng) {
+        showToast('Klik peta untuk memilih lokasi!', 'error');
+        return;
+      }
+
+      fetch(`/api/v1/devices/${deviceId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latitude: selectedLat, longitude: selectedLng })
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          showToast(`Lokasi untuk ${deviceId} berhasil disimpan!`, 'success');
+          loadDashboard();
+          // Reset marker
+          if (marker) {
+            marker.remove();
+            marker = null;
+          }
+          selectedLat = null;
+          selectedLng = null;
+          document.getElementById('saveLocationBtn').style.display = 'none';
+        } else {
+          showToast(data.error || 'Gagal menyimpan lokasi', 'error');
+        }
+      })
+      .catch(e => {
+        showToast('Terjadi kesalahan saat menyimpan lokasi', 'error');
+        console.error(e);
+      });
+    });
+
     document.getElementById('deviceSelect1').addEventListener('change', function() {
       currentDevice1 = this.value;
       localStorage.setItem('selectedDevice1', currentDevice1);
@@ -940,16 +1336,8 @@ body::before{
       });
     });
 
-    document.getElementById('saveLocationBtn').addEventListener('click', function() {
-      const deviceId = document.getElementById('deviceSelect1').value;
-      if (!deviceId || !selectedLat) { showToast('Pilih device dan klik peta!', 'error'); return; }
-      fetch(`/api/v1/devices/${deviceId}`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ latitude: selectedLat, longitude: selectedLng })
-      }).then(r => r.json()).then(data => {
-        if (data.success) { showToast('Lokasi disimpan!', 'success'); loadDashboard(); }
-      });
-    });
+    // Load theme on page load
+    loadTheme();
 
     updateDateTime();
     setInterval(updateDateTime, 1000);
