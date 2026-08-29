@@ -1,448 +1,688 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NEXUS IoT - Mobile</title>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-card: rgba(30, 41, 59, 0.7);
-            --bg-glass: rgba(255, 255, 255, 0.03);
-            --border-glass: rgba(255, 255, 255, 0.08);
-            --accent-cyan: #06b6d4;
-            --accent-purple: #8b5cf6;
-            --accent-emerald: #10b981;
-            --accent-rose: #f43f5e;
-            --accent-amber: #f59e0b;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --text-muted: #64748b;
-        }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>NEXUS — Mobile</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+<style>
+:root{
+  --bg:#000;
+  --surface: rgba(28,28,30,.6);
+  --surface-2: rgba(255,255,255,.05);
+  --hairline: rgba(255,255,255,.09);
+  --hairline-soft: rgba(255,255,255,.06);
+  --text:#f5f5f7;
+  --text-2: rgba(235,235,245,.62);
+  --text-3: rgba(235,235,245,.34);
+  --blue:#0a84ff;
+  --green:#30d158;
+  --red:#ff453a;
+  --orange:#ff9f0a;
+  --purple:#bf5af2;
+  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+  --ease: cubic-bezier(.16,1,.3,1);
+}
 
-        body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            overflow-x: hidden;
-            -webkit-tap-highlight-color: transparent;
-        }
+/* ============ LIGHT THEME ============ */
+[data-theme="light"] {
+  --bg: #f0f0f5;
+  --surface: rgba(255,255,255,.7);
+  --surface-2: rgba(0,0,0,.05);
+  --hairline: rgba(0,0,0,.10);
+  --hairline-soft: rgba(0,0,0,.07);
+  --text: #1c1c1e;
+  --text-2: rgba(60,60,67,.6);
+  --text-3: rgba(60,60,67,.35);
+  --blue: #007aff;
+  --green: #34c759;
+  --red: #ff3b30;
+  --orange: #ff9500;
+  --purple: #af52de;
+}
 
-        .bottom-nav {
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(20px);
-            border-top: 1px solid var(--border-glass);
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            padding: 8px 0;
-            z-index: 100;
-            height: 60px;
-        }
+[data-theme="light"] body {
+  background: #f0f0f5;
+}
 
-        .bottom-nav-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 3px;
-            cursor: pointer;
-            color: var(--text-muted);
-            transition: all 0.3s;
-            font-size: 9px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            flex: 1;
-        }
+[data-theme="light"] body::before {
+  background: radial-gradient(60% 30% at 20% 0%, rgba(0,122,255,.06), transparent 60%),
+             radial-gradient(50% 25% at 90% 10%, rgba(175,82,222,.04), transparent 60%);
+}
 
-        .bottom-nav-item i { font-size: 18px; transition: all 0.3s; }
-        .bottom-nav-item.active { color: var(--accent-cyan); }
-        .bottom-nav-item.active i { transform: translateY(-3px); text-shadow: 0 0 20px rgba(6, 182, 212, 0.5); }
+[data-theme="light"] .mobile-header {
+  background: rgba(240,240,245,.8);
+  border-bottom: 1px solid var(--hairline-soft);
+}
 
-        .mobile-header {
-            position: sticky;
-            top: 0;
-            background: rgba(15, 23, 42, 0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border-glass);
-            padding: 15px 20px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            z-index: 50;
-        }
+[data-theme="light"] .mobile-header .mark {
+  background: linear-gradient(155deg, #e5e5ea, #d1d1d6);
+  border: 1px solid var(--hairline);
+}
 
-        .mobile-header h1 { font-size: 16px; font-weight: 800; }
-        .mobile-header .time { font-size: 12px; font-weight: 700; color: var(--accent-cyan); }
+[data-theme="light"] .bottom-nav {
+  background: rgba(240,240,245,.85);
+  border-top: 1px solid var(--hairline-soft);
+}
 
-        .mobile-content { padding: 20px; padding-bottom: 80px; }
-        .mobile-stats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
+[data-theme="light"] .mobile-stat-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
 
-        .mobile-stat-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: 15px;
-            padding: 14px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+[data-theme="light"] .device-card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+}
 
-        .mobile-stat-icon {
-            width: 38px; height: 38px;
-            border-radius: 10px;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 16px;
-            flex-shrink: 0;
-        }
+[data-theme="light"] .device-card:active {
+  background: rgba(0,0,0,.04);
+}
 
-        .mobile-stat-icon.total { background: rgba(139, 92, 246, 0.2); color: #a78bfa; }
-        .mobile-stat-icon.online { background: rgba(16, 185, 129, 0.2); color: #34d399; }
-        .mobile-stat-icon.offline { background: rgba(244, 63, 94, 0.2); color: #fb7185; }
-        .mobile-stat-icon.alerts { background: rgba(245, 158, 11, 0.2); color: #fbbf24; }
+[data-theme="light"] .mobile-modal-content {
+  background: rgba(240,240,245,.96);
+  border: 1px solid var(--hairline);
+}
 
-        .mobile-stat-info h3 { font-size: 9px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 3px; }
-        .mobile-stat-info .value { font-size: 20px; font-weight: 800; }
+[data-theme="light"] .form-group input,
+[data-theme="light"] .form-group select {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  color: var(--text);
+}
+[data-theme="light"] .form-group input::placeholder {
+  color: var(--text-3);
+}
+[data-theme="light"] .form-group input:focus,
+[data-theme="light"] .form-group select:focus {
+  border-color: rgba(0,122,255,.55);
+}
 
-        .device-list { display: flex; flex-direction: column; gap: 10px; }
+[data-theme="light"] .api-key-box {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+}
 
-        .device-card {
-            background: var(--bg-card);
-            border: 1px solid var(--border-glass);
-            border-radius: 15px;
-            padding: 14px;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
+[data-theme="light"] .fab {
+  background: var(--blue);
+  box-shadow: 0 10px 26px rgba(0,122,255,.35);
+}
 
-        .device-card:active { transform: scale(0.97); }
-        .device-card .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
-        .device-card .device-name { font-size: 14px; font-weight: 700; }
-        .device-card .device-id { font-size: 10px; color: var(--text-muted); font-family: monospace; }
+[data-theme="light"] .fab-menu-item {
+  background: rgba(255,255,255,.9);
+  border: 1px solid var(--hairline);
+  box-shadow: 0 8px 24px rgba(0,0,0,.12);
+  color: var(--text-2);
+}
+[data-theme="light"] .fab-menu-item:hover {
+  background: #ffffff;
+  color: var(--text);
+}
 
-        .status-badge {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 3px 8px; border-radius: 20px;
-            font-size: 9px; font-weight: 700; text-transform: uppercase;
-        }
-        .status-badge.online { background: rgba(16, 185, 129, 0.1); color: #34d399; }
-        .status-badge.offline { background: rgba(244, 63, 94, 0.1); color: #fb7185; }
-        .status-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
-        .status-badge.online .status-dot { animation: pulse 2s infinite; }
+[data-theme="light"] .mobile-stat-icon.total {
+  background: rgba(175,82,222,.14);
+  color: var(--purple);
+}
+[data-theme="light"] .mobile-stat-icon.online {
+  background: rgba(52,199,89,.14);
+  color: var(--green);
+}
+[data-theme="light"] .mobile-stat-icon.offline {
+  background: rgba(255,59,48,.14);
+  color: var(--red);
+}
+[data-theme="light"] .mobile-stat-icon.alerts {
+  background: rgba(255,149,0,.14);
+  color: var(--orange);
+}
 
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+[data-theme="light"] .status-badge.online {
+  background: rgba(52,199,89,.12);
+  color: #34c759;
+}
+[data-theme="light"] .status-badge.offline {
+  background: rgba(255,59,48,.12);
+  color: #ff3b30;
+}
 
-        .device-card .device-info { display: flex; gap: 12px; font-size: 10px; color: var(--text-muted); flex-wrap: wrap; }
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,.12);
+}
 
-        .section-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-        .section-title i { color: var(--accent-cyan); }
+/* ============ END LIGHT THEME ============ */
 
-                #mobileMap { height: 220px; border-radius: 15px; border: 1px solid var(--border-glass); overflow: hidden; margin-bottom: 20px; position: relative; z-index: 1; }
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+  -webkit-tap-highlight-color:transparent;
+  position:relative;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(60% 30% at 20% 0%, rgba(10,132,255,.09), transparent 60%),
+             radial-gradient(50% 25% at 90% 10%, rgba(191,90,242,.06), transparent 60%);
+  transition: background 0.3s ease;
+}
 
-        .fab {
-            position: fixed;
-            bottom: 75px; right: 15px;
-            width: 50px; height: 50px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-purple));
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            box-shadow: 0 8px 30px rgba(6, 182, 212, 0.4);
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.3s;
-            z-index: 90;
-        }
-        .fab:active { transform: scale(0.9); }
+.leaflet-pane,.leaflet-tile-pane,.leaflet-overlay-pane,.leaflet-shadow-pane,.leaflet-marker-pane,.leaflet-tooltip-pane,.leaflet-popup-pane{z-index:1 !important;}
+#mobileMap{filter:grayscale(.15) invert(1) contrast(.9) brightness(.92) hue-rotate(180deg);}
+[data-theme="light"] #mobileMap {
+  filter: none !important;
+}
 
-        .mobile-modal {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.7);
-            backdrop-filter: blur(8px);
-            z-index: 9999;
-            align-items: flex-end;
-            justify-content: center;
-        }
-        .mobile-modal.active { display: flex; }
+/* ============ TOP / BOTTOM BARS ============ */
+.mobile-header{
+  position:sticky;top:0;z-index:50;
+  background:rgba(0,0,0,.6);backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);
+  border-bottom:1px solid var(--hairline-soft);
+  padding:16px 20px;display:flex;align-items:center;justify-content:space-between;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.mobile-header .brand{display:flex;align-items:center;gap:10px;}
+.mobile-header .mark{
+  width:30px;height:30px;border-radius:9px;
+  background:linear-gradient(155deg,#2c2c2e,#0f0f10);
+  border:1px solid var(--hairline);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--blue);font-size:13px;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.mobile-header h1{font-size:15.5px;font-weight:800;letter-spacing:-.02em;color:var(--text);}
+.mobile-header .time{font-size:12px;font-weight:700;font-family:var(--mono);color:var(--text-2);}
 
-        .mobile-modal-content {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-glass);
-            border-radius: 20px 20px 0 0;
-            padding: 20px;
-            width: 100%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-            animation: slideUp 0.3s ease;
-            position: relative;
-            z-index: 10000;
-        }
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  background:rgba(10,10,12,.75);backdrop-filter:blur(28px) saturate(160%);-webkit-backdrop-filter:blur(28px) saturate(160%);
+  border-top:1px solid var(--hairline-soft);
+  display:flex;justify-content:space-around;align-items:center;
+  padding:8px 0 calc(8px + env(safe-area-inset-bottom));height:64px;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.bottom-nav-item{
+  display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;
+  color:var(--text-3);transition:color .25s;font-size:9.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.03em;flex:1;
+}
+.bottom-nav-item i{font-size:17px;transition:transform .25s var(--ease);}
+.bottom-nav-item.active{color:var(--blue);}
+.bottom-nav-item.active i{transform:translateY(-2px);}
 
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.mobile-content{padding:18px 18px 30px;position:relative;z-index:1;}
 
-        .form-group { margin-bottom: 14px; }
-        .form-group label { display: block; font-size: 10px; font-weight: 700; margin-bottom: 5px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
-        .form-group input, .form-group select { width: 100%; padding: 11px; background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: 10px; font-size: 14px; font-family: inherit; color: var(--text-primary); outline: none; }
+/* ============ STATS ============ */
+.mobile-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:22px;}
+.mobile-stat-card{
+  background:var(--surface);backdrop-filter:blur(20px);border:1px solid var(--hairline);
+  border-radius:16px;padding:14px;display:flex;align-items:center;gap:11px;
+  animation:rise .45s var(--ease) backwards;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+@keyframes rise{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.mobile-stat-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+.mobile-stat-icon.total{background:rgba(191,90,242,.15);color:var(--purple);}
+.mobile-stat-icon.online{background:rgba(48,209,88,.15);color:var(--green);}
+.mobile-stat-icon.offline{background:rgba(255,69,58,.15);color:var(--red);}
+.mobile-stat-icon.alerts{background:rgba(255,159,10,.15);color:var(--orange);}
+.mobile-stat-info h3{font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;font-weight:700;}
+.mobile-stat-info .value{font-size:19px;font-weight:800;font-family:var(--mono);color:var(--text);}
 
-        .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
-        .btn { flex: 1; padding: 12px; border: none; border-radius: 10px; font-size: 13px; font-weight: 700; cursor: pointer; font-family: inherit; }
-        .btn-primary { background: var(--accent-cyan); color: white; }
-        .btn-secondary { background: var(--border-glass); color: var(--text-primary); }
-        .btn-success { background: var(--accent-emerald); color: white; }
+/* ============ DEVICE LIST ============ */
+.section-title{font-size:13.5px;font-weight:700;margin:6px 0 12px;display:flex;align-items:center;gap:8px;letter-spacing:-.01em;color:var(--text-2);}
+.section-title i{color:var(--blue);font-size:12.5px;}
 
-        .loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px; gap: 10px; color: var(--text-muted); }
-        .spinner { width: 30px; height: 30px; border: 3px solid var(--border-glass); border-top-color: var(--accent-cyan); border-radius: 50%; animation: spin 1s linear infinite; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+.device-list{display:flex;flex-direction:column;gap:9px;margin-bottom:22px;}
+.device-card{
+  background:var(--surface);backdrop-filter:blur(20px);border:1px solid var(--hairline);
+  border-radius:16px;padding:14px;cursor:pointer;transition:transform .2s var(--ease), border-color .2s, background 0.3s ease, border-color 0.3s ease;
+}
+.device-card:active{transform:scale(.97);}
+.device-card .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
+.device-card .device-name{font-size:13.5px;font-weight:700;color:var(--text);}
+.device-card .device-id{font-size:10px;color:var(--text-3);font-family:var(--mono);margin-top:2px;}
+
+.status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
+.status-badge.online{background:rgba(48,209,88,.12);color:#4ade80;}
+.status-badge.offline{background:rgba(255,69,58,.12);color:#ff8078;}
+.status-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.status-badge.online .status-dot{animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+.device-card .device-info{display:flex;gap:14px;font-size:11px;color:var(--text-3);flex-wrap:wrap;font-weight:500;}
+.device-card .device-info span{display:flex;align-items:center;gap:5px;}
+.device-card .device-info i{font-size:10px;color:var(--text-2);}
+
+#mobileMap{height:210px;border-radius:16px;border:1px solid var(--hairline);overflow:hidden;margin-bottom:22px;position:relative;z-index:1;transition: filter 0.3s ease;}
+
+/* ============ FAB MENU (seperti WhatsApp) ============ */
+.fab-wrapper {
+  position: fixed;
+  bottom: 82px;
+  right: 18px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.fab-menu {
+  display: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.fab-menu.open {
+  display: flex;
+}
+
+.fab-menu-item {
+  background: rgba(28,28,30,.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--hairline);
+  border-radius: 14px;
+  padding: 12px 18px;
+  color: var(--text-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font);
+  transition: all 0.25s var(--ease);
+  box-shadow: 0 8px 24px rgba(0,0,0,.3);
+  animation: menuSlideIn 0.3s var(--ease);
+  white-space: nowrap;
+}
+.fab-menu-item i {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+.fab-menu-item:hover {
+  background: rgba(255,255,255,.08);
+  color: var(--text);
+}
+
+@keyframes menuSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.fab {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: none;
+  color: #fff;
+  font-size: 22px;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(10,132,255,.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s var(--ease), background 0.3s ease, box-shadow 0.3s ease;
+}
+.fab:active {
+  transform: scale(.88);
+}
+.fab.open {
+  transform: rotate(45deg);
+}
+
+/* ============ MODALS ============ */
+.mobile-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:9999;align-items:flex-end;justify-content:center;}
+.mobile-modal.active{display:flex;}
+.mobile-modal-content{
+  background:rgba(28,28,30,.96);backdrop-filter:blur(30px);
+  border:1px solid var(--hairline);border-top-left-radius:24px;border-top-right-radius:24px;
+  padding:22px 20px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:520px;max-height:82vh;overflow-y:auto;
+  animation:slideUp .35s var(--ease);position:relative;z-index:10000;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.sheet-handle{width:36px;height:4px;border-radius:3px;background:var(--hairline);margin:0 auto 16px;}
+@keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+
+.form-group{margin-bottom:13px;}
+.form-group label{display:block;font-size:10px;font-weight:700;margin-bottom:6px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;}
+.form-group input,.form-group select{width:100%;padding:12px 13px;background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;font-size:14px;font-family:inherit;color:var(--text);outline:none;transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;}
+.form-group input::placeholder{color:var(--text-3);}
+.form-group input:focus,.form-group select:focus{border-color:rgba(10,132,255,.55);}
+
+.modal-actions{display:flex;gap:9px;margin-top:18px;}
+.btn{flex:1;padding:13px;border:none;border-radius:12px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:transform .15s;}
+.btn:active{transform:scale(.96);}
+.btn-primary{background:var(--blue);color:#fff;}
+.btn-secondary{background:var(--surface-2);color:var(--text-2);border:1px solid var(--hairline);}
+.btn-success{background:var(--green);color:#fff;}
+
+.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:12px;color:var(--text-3);font-size:12.5px;font-weight:600;}
+.spinner{width:26px;height:26px;border:2.5px solid var(--hairline);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.api-key-box{background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;padding:11px;display:flex;gap:9px;align-items:center;}
+.api-key-box code{flex:1;font-size:11px;color:#64d2ff;word-break:break-all;font-family:var(--mono);}
+
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
+</style>
 </head>
 <body>
-    <div class="mobile-header">
-        <h1>📡 NEXUS IoT</h1>
-        <div class="time" id="mobileTime"></div>
+  <div class="mobile-header">
+    <div class="brand">
+      <div class="mark"><i class="fa-solid fa-satellite-dish"></i></div>
+      <h1>NEXUS</h1>
     </div>
+    <div class="time" id="mobileTime"></div>
+  </div>
 
-    <div class="mobile-content">
-        <div id="mDashboardSection">
-            <div class="mobile-stats">
-                <div class="mobile-stat-card">
-                    <div class="mobile-stat-icon total"><i class="fas fa-microchip"></i></div>
-                    <div class="mobile-stat-info"><h3>Total</h3><div class="value" id="mTotalDevices">0</div></div>
-                </div>
-                <div class="mobile-stat-card">
-                    <div class="mobile-stat-icon online"><i class="fas fa-wifi"></i></div>
-                    <div class="mobile-stat-info"><h3>Online</h3><div class="value" id="mOnlineDevices">0</div></div>
-                </div>
-                <div class="mobile-stat-card">
-                    <div class="mobile-stat-icon offline"><i class="fas fa-power-off"></i></div>
-                    <div class="mobile-stat-info"><h3>Offline</h3><div class="value" id="mOfflineDevices">0</div></div>
-                </div>
-                <div class="mobile-stat-card">
-                    <div class="mobile-stat-icon alerts"><i class="fas fa-bell"></i></div>
-                    <div class="mobile-stat-info"><h3>Alert</h3><div class="value" id="mActiveAlerts">0</div></div>
-                </div>
-            </div>
-
-            <div class="section-title"><i class="fas fa-map-marker-alt"></i> Peta Lokasi</div>
-            <div id="mobileMap"></div>
-
-            <div class="section-title"><i class="fas fa-list"></i> Daftar Perangkat</div>
-            <div class="device-list" id="mDeviceList">
-                <div class="loading-state"><div class="spinner"></div><div>Memuat...</div></div>
-            </div>
+  <div class="mobile-content">
+    <div id="mDashboardSection">
+      <div class="mobile-stats">
+        <div class="mobile-stat-card" style="animation-delay:.02s;">
+          <div class="mobile-stat-icon total"><i class="fa-solid fa-server"></i></div>
+          <div class="mobile-stat-info"><h3>Total</h3><div class="value" id="mTotalDevices">0</div></div>
         </div>
-
-        <div id="mDevicesSection" style="display: none;">
-            <div class="section-title"><i class="fas fa-server"></i> Semua Perangkat</div>
-            <div class="device-list" id="mDeviceListFull">
-                <div class="loading-state"><div class="spinner"></div><div>Memuat...</div></div>
-            </div>
+        <div class="mobile-stat-card" style="animation-delay:.05s;">
+          <div class="mobile-stat-icon online"><i class="fa-solid fa-wifi"></i></div>
+          <div class="mobile-stat-info"><h3>Online</h3><div class="value" id="mOnlineDevices">0</div></div>
         </div>
-    </div>
-
-    <button class="fab" onclick="openAddModal()"><i class="fas fa-plus"></i></button>
-
-    <div class="bottom-nav">
-        <div class="bottom-nav-item active" onclick="showMSection('dashboard')"><i class="fas fa-chart-pie"></i><span>Dashboard</span></div>
-        <div class="bottom-nav-item" onclick="showMSection('devices')"><i class="fas fa-server"></i><span>Perangkat</span></div>
-        <div class="bottom-nav-item" onclick="window.location.href='/'"><i class="fas fa-desktop"></i><span>Desktop</span></div>
-        <div class="bottom-nav-item" onclick="logoutM()" style="color: #fb7185;"><i class="fas fa-sign-out-alt"></i><span>Logout</span></div>
-    </div>
-
-    <div class="mobile-modal" id="mAddModal">
-        <div class="mobile-modal-content">
-            <h3 style="margin-bottom: 15px; font-size: 16px;">➕ Tambah Perangkat</h3>
-            <div class="form-group"><label>Device ID</label><input type="text" id="mAddId" placeholder="ESP32-001"></div>
-            <div class="form-group"><label>Nama</label><input type="text" id="mAddName" placeholder="Sensor Suhu"></div>
-            <div class="form-group"><label>Tipe</label><select id="mAddType"><option>ESP32</option><option>ESP8266</option><option>Arduino</option><option>Other</option></select></div>
-            <div class="form-group"><label>Lokasi</label><input type="text" id="mAddLocation" placeholder="Ruang Server"></div>
-            <div class="modal-actions">
-                <button class="btn btn-secondary" onclick="closeAddModal()">Batal</button>
-                <button class="btn btn-success" onclick="addMobileDevice()">Simpan</button>
-            </div>
+        <div class="mobile-stat-card" style="animation-delay:.08s;">
+          <div class="mobile-stat-icon offline"><i class="fa-solid fa-power-off"></i></div>
+          <div class="mobile-stat-info"><h3>Offline</h3><div class="value" id="mOfflineDevices">0</div></div>
         </div>
-    </div>
-
-    <div class="mobile-modal" id="mApiKeyModal">
-        <div class="mobile-modal-content">
-            <h3 style="margin-bottom: 10px; font-size: 16px;">🔑 API Key</h3>
-            <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">Simpan API Key ini:</p>
-            <div style="background: var(--bg-glass); border: 1px solid var(--border-glass); border-radius: 10px; padding: 10px; display: flex; gap: 8px;">
-                <code id="mApiKeyDisplay" style="flex: 1; font-size: 11px; color: var(--accent-cyan); word-break: break-all;"></code>
-                <button class="btn btn-primary" style="flex: 0 0 auto; padding: 8px 10px; font-size: 11px;" onclick="copyMApiKey()">Copy</button>
-            </div>
-            <button class="btn btn-primary" style="width: 100%; margin-top: 15px;" onclick="closeApiKeyModal()">OK, Saya Sudah Simpan</button>
+        <div class="mobile-stat-card" style="animation-delay:.11s;">
+          <div class="mobile-stat-icon alerts"><i class="fa-solid fa-bell"></i></div>
+          <div class="mobile-stat-info"><h3>Alert</h3><div class="value" id="mActiveAlerts">0</div></div>
         </div>
+      </div>
+
+      <div class="section-title"><i class="fa-solid fa-location-dot"></i> Peta Lokasi</div>
+      <div id="mobileMap"></div>
+
+      <div class="section-title"><i class="fa-solid fa-list"></i> Daftar Perangkat</div>
+      <div class="device-list" id="mDeviceList">
+        <div class="loading-state"><div class="spinner"></div><div>Memuat…</div></div>
+      </div>
     </div>
 
-    <script>
-        let mMap;
-        let mDevices = [];
+    <div id="mDevicesSection" style="display:none;">
+      <div class="section-title"><i class="fa-solid fa-microchip"></i> Semua Perangkat</div>
+      <div class="device-list" id="mDeviceListFull">
+        <div class="loading-state"><div class="spinner"></div><div>Memuat…</div></div>
+      </div>
+    </div>
+  </div>
 
-        function logoutM() {
-            window.location.href = '/logout';
+  <!-- FAB Menu (seperti WhatsApp) -->
+  <div class="fab-wrapper">
+    <div class="fab-menu" id="fabMenu">
+      <div class="fab-menu-item" onclick="openAddModal()">
+        <i class="fa-solid fa-plus"></i> Tambah Perangkat
+      </div>
+      <div class="fab-menu-item" onclick="toggleTheme()">
+        <i class="fa-solid fa-moon" id="mobileThemeIcon"></i>
+        <span id="mobileThemeLabel">Tema Gelap</span>
+      </div>
+    </div>
+    <button class="fab" id="fabButton" onclick="toggleFabMenu()">
+      <i class="fa-solid fa-plus"></i>
+    </button>
+  </div>
+
+  <div class="bottom-nav">
+    <div class="bottom-nav-item active" onclick="showMSection('dashboard')"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></div>
+    <div class="bottom-nav-item" onclick="showMSection('devices')"><i class="fa-solid fa-server"></i><span>Perangkat</span></div>
+    <div class="bottom-nav-item" onclick="window.location.href='/'"><i class="fa-solid fa-display"></i><span>Desktop</span></div>
+    <div class="bottom-nav-item" onclick="logoutM()" style="color:#ff8078;"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Logout</span></div>
+  </div>
+
+  <div class="mobile-modal" id="mAddModal">
+    <div class="mobile-modal-content">
+      <div class="sheet-handle"></div>
+      <h3 style="margin-bottom:16px;font-size:16px;font-weight:800;color:var(--text);">Tambah Perangkat</h3>
+      <div class="form-group"><label>Device ID</label><input type="text" id="mAddId" placeholder="ESP32-001"></div>
+      <div class="form-group"><label>Nama</label><input type="text" id="mAddName" placeholder="Sensor Suhu"></div>
+      <div class="form-group"><label>Tipe</label><select id="mAddType"><option>ESP32</option><option>ESP8266</option><option>Arduino</option><option>Other</option></select></div>
+      <div class="form-group"><label>Lokasi</label><input type="text" id="mAddLocation" placeholder="Ruang Server"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeAddModal()">Batal</button>
+        <button class="btn btn-success" onclick="addMobileDevice()">Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="mobile-modal" id="mApiKeyModal">
+    <div class="mobile-modal-content">
+      <div class="sheet-handle"></div>
+      <h3 style="margin-bottom:10px;font-size:16px;font-weight:800;color:var(--text);">API Key</h3>
+      <p style="font-size:12px;color:var(--text-2);margin-bottom:10px;">Simpan API Key ini — hanya muncul sekali:</p>
+      <div class="api-key-box">
+        <code id="mApiKeyDisplay"></code>
+        <button class="btn btn-primary" style="flex:0 0 auto;padding:8px 12px;font-size:11px;" onclick="copyMApiKey()">Copy</button>
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="closeApiKeyModal()">Saya Sudah Simpan</button>
+    </div>
+  </div>
+
+  <script>
+    let mMap;
+    let mDevices = [];
+    let isFabOpen = false;
+
+    function logoutM() { window.location.href = '/logout'; }
+
+    function toggleFabMenu() {
+      isFabOpen = !isFabOpen;
+      const menu = document.getElementById('fabMenu');
+      const btn = document.getElementById('fabButton');
+      if (isFabOpen) {
+        menu.classList.add('open');
+        btn.classList.add('open');
+      } else {
+        menu.classList.remove('open');
+        btn.classList.remove('open');
+      }
+    }
+
+    function updateMobileTime() {
+      const now = new Date();
+      document.getElementById('mobileTime').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
+    }
+    updateMobileTime();
+    setInterval(updateMobileTime, 1000);
+
+    function showMSection(section) {
+      document.getElementById('mDashboardSection').style.display = section === 'dashboard' ? 'block' : 'none';
+      document.getElementById('mDevicesSection').style.display = section === 'devices' ? 'block' : 'none';
+      document.querySelectorAll('.bottom-nav-item').forEach((item, i) => {
+        item.classList.toggle('active', i === (section === 'dashboard' ? 0 : 1));
+      });
+      if (isFabOpen) toggleFabMenu();
+    }
+
+    function initMobileMap() {
+      mMap = L.map('mobileMap', { zoomControl: true }).setView([-2.5489, 118.0149], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mMap);
+    }
+
+    function loadMMarkers() {
+      mDevices.forEach(d => {
+        if (d.latitude && d.longitude) {
+          const color = d.status === 'online' ? '#30d158' : '#ff453a';
+          L.circleMarker([d.latitude, d.longitude], { radius: 7, color, fillColor: color, fillOpacity: 0.75, weight: 2 })
+            .addTo(mMap).bindPopup(`<b>${d.device_name}</b><br>${d.device_id}`);
         }
+      });
+    }
 
-        function updateMobileTime() {
-            const now = new Date();
-            document.getElementById('mobileTime').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
-        }
-        updateMobileTime();
-        setInterval(updateMobileTime, 1000);
+    function formatMUptime(seconds) {
+      if (!seconds) return '-';
+      const d = Math.floor(seconds / 86400);
+      const h = Math.floor((seconds % 86400) / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      if (d > 0) return `${d}h ${h}j`;
+      if (h > 0) return `${h}j ${m}m`;
+      return `${m}m`;
+    }
 
-        function showMSection(section) {
-            document.getElementById('mDashboardSection').style.display = section === 'dashboard' ? 'block' : 'none';
-            document.getElementById('mDevicesSection').style.display = section === 'devices' ? 'block' : 'none';
-            document.querySelectorAll('.bottom-nav-item').forEach((item, i) => {
-                item.classList.toggle('active', i === (section === 'dashboard' ? 0 : 1));
-            });
-        }
+    async function loadMDashboard() {
+      try {
+        const res = await fetch('/api/v1/dashboard');
+        const data = await res.json();
+        if (data.success) {
+          mDevices = data.devices;
+          document.getElementById('mTotalDevices').textContent = data.summary.total_devices;
+          document.getElementById('mOnlineDevices').textContent = data.summary.online_devices;
+          document.getElementById('mOfflineDevices').textContent = data.summary.offline_devices;
+          loadMMarkers();
+          renderMDeviceList(data.devices, 'mDeviceList');
+          renderMDeviceList(data.devices, 'mDeviceListFull');
 
-        function initMobileMap() {
-            mMap = L.map('mobileMap', { zoomControl: true }).setView([-2.5489, 118.0149], 5);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mMap);
-        }
-
-        function loadMMarkers() {
-            mDevices.forEach(d => {
-                if (d.latitude && d.longitude) {
-                    const color = d.status === 'online' ? '#10b981' : '#ef4444';
-                    L.circleMarker([d.latitude, d.longitude], { radius: 7, color, fillColor: color, fillOpacity: 0.7 })
-                        .addTo(mMap).bindPopup(`<b>${d.device_name}</b><br>${d.device_id}`);
-                }
-            });
-        }
-
-        function formatMUptime(seconds) {
-            if (!seconds) return '-';
-            const d = Math.floor(seconds / 86400);
-            const h = Math.floor((seconds % 86400) / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            if (d > 0) return `${d}h ${h}j`;
-            if (h > 0) return `${h}j ${m}m`;
-            return `${m}m`;
-        }
-
-        async function loadMDashboard() {
-            try {
-                const res = await fetch('/api/v1/dashboard');
-                const data = await res.json();
-                if (data.success) {
-                    mDevices = data.devices;
-                    document.getElementById('mTotalDevices').textContent = data.summary.total_devices;
-                    document.getElementById('mOnlineDevices').textContent = data.summary.online_devices;
-                    document.getElementById('mOfflineDevices').textContent = data.summary.offline_devices;
-                    loadMMarkers();
-                    renderMDeviceList(data.devices, 'mDeviceList');
-                    renderMDeviceList(data.devices, 'mDeviceListFull');
-                    
-                    // Muat device tersimpan dari localStorage
-                    const savedDevice = localStorage.getItem('selectedDeviceId');
-                    if (savedDevice) {
-                        // Jika ada device tersimpan, scroll ke device tersebut
-                        const deviceCard = document.querySelector(`.device-card[data-device-id="${savedDevice}"]`);
-                        if (deviceCard) {
-                            deviceCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            deviceCard.style.borderColor = 'var(--accent-cyan)';
-                            deviceCard.style.boxShadow = '0 0 20px rgba(6, 182, 212, 0.3)';
-                        }
-                    }
-                }
-            } catch (e) { console.error(e); }
-        }
-
-        function renderMDeviceList(devices, elementId) {
-            const container = document.getElementById(elementId);
-            if (devices.length === 0) {
-                container.innerHTML = '<div style="text-align: center; padding: 30px; color: var(--text-muted); font-size: 13px;">Belum ada perangkat</div>';
-                return;
+          const savedDevice = localStorage.getItem('selectedDeviceId');
+          if (savedDevice) {
+            const deviceCard = document.querySelector(`.device-card[data-device-id="${savedDevice}"]`);
+            if (deviceCard) {
+              deviceCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              deviceCard.style.borderColor = 'var(--blue)';
+              deviceCard.style.boxShadow = '0 0 20px rgba(10,132,255,.28)';
             }
-            container.innerHTML = '';
-            devices.forEach(d => {
-                const uptime = formatMUptime(d.latest_uptime_seconds || 0);
-                const wifi = d.latest_wifi_ssid || '-';
-                const card = document.createElement('div');
-                card.className = 'device-card';
-                card.onclick = () => viewMDevice(d.device_id);
-                card.innerHTML = `
-                    <div class="card-header">
-                        <div>
-                            <div class="device-name">${d.device_name}</div>
-                            <div class="device-id">${d.device_id}</div>
-                        </div>
-                        <span class="status-badge ${d.status}"><span class="status-dot"></span>${d.status}</span>
-                    </div>
-                    <div class="device-info">
-                        <span>📶 ${wifi}</span>
-                        <span>⏱ ${uptime}</span>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
+          }
         }
+      } catch (e) { console.error(e); }
+    }
 
-        function viewMDevice(id) { window.location.href = `/device/${id}`; }
+    function renderMDeviceList(devices, elementId) {
+      const container = document.getElementById(elementId);
+      if (devices.length === 0) {
+        container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);font-size:12.5px;">Belum ada perangkat</div>';
+        return;
+      }
+      container.innerHTML = '';
+      devices.forEach(d => {
+        const uptime = formatMUptime(d.latest_uptime_seconds || 0);
+        const wifi = d.latest_wifi_ssid || '-';
+        const card = document.createElement('div');
+        card.className = 'device-card';
+        card.dataset.deviceId = d.device_id;
+        card.onclick = () => viewMDevice(d.device_id);
+        card.innerHTML = `
+          <div class="card-header">
+            <div>
+              <div class="device-name">${d.device_name}</div>
+              <div class="device-id">${d.device_id}</div>
+            </div>
+            <span class="status-badge ${d.status}"><span class="status-dot"></span>${d.status}</span>
+          </div>
+          <div class="device-info">
+            <span><i class="fa-solid fa-wifi"></i> ${wifi}</span>
+            <span><i class="fa-regular fa-clock"></i> ${uptime}</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
 
-        function openAddModal() { document.getElementById('mAddModal').classList.add('active'); }
-        function closeAddModal() { document.getElementById('mAddModal').classList.remove('active'); }
-        function openApiKeyModal() { document.getElementById('mApiKeyModal').classList.add('active'); }
-        function closeApiKeyModal() { document.getElementById('mApiKeyModal').classList.remove('active'); }
+    function viewMDevice(id) { window.location.href = `/device/${id}`; }
 
-        async function addMobileDevice() {
-            const deviceId = document.getElementById('mAddId').value.trim();
-            const deviceName = document.getElementById('mAddName').value.trim();
-            if (!deviceId || !deviceName) { alert('ID dan Nama wajib!'); return; }
-            try {
-                const res = await fetch('/api/v1/devices', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ device_id: deviceId, device_name: deviceName, device_type: document.getElementById('mAddType').value, location: document.getElementById('mAddLocation').value })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    closeAddModal();
-                    document.getElementById('mAddId').value = '';
-                    document.getElementById('mAddName').value = '';
-                    document.getElementById('mAddLocation').value = '';
-                    document.getElementById('mApiKeyDisplay').textContent = data.device.api_key;
-                    openApiKeyModal();
-                    loadMDashboard();
-                } else alert(data.error);
-            } catch (e) { alert('Error'); }
-        }
+    function openAddModal() { 
+      document.getElementById('mAddModal').classList.add('active');
+      if (isFabOpen) toggleFabMenu();
+    }
+    function closeAddModal() { document.getElementById('mAddModal').classList.remove('active'); }
+    function openApiKeyModal() { document.getElementById('mApiKeyModal').classList.add('active'); }
+    function closeApiKeyModal() { document.getElementById('mApiKeyModal').classList.remove('active'); }
 
-        function copyMApiKey() {
-            const apiKey = document.getElementById('mApiKeyDisplay').textContent;
-            if (navigator.clipboard) {
-                navigator.clipboard.writeText(apiKey);
-            } else {
-                const textarea = document.createElement('textarea');
-                textarea.value = apiKey;
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-            }
-            alert('API Key disalin!');
-        }
+    async function addMobileDevice() {
+      const deviceId = document.getElementById('mAddId').value.trim();
+      const deviceName = document.getElementById('mAddName').value.trim();
+      if (!deviceId || !deviceName) { alert('ID dan Nama wajib diisi!'); return; }
+      try {
+        const res = await fetch('/api/v1/devices', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ device_id: deviceId, device_name: deviceName, device_type: document.getElementById('mAddType').value, location: document.getElementById('mAddLocation').value })
+        });
+        const data = await res.json();
+        if (data.success) {
+          closeAddModal();
+          document.getElementById('mAddId').value = '';
+          document.getElementById('mAddName').value = '';
+          document.getElementById('mAddLocation').value = '';
+          document.getElementById('mApiKeyDisplay').textContent = data.device.api_key;
+          openApiKeyModal();
+          loadMDashboard();
+        } else alert(data.error);
+      } catch (e) { alert('Terjadi kesalahan'); }
+    }
 
-        initMobileMap();
-        loadMDashboard();
-        setInterval(loadMDashboard, 30000);
-    </script>
+    function copyMApiKey() {
+      const apiKey = document.getElementById('mApiKeyDisplay').textContent;
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(apiKey);
+      } else {
+        const textarea = document.createElement('textarea');
+        textarea.value = apiKey;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      alert('API Key disalin!');
+    }
+
+    // ============ THEME TOGGLE ============
+    function toggleTheme() {
+      const currentTheme = document.documentElement.getAttribute('data-theme');
+      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', newTheme);
+      localStorage.setItem('nexus-theme', newTheme);
+      updateMobileThemeUI(newTheme);
+    }
+
+    function updateMobileThemeUI(theme) {
+      const icon = document.getElementById('mobileThemeIcon');
+      const label = document.getElementById('mobileThemeLabel');
+      if (theme === 'light') {
+        icon.className = 'fa-solid fa-sun';
+        label.textContent = 'Tema Terang';
+      } else {
+        icon.className = 'fa-solid fa-moon';
+        label.textContent = 'Tema Gelap';
+      }
+    }
+
+    function loadMobileTheme() {
+      const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
+      document.documentElement.setAttribute('data-theme', savedTheme);
+      updateMobileThemeUI(savedTheme);
+    }
+
+    loadMobileTheme();
+    // ============ END THEME TOGGLE ============
+
+    initMobileMap();
+    loadMDashboard();
+    setInterval(loadMDashboard, 30000);
+  </script>
 </body>
 </html>
