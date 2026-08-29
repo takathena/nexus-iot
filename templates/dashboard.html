@@ -18,10 +18,14 @@
 </script>
 
 <style>
+/* ============ ROOT VARIABLES ============ */
 :root{
+  /* Dark Mode (default) */
   --bg:#000000;
-  --bg-radial: radial-gradient(60% 40% at 15% 0%, rgba(10,132,255,.07), transparent 60%),
-               radial-gradient(50% 35% at 100% 100%, rgba(191,90,242,.05), transparent 60%);
+  --bg-radial-dark: radial-gradient(60% 40% at 15% 0%, rgba(10,132,255,.07), transparent 60%),
+                    radial-gradient(50% 35% at 100% 100%, rgba(191,90,242,.05), transparent 60%);
+  --bg-radial-light: radial-gradient(60% 40% at 15% 0%, rgba(10,132,255,.05), transparent 60%),
+                     radial-gradient(50% 35% at 100% 100%, rgba(191,90,242,.03), transparent 60%);
   --surface: rgba(28,28,30,.55);
   --surface-solid:#1c1c1e;
   --surface-2: rgba(255,255,255,.045);
@@ -29,14 +33,24 @@
   --hairline: rgba(255,255,255,.09);
   --hairline-soft: rgba(255,255,255,.06);
   --text: #f5f5f7;
-  --text-2: rgba(235,235,245,.62);
-  --text-3: rgba(235,235,245,.34);
+  --text-2: rgba(235,235,245,.72);
+  --text-3: rgba(235,235,245,.45);
+  --text-inverse: #1c1c1e;
   --blue:#0a84ff;
+  --blue-hover:#2b95ff;
   --green:#30d158;
   --red:#ff453a;
   --orange:#ff9f0a;
   --purple:#bf5af2;
   --teal:#64d2ff;
+  
+  /* Chart colors for dark mode */
+  --chart-grid: rgba(255,255,255,.08);
+  --chart-label: rgba(235,235,245,.45);
+  --chart-legend: rgba(235,235,245,.6);
+  --chart-tooltip-bg: rgba(28,28,30,.95);
+  --chart-tooltip-border: rgba(255,255,255,.1);
+  
   --sidebar-w: 248px;
   --sidebar-w-collapsed: 84px;
   --font: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', sans-serif;
@@ -46,32 +60,39 @@
 
 /* ============ LIGHT THEME ============ */
 [data-theme="light"] {
-  --bg: #f2f2f7;
-  --bg-radial: radial-gradient(60% 40% at 15% 0%, rgba(10,132,255,.05), transparent 60%),
-               radial-gradient(50% 35% at 100% 100%, rgba(191,90,242,.03), transparent 60%);
-  --surface: rgba(255,255,255,.7);
+  --bg: #f0f0f5;
+  --surface: rgba(255,255,255,.72);
   --surface-solid: #e5e5ea;
-  --surface-2: rgba(0,0,0,.04);
-  --surface-2-hover: rgba(0,0,0,.07);
-  --hairline: rgba(0,0,0,.10);
-  --hairline-soft: rgba(0,0,0,.06);
+  --surface-2: rgba(0,0,0,.05);
+  --surface-2-hover: rgba(0,0,0,.08);
+  --hairline: rgba(0,0,0,.12);
+  --hairline-soft: rgba(0,0,0,.07);
   --text: #1c1c1e;
-  --text-2: rgba(60,60,67,.6);
-  --text-3: rgba(60,60,67,.35);
+  --text-2: rgba(60,60,67,.75);
+  --text-3: rgba(60,60,67,.50);
+  --text-inverse: #f5f5f7;
   --blue: #007aff;
+  --blue-hover: #0066d9;
   --green: #34c759;
   --red: #ff3b30;
   --orange: #ff9500;
   --purple: #af52de;
   --teal: #5ac8fa;
+  
+  /* Chart colors for light mode - lebih gelap dan kontras */
+  --chart-grid: rgba(0,0,0,.12);
+  --chart-label: rgba(60,60,67,.60);
+  --chart-legend: rgba(60,60,67,.70);
+  --chart-tooltip-bg: rgba(255,255,255,.95);
+  --chart-tooltip-border: rgba(0,0,0,.1);
 }
 
 [data-theme="light"] body::before {
-  background: var(--bg-radial);
+  background: var(--bg-radial-light);
 }
 
 [data-theme="light"] .sidebar {
-  background: rgba(242,242,247,.85);
+  background: rgba(240,240,245,.88);
   border-right: 1px solid var(--hairline-soft);
 }
 
@@ -79,36 +100,34 @@
   background: linear-gradient(155deg, #e5e5ea, #d1d1d6);
   border: 1px solid var(--hairline);
   box-shadow: 0 6px 18px rgba(0,122,255,.15);
+  color: var(--blue);
 }
 
 [data-theme="light"] .nav-item.active {
   background: linear-gradient(180deg, rgba(0,122,255,.12), rgba(0,122,255,.05));
-  color: #007aff;
+  color: var(--blue);
 }
 [data-theme="light"] .nav-item.active .badge {
   background: rgba(0,122,255,.15);
-  color: #007aff;
+  color: var(--blue);
 }
 
 [data-theme="light"] .topbar {
-  background: rgba(242,242,247,.7);
+  background: rgba(240,240,245,.75);
   border-bottom: 1px solid var(--hairline-soft);
 }
 
 [data-theme="light"] .search-box input {
   background: var(--surface-2);
-  border: 1px solid var(--hairline);
   color: var(--text);
 }
+[data-theme="light"] .search-box input::placeholder {
+  color: var(--text-3);
+}
 [data-theme="light"] .search-box input:focus {
-  border-color: rgba(0,122,255,.5);
   background: rgba(0,122,255,.06);
 }
 
-[data-theme="light"] .datetime-display {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-}
 
 [data-theme="light"] .card,
 [data-theme="light"] .ring-card,
@@ -120,7 +139,7 @@
 }
 
 [data-theme="light"] .ring-track {
-  stroke: rgba(0,0,0,.07);
+  stroke: rgba(0,0,0,.08);
 }
 
 [data-theme="light"] .stat-card:hover {
@@ -140,6 +159,9 @@
   background: var(--surface-2);
   color: var(--text-3);
 }
+[data-theme="light"] .action-btn:hover {
+  color: var(--text);
+}
 
 [data-theme="light"] .graph-tab.active {
   background: var(--surface-solid);
@@ -148,7 +170,7 @@
 }
 
 [data-theme="light"] .graph-container {
-  background: rgba(0,0,0,.02);
+  background: rgba(255,255,255,.5);
   border: 1px solid var(--hairline-soft);
 }
 
@@ -163,7 +185,7 @@
 }
 
 [data-theme="light"] .modal-content {
-  background: rgba(242,242,247,.95);
+  background: rgba(240,240,245,.96);
   border: 1px solid var(--hairline);
 }
 
@@ -171,10 +193,14 @@
   background: var(--surface-2);
   border: 1px solid var(--hairline);
 }
+[data-theme="light"] .api-key-display code {
+  color: var(--teal);
+}
 
 [data-theme="light"] .toast {
-  background: rgba(242,242,247,.92);
+  background: rgba(240,240,245,.94);
   border: 1px solid var(--hairline);
+  color: var(--text);
 }
 
 [data-theme="light"] .status-badge.online {
@@ -186,11 +212,17 @@
   color: #ff3b30;
 }
 
+[data-theme="light"] .nav-item {
+  color: var(--text-2);
+}
 [data-theme="light"] .nav-item:hover {
   background: var(--surface-2);
   color: var(--text);
 }
 
+[data-theme="light"] .sidebar-footer .nav-item {
+  color: #ff3b30;
+}
 [data-theme="light"] .sidebar-footer .nav-item:hover {
   background: rgba(255,59,48,.1);
   color: #ff3b30;
@@ -207,7 +239,6 @@
   color: #1c1c1e !important;
   border-color: rgba(0,0,0,.1) !important;
 }
-
 [data-theme="light"] .leaflet-control-zoom a:hover {
   background: #fff !important;
 }
@@ -220,21 +251,45 @@
   filter: none !important;
 }
 
-[data-theme="light"] .chartjs-tooltip {
-  background: rgba(255,255,255,.95) !important;
-  border-color: rgba(0,0,0,.1) !important;
+[data-theme="light"] .ring-center .pct {
+  color: var(--text);
 }
-
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,.15);
+[data-theme="light"] .ring-center .lbl {
+  color: var(--text-3);
 }
-
-[data-theme="light"] .modal-close {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
+[data-theme="light"] .ring-caption {
   color: var(--text-2);
 }
 
+[data-theme="light"] .stat-info .value {
+  color: var(--text);
+}
+[data-theme="light"] .stat-info h3 {
+  color: var(--text-3);
+}
+
+[data-theme="light"] .section-title {
+  color: var(--text);
+}
+
+[data-theme="light"] .device-name {
+  color: var(--text);
+}
+
+[data-theme="light"] .device-table th {
+  color: var(--text-3);
+}
+[data-theme="light"] .device-table td {
+  color: var(--text-2);
+}
+
+[data-theme="light"] .modal-header h3 {
+  color: var(--text);
+}
+
+[data-theme="light"] .form-group label {
+  color: var(--text-3);
+}
 [data-theme="light"] .form-group input,
 [data-theme="light"] .form-group select,
 [data-theme="light"] .form-group textarea {
@@ -242,14 +297,98 @@
   border: 1px solid var(--hairline);
   color: var(--text);
 }
+[data-theme="light"] .form-group input::placeholder {
+  color: var(--text-3);
+}
 
 [data-theme="light"] .form-group input:focus,
 [data-theme="light"] .form-group select:focus {
   border-color: rgba(0,122,255,.55);
 }
 
-[data-theme="light"] .ring-caption {
+[data-theme="light"] .modal-close {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
   color: var(--text-2);
+}
+[data-theme="light"] .modal-close:hover {
+  background: var(--surface-2-hover);
+  color: var(--text);
+}
+
+[data-theme="light"] .theme-toggle-btn {
+  color: var(--text-2);
+}
+[data-theme="light"] .theme-toggle-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,.15);
+}
+
+[data-theme="light"] .nav-section {
+  color: var(--text-3);
+}
+
+[data-theme="light"] .device-select-wrapper i {
+  color: var(--text-3);
+}
+
+[data-theme="light"] .graph-tab {
+  color: var(--text-3);
+}
+[data-theme="light"] .graph-tab:hover {
+  color: var(--text-2);
+}
+[data-theme="light"] .graph-tab.active {
+  color: var(--text);
+}
+
+[data-theme="light"] .status-badge {
+  color: var(--text);
+}
+
+[data-theme="light"] .stat-icon.total {
+  background: rgba(175,82,222,.14);
+  color: var(--purple);
+}
+[data-theme="light"] .stat-icon.offline {
+  background: rgba(255,59,48,.14);
+  color: var(--red);
+}
+[data-theme="light"] .stat-icon.alerts {
+  background: rgba(255,149,0,.14);
+  color: var(--orange);
+}
+
+[data-theme="light"] .btn-primary {
+  background: var(--blue);
+  color: #fff;
+}
+[data-theme="light"] .btn-primary:hover {
+  background: var(--blue-hover);
+}
+
+[data-theme="light"] .btn-success {
+  background: var(--green);
+  color: #fff;
+}
+
+[data-theme="light"] .topbar-title {
+  color: var(--text);
+}
+
+[data-theme="light"] #mapSelectedInfo {
+  color: var(--text-3);
+}
+
+[data-theme="light"] .toast.success {
+  border-left: 3px solid var(--green);
+}
+[data-theme="light"] .toast.error {
+  border-left: 3px solid var(--red);
 }
 
 /* ============ END LIGHT THEME ============ */
@@ -267,7 +406,7 @@ body{
 body::before{
   content:'';
   position:fixed; inset:0;
-  background:var(--bg-radial);
+  background:var(--bg-radial-dark);
   pointer-events:none;
   z-index:0;
   transition: background 0.3s ease;
@@ -313,7 +452,7 @@ body::before{
   box-shadow:0 6px 18px rgba(10,132,255,.15);
 }
 .logo-ring:hover{transform:scale(1.08);}
-.sidebar-header .title{font-size:15.5px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;}
+.sidebar-header .title{font-size:15.5px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;color:var(--text);}
 .sidebar.collapsed .title{display:none;}
 
 .sidebar-nav{padding:6px 14px;flex:1;}
@@ -402,7 +541,7 @@ body::before{
 .topbar-left{display:flex;align-items:center;gap:12px;}
 .page-indicator{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(48,209,88,.15);animation:pulse-dot 2.4s infinite;}
 @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.4;}}
-.topbar-title{font-size:20px;font-weight:800;letter-spacing:-.02em;}
+.topbar-title{font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--text);}
 .topbar-right{display:flex;align-items:center;gap:11px;flex-wrap:wrap;}
 
 .search-box{position:relative;}
@@ -415,13 +554,12 @@ body::before{
   font-family:inherit;font-size:13.5px;width:220px;
   outline:none; transition:all .2s;
 }
+.search-box input::placeholder{color:var(--text-3);}
 .search-box input:focus{border-color:rgba(10,132,255,.5);background:rgba(10,132,255,.06);width:250px;}
 .search-box i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:12.5px;}
 
 .datetime-display{
   text-align:right;padding:7px 14px;
-  background:var(--surface-2);
-  border:1px solid var(--hairline);
   border-radius:11px;
   transition: background 0.3s ease, border-color 0.3s ease;
 }
@@ -453,7 +591,7 @@ body::before{
 .ring-track{fill:none;stroke:rgba(255,255,255,.07);stroke-width:11;transition: stroke 0.3s ease;}
 .ring-progress{fill:none;stroke:url(#ringGrad);stroke-width:11;stroke-linecap:round;transition:stroke-dashoffset 1s var(--ease);}
 .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-.ring-center .pct{font-size:30px;font-weight:800;letter-spacing:-.02em;font-family:var(--mono);}
+.ring-center .pct{font-size:30px;font-weight:800;letter-spacing:-.02em;font-family:var(--mono);color:var(--text);}
 .ring-center .lbl{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-top:2px;}
 .ring-caption{font-size:12.5px;color:var(--text-2);font-weight:600;margin-top:8px;}
 
@@ -485,7 +623,7 @@ body::before{
 .stat-icon.offline{background:rgba(255,69,58,.14);color:var(--red);}
 .stat-icon.alerts{background:rgba(255,159,10,.14);color:var(--orange);}
 .stat-info h3{font-size:11px;color:var(--text-3);text-transform:uppercase;font-weight:700;letter-spacing:.06em;margin-bottom:6px;}
-.stat-info .value{font-size:30px;font-weight:800;font-family:var(--mono);letter-spacing:-.01em;}
+.stat-info .value{font-size:30px;font-weight:800;font-family:var(--mono);letter-spacing:-.01em;color:var(--text);}
 
 /* ============ SECTION CARDS ============ */
 .section-card{
@@ -504,7 +642,7 @@ body::before{
   display:flex;align-items:center;justify-content:space-between;
   flex-wrap:wrap;gap:12px;
 }
-.section-title{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:9px;letter-spacing:-.01em;}
+.section-title{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:9px;letter-spacing:-.01em;color:var(--text);}
 .section-title i{color:var(--blue);font-size:14px;}
 .section-body{padding:20px;}
 
@@ -513,7 +651,7 @@ body::before{
 
 /* ============ BUTTONS ============ */
 .btn{
-  padding:9px 17px;border:none;border-radius:10px;
+  padding:9.8px 17px;border:none;border-radius:10px;
   font-size:13px;font-weight:600;cursor:pointer;
   transition:all .2s var(--ease);
   display:inline-flex;align-items:center;gap:7px;
@@ -521,8 +659,8 @@ body::before{
 }
 .btn:active{transform:scale(.96);}
 .btn-primary{background:var(--blue);color:#fff;box-shadow:0 4px 14px rgba(10,132,255,.25);}
-.btn-primary:hover{background:#2b95ff;}
-.btn-success{background:var(--green);color:#04220c;}
+.btn-primary:hover{background:var(--blue-hover);}
+.btn-success{background:var(--green);color:#fff;}
 .btn-success:hover{filter:brightness(1.08);}
 .btn-danger{background:var(--red);color:#fff;}
 .btn-danger:hover{filter:brightness(1.08);}
@@ -537,14 +675,19 @@ body::before{
   font-size:12px;font-weight:600;color:var(--text-3);
   font-family:inherit;transition:all .2s;
 }
+.graph-tab:hover{color:var(--text-2);}
 .graph-tab.active{background:var(--surface-solid);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.4);}
-.graph-container{position:relative;height:330px;background:rgba(255,255,255,.02);border-radius:14px;padding:16px;border:1px solid var(--hairline-soft);}
+.graph-container{position:relative;height:330px;background:rgba(255,255,255,.02);border-radius:14px;padding:16px;border:1px solid var(--hairline-soft);transition: background 0.3s ease, border-color 0.3s ease;}
 
 .device-select-wrapper{position:relative;}
 .device-select-wrapper select{
   background:var(--surface-2);border:1px solid var(--hairline);border-radius:10px;
   padding:9px 36px 9px 14px;color:var(--text);font-size:13px;font-weight:600;
   font-family:inherit;cursor:pointer;appearance:none;min-width:190px;
+}
+.device-select-wrapper select option {
+  background: var(--bg);
+  color: var(--text);
 }
 .device-select-wrapper i{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none;font-size:11px;}
 
@@ -575,9 +718,9 @@ body::before{
   display:flex;align-items:center;justify-content:center;font-size:12px;
   transition:all .2s;
 }
-.action-btn:hover{color:#fff;border-color:transparent;}
-.action-btn.view:hover{background:var(--blue);}
-.action-btn.delete:hover{background:var(--red);}
+.action-btn:hover{color:var(--text);border-color:transparent;}
+.action-btn.view:hover{background:var(--blue);color:#fff;}
+.action-btn.delete:hover{background:var(--red);color:#fff;}
 
 /* ============ MODALS ============ */
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;}
@@ -592,8 +735,9 @@ body::before{
 }
 @keyframes modalIn{from{opacity:0;transform:scale(.94) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
-.modal-header h3{font-size:16px;font-weight:800;letter-spacing:-.01em;}
-.modal-close{background:var(--surface-2);border:1px solid var(--hairline);width:28px;height:28px;border-radius:9px;color:var(--text-2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-header h3{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--text);}
+.modal-close{background:var(--surface-2);border:1px solid var(--hairline);width:28px;height:28px;border-radius:9px;color:var(--text-2);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;}
+.modal-close:hover{background:var(--surface-2-hover);color:var(--text);}
 
 .form-group{margin-bottom:13px;}
 .form-group label{display:block;font-size:10.5px;font-weight:700;margin-bottom:6px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;}
@@ -602,6 +746,7 @@ body::before{
   border-radius:10px;font-size:13.5px;font-family:inherit;color:var(--text);outline:none;
   transition:border-color .2s;
 }
+.form-group input::placeholder{color:var(--text-3);}
 .form-group input:focus,.form-group select:focus{border-color:rgba(10,132,255,.55);}
 .modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:20px;}
 
@@ -612,6 +757,7 @@ body::before{
   position:fixed;bottom:22px;right:22px;background:rgba(28,28,30,.92);backdrop-filter:blur(20px);
   border:1px solid var(--hairline);border-radius:12px;padding:13px 18px;z-index:9999;
   font-size:13px;font-weight:600;animation:slideIn .35s var(--ease);box-shadow:0 12px 30px rgba(0,0,0,.5);
+  color:var(--text);
 }
 .toast.success{border-left:3px solid var(--green);}
 .toast.error{border-left:3px solid var(--red);}
@@ -621,6 +767,7 @@ body::before{
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
 
+/* ============ RESPONSIVE ============ */
 @media (max-width:1200px){
   .overview-grid{grid-template-columns:1fr;}
   .stats-grid{grid-template-columns:repeat(3,1fr);}
@@ -668,7 +815,6 @@ body::before{
       <div class="nav-item" onclick="showSection('devices')"><span class="icon"><i class="fa-solid fa-microchip"></i></span><span class="label">Perangkat</span><span class="badge" id="deviceBadge">0</span></div>
     </nav>
     <div class="sidebar-footer">
-      <!-- Theme Toggle Button -->
       <button class="theme-toggle-btn" onclick="toggleTheme()" id="themeToggleBtn">
         <span class="icon"><i class="fa-solid fa-moon" id="themeIcon"></i></span>
         <span class="label" id="themeLabel">Tema Gelap</span>
@@ -723,7 +869,6 @@ body::before{
               <div class="stat-info"><h3>Notifikasi</h3><div class="value" id="activeAlerts">0</div></div>
             </div>
           </div>
-          <!-- hidden field kept for JS compatibility -->
           <span id="onlineDevices" style="display:none;">0</span>
         </div>
 
@@ -750,7 +895,6 @@ body::before{
         <div class="section-card">
           <div class="section-header">
             <div class="section-title"><i class="fa-solid fa-globe"></i> Peta Interaktif</div>
-            <!-- Dropdown untuk memilih perangkat di peta -->
             <div class="device-select-wrapper">
               <select id="mapDeviceSelect" style="min-width:200px;">
                 <option value="">Pilih Perangkat…</option>
@@ -883,6 +1027,19 @@ body::before{
       document.documentElement.setAttribute('data-theme', newTheme);
       localStorage.setItem('nexus-theme', newTheme);
       updateThemeUI(newTheme);
+      // Refresh charts when theme changes
+      setTimeout(() => {
+        if (combinedChart) {
+          const currentHours = combinedHours;
+          loadCombinedGraph(currentHours);
+        }
+        if (currentDevice1 && sensorChart1) {
+          loadIndividualGraph(1, currentDevice1, individual1Hours);
+        }
+        if (currentDevice2 && sensorChart2) {
+          loadIndividualGraph(2, currentDevice2, individual2Hours);
+        }
+      }, 100);
     }
 
     function updateThemeUI(theme) {
@@ -903,7 +1060,25 @@ body::before{
       updateThemeUI(savedTheme);
     }
 
-    // ============ END THEME TOGGLE ============
+    // ============ CHART HELPER ============
+    function getChartColors() {
+      const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+      return {
+        gridColor: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.08)',
+        labelColor: isLight ? 'rgba(60,60,67,0.60)' : 'rgba(235,235,245,0.45)',
+        legendColor: isLight ? 'rgba(60,60,67,0.70)' : 'rgba(235,235,245,0.6)',
+        tooltipBg: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(28,28,30,0.95)',
+        tooltipBorder: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
+        tooltipTitleColor: isLight ? '#1c1c1e' : '#f5f5f7',
+        tooltipBodyColor: isLight ? 'rgba(60,60,67,0.75)' : 'rgba(235,235,245,0.72)',
+        fillColor1: isLight ? 'rgba(255,69,58,0.12)' : 'rgba(255,69,58,0.08)',
+        fillColor2: isLight ? 'rgba(191,90,242,0.12)' : 'rgba(191,90,242,0.08)',
+        fillColor3: isLight ? 'rgba(255,159,10,0.12)' : 'rgba(255,159,10,0.08)',
+        pointBorderColor: isLight ? '#fff' : '#000',
+      };
+    }
+
+    // ============ END CHART HELPER ============
 
     function showToast(msg, type = 'success') {
       const t = document.getElementById('toast');
@@ -978,7 +1153,6 @@ body::before{
       allDevices.forEach(d => {
         select.innerHTML += `<option value="${d.device_id}">${d.device_name} (${d.device_id})</option>`;
       });
-      // Pilih perangkat pertama jika ada
       if (allDevices.length > 0) {
         select.value = allDevices[0].device_id;
         selectedMapDeviceId = allDevices[0].device_id;
@@ -997,11 +1171,9 @@ body::before{
       }
     }
 
-    // Event listener untuk dropdown peta
     document.getElementById('mapDeviceSelect').addEventListener('change', function() {
       selectedMapDeviceId = this.value;
       updateMapDeviceInfo();
-      // Reset marker
       if (marker) {
         marker.remove();
         marker = null;
@@ -1069,7 +1241,6 @@ body::before{
             select2.innerHTML += `<option value="${d.device_id}">${d.device_name}</option>`;
           });
 
-          // Update map dropdown juga
           populateMapDeviceSelect();
 
           if (savedDevice1) {
@@ -1196,6 +1367,8 @@ body::before{
           }
         });
 
+        const chartColors = getChartColors();
+
         combinedChart = new Chart(ctx, {
           type: 'line',
           data: { labels, datasets },
@@ -1203,16 +1376,39 @@ body::before{
             responsive: true, maintainAspectRatio: false,
             interaction: { mode: 'index', intersect: false },
             plugins: {
-              legend: { position: 'top', labels: { font: { size: 11, weight: '600', family: CHART_FONT }, usePointStyle: true, pointStyle: 'circle', padding: 16, color: 'rgba(235,235,245,.6)' } },
+              legend: { 
+                position: 'top', 
+                labels: { 
+                  font: { size: 11, weight: '600', family: CHART_FONT }, 
+                  usePointStyle: true, 
+                  pointStyle: 'circle', 
+                  padding: 16, 
+                  color: chartColors.legendColor 
+                } 
+              },
               tooltip: {
-                enabled: true, backgroundColor: 'rgba(28,28,30,.95)', titleFont: { size: 12, weight: '700', family: CHART_FONT },
-                bodyFont: { size: 11, family: CHART_FONT }, padding: 12, cornerRadius: 10,
-                borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, displayColors: true, boxPadding: 5
+                enabled: true, 
+                backgroundColor: chartColors.tooltipBg,
+                titleColor: chartColors.tooltipTitleColor,
+                bodyColor: chartColors.tooltipBodyColor,
+                titleFont: { size: 12, weight: '700', family: CHART_FONT },
+                bodyFont: { size: 11, family: CHART_FONT }, 
+                padding: 12, cornerRadius: 10,
+                borderColor: chartColors.tooltipBorder, 
+                borderWidth: 1, 
+                displayColors: true, 
+                boxPadding: 5
               }
             },
             scales: {
-              x: { grid: { display: false }, ticks: { color: 'rgba(235,235,245,.34)', maxTicksLimit: 10, font: { family: CHART_FONT } } },
-              y: { grid: { color: 'rgba(255,255,255,.05)' }, ticks: { color: 'rgba(235,235,245,.34)', font: { family: CHART_FONT } } }
+              x: { 
+                grid: { display: false }, 
+                ticks: { color: chartColors.labelColor, maxTicksLimit: 10, font: { family: CHART_FONT } } 
+              },
+              y: { 
+                grid: { color: chartColors.gridColor }, 
+                ticks: { color: chartColors.labelColor, font: { family: CHART_FONT } } 
+              }
             }
           }
         });
@@ -1238,10 +1434,48 @@ body::before{
           if (chartNumber === 1 && sensorChart1) sensorChart1.destroy();
           if (chartNumber === 2 && sensorChart2) sensorChart2.destroy();
 
+          const chartColors = getChartColors();
+
           const datasets = [];
-          if (temps.some(v => v !== null)) datasets.push({ label: 'Suhu (°C)', data: temps, borderColor: '#ff453a', backgroundColor: 'rgba(255,69,58,0.08)', fill: true, tension: 0.35, pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: '#ff453a', pointBorderColor: '#000', pointBorderWidth: 1 });
-          if (hums.some(v => v !== null)) datasets.push({ label: 'Kelembaban (%)', data: hums, borderColor: '#bf5af2', backgroundColor: 'rgba(191,90,242,0.08)', fill: true, tension: 0.35, pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: '#bf5af2', pointBorderColor: '#000', pointBorderWidth: 1 });
-          if (gases.some(v => v !== null)) datasets.push({ label: 'Gas (%)', data: gases, borderColor: '#ff9f0a', backgroundColor: 'rgba(255,159,10,0.08)', fill: true, tension: 0.35, pointRadius: 2, pointHoverRadius: 5, pointBackgroundColor: '#ff9f0a', pointBorderColor: '#000', pointBorderWidth: 1 });
+          if (temps.some(v => v !== null)) datasets.push({ 
+            label: 'Suhu (°C)', 
+            data: temps, 
+            borderColor: '#ff453a', 
+            backgroundColor: chartColors.fillColor1, 
+            fill: true, 
+            tension: 0.35, 
+            pointRadius: 2, 
+            pointHoverRadius: 5, 
+            pointBackgroundColor: '#ff453a', 
+            pointBorderColor: chartColors.pointBorderColor, 
+            pointBorderWidth: 1 
+          });
+          if (hums.some(v => v !== null)) datasets.push({ 
+            label: 'Kelembaban (%)', 
+            data: hums, 
+            borderColor: '#bf5af2', 
+            backgroundColor: chartColors.fillColor2, 
+            fill: true, 
+            tension: 0.35, 
+            pointRadius: 2, 
+            pointHoverRadius: 5, 
+            pointBackgroundColor: '#bf5af2', 
+            pointBorderColor: chartColors.pointBorderColor, 
+            pointBorderWidth: 1 
+          });
+          if (gases.some(v => v !== null)) datasets.push({ 
+            label: 'Gas (%)', 
+            data: gases, 
+            borderColor: '#ff9f0a', 
+            backgroundColor: chartColors.fillColor3, 
+            fill: true, 
+            tension: 0.35, 
+            pointRadius: 2, 
+            pointHoverRadius: 5, 
+            pointBackgroundColor: '#ff9f0a', 
+            pointBorderColor: chartColors.pointBorderColor, 
+            pointBorderWidth: 1 
+          });
 
           const chart = new Chart(ctx, {
             type: 'line',
@@ -1250,16 +1484,35 @@ body::before{
               responsive: true, maintainAspectRatio: false,
               interaction: { mode: 'index', intersect: false },
               plugins: {
-                legend: { labels: { color: 'rgba(235,235,245,.6)', font: { size: 11, family: CHART_FONT } } },
+                legend: { 
+                  labels: { 
+                    color: chartColors.legendColor, 
+                    font: { size: 11, family: CHART_FONT } 
+                  } 
+                },
                 tooltip: {
-                  enabled: true, backgroundColor: 'rgba(28,28,30,.95)', titleFont: { size: 12, weight: '700', family: CHART_FONT },
-                  bodyFont: { size: 11, family: CHART_FONT }, padding: 12, cornerRadius: 10,
-                  borderColor: 'rgba(255,255,255,.1)', borderWidth: 1, displayColors: true, boxPadding: 5
+                  enabled: true, 
+                  backgroundColor: chartColors.tooltipBg,
+                  titleColor: chartColors.tooltipTitleColor,
+                  bodyColor: chartColors.tooltipBodyColor,
+                  titleFont: { size: 12, weight: '700', family: CHART_FONT },
+                  bodyFont: { size: 11, family: CHART_FONT }, 
+                  padding: 12, cornerRadius: 10,
+                  borderColor: chartColors.tooltipBorder, 
+                  borderWidth: 1, 
+                  displayColors: true, 
+                  boxPadding: 5
                 }
               },
               scales: {
-                x: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(235,235,245,.34)', font: { family: CHART_FONT } } },
-                y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: 'rgba(235,235,245,.34)', font: { family: CHART_FONT } } }
+                x: { 
+                  grid: { color: chartColors.gridColor }, 
+                  ticks: { color: chartColors.labelColor, font: { family: CHART_FONT } } 
+                },
+                y: { 
+                  grid: { color: chartColors.gridColor }, 
+                  ticks: { color: chartColors.labelColor, font: { family: CHART_FONT } } 
+                }
               }
             }
           });
@@ -1270,7 +1523,6 @@ body::before{
       } catch (e) { console.error(e); }
     }
 
-    // Event listener untuk save location button - FIXED
     document.getElementById('saveLocationBtn').addEventListener('click', function() {
       const deviceId = selectedMapDeviceId;
       if (!deviceId) {
@@ -1292,7 +1544,6 @@ body::before{
         if (data.success) {
           showToast(`Lokasi untuk ${deviceId} berhasil disimpan!`, 'success');
           loadDashboard();
-          // Reset marker
           if (marker) {
             marker.remove();
             marker = null;
@@ -1336,9 +1587,7 @@ body::before{
       });
     });
 
-    // Load theme on page load
     loadTheme();
-
     updateDateTime();
     setInterval(updateDateTime, 1000);
     initMapPreview();
