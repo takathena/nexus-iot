@@ -6,6 +6,7 @@
 <title>NEXUS — Mobile</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 
@@ -29,7 +30,6 @@
   --ease: cubic-bezier(.16,1,.3,1);
 }
 
-/* ============ LIGHT THEME ============ */
 [data-theme="light"] {
   --bg: #f0f0f5;
   --surface: rgba(255,255,255,.7);
@@ -46,115 +46,38 @@
   --purple: #af52de;
 }
 
-[data-theme="light"] body {
-  background: #f0f0f5;
-}
-
+[data-theme="light"] body { background: #f0f0f5; }
 [data-theme="light"] body::before {
   background: radial-gradient(60% 30% at 20% 0%, rgba(0,122,255,.06), transparent 60%),
              radial-gradient(50% 25% at 90% 10%, rgba(175,82,222,.04), transparent 60%);
 }
-
-[data-theme="light"] .mobile-header {
-  background: rgba(240,240,245,.8);
-  border-bottom: 1px solid var(--hairline-soft);
-}
-
-[data-theme="light"] .mobile-header .mark {
-  background: linear-gradient(155deg, #e5e5ea, #d1d1d6);
-  border: 1px solid var(--hairline);
-}
-
-[data-theme="light"] .bottom-nav {
-  background: rgba(240,240,245,.85);
-  border-top: 1px solid var(--hairline-soft);
-}
-
-[data-theme="light"] .mobile-stat-card {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-}
-
-[data-theme="light"] .device-card {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-}
-
-[data-theme="light"] .device-card:active {
-  background: rgba(0,0,0,.04);
-}
-
-[data-theme="light"] .mobile-modal-content {
-  background: rgba(240,240,245,.96);
-  border: 1px solid var(--hairline);
-}
-
+[data-theme="light"] .mobile-header { background: rgba(240,240,245,.8); border-bottom: 1px solid var(--hairline-soft); }
+[data-theme="light"] .mobile-header .mark { background: linear-gradient(155deg, #e5e5ea, #d1d1d6); border: 1px solid var(--hairline); }
+[data-theme="light"] .bottom-nav { background: rgba(240,240,245,.85); border-top: 1px solid var(--hairline-soft); }
+[data-theme="light"] .mobile-stat-card { background: var(--surface); border: 1px solid var(--hairline); }
+[data-theme="light"] .device-card { background: var(--surface); border: 1px solid var(--hairline); }
+[data-theme="light"] .device-card:active { background: rgba(0,0,0,.04); }
+[data-theme="light"] .mobile-modal-content { background: rgba(240,240,245,.96); border: 1px solid var(--hairline); }
 [data-theme="light"] .form-group input,
-[data-theme="light"] .form-group select {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-  color: var(--text);
-}
-[data-theme="light"] .form-group input::placeholder {
-  color: var(--text-3);
-}
+[data-theme="light"] .form-group select { background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text); }
+[data-theme="light"] .form-group input::placeholder { color: var(--text-3); }
 [data-theme="light"] .form-group input:focus,
-[data-theme="light"] .form-group select:focus {
-  border-color: rgba(0,122,255,.55);
-}
-
-[data-theme="light"] .api-key-box {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-}
-
-[data-theme="light"] .fab {
-  background: var(--blue);
-  box-shadow: 0 10px 26px rgba(0,122,255,.35);
-}
-
-[data-theme="light"] .fab-menu-item {
-  background: rgba(255,255,255,.9);
-  border: 1px solid var(--hairline);
-  box-shadow: 0 8px 24px rgba(0,0,0,.12);
-  color: var(--text-2);
-}
-[data-theme="light"] .fab-menu-item:hover {
-  background: #ffffff;
-  color: var(--text);
-}
-
-[data-theme="light"] .mobile-stat-icon.total {
-  background: rgba(175,82,222,.14);
-  color: var(--purple);
-}
-[data-theme="light"] .mobile-stat-icon.online {
-  background: rgba(52,199,89,.14);
-  color: var(--green);
-}
-[data-theme="light"] .mobile-stat-icon.offline {
-  background: rgba(255,59,48,.14);
-  color: var(--red);
-}
-[data-theme="light"] .mobile-stat-icon.alerts {
-  background: rgba(255,149,0,.14);
-  color: var(--orange);
-}
-
-[data-theme="light"] .status-badge.online {
-  background: rgba(52,199,89,.12);
-  color: #34c759;
-}
-[data-theme="light"] .status-badge.offline {
-  background: rgba(255,59,48,.12);
-  color: #ff3b30;
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,.12);
-}
-
-/* ============ END LIGHT THEME ============ */
+[data-theme="light"] .form-group select:focus { border-color: rgba(0,122,255,.55); }
+[data-theme="light"] .api-key-box { background: var(--surface-2); border: 1px solid var(--hairline); }
+[data-theme="light"] .fab { background: var(--blue); box-shadow: 0 10px 26px rgba(0,122,255,.35); }
+[data-theme="light"] .fab-menu-item { background: rgba(255,255,255,.9); border: 1px solid var(--hairline); box-shadow: 0 8px 24px rgba(0,0,0,.12); color: var(--text-2); }
+[data-theme="light"] .fab-menu-item:hover { background: #ffffff; color: var(--text); }
+[data-theme="light"] .mobile-stat-icon.total { background: rgba(175,82,222,.14); color: var(--purple); }
+[data-theme="light"] .mobile-stat-icon.online { background: rgba(52,199,89,.14); color: var(--green); }
+[data-theme="light"] .mobile-stat-icon.offline { background: rgba(255,59,48,.14); color: var(--red); }
+[data-theme="light"] .mobile-stat-icon.alerts { background: rgba(255,149,0,.14); color: var(--orange); }
+[data-theme="light"] .status-badge.online { background: rgba(52,199,89,.12); color: #34c759; }
+[data-theme="light"] .status-badge.offline { background: rgba(255,59,48,.12); color: #ff3b30; }
+[data-theme="light"] ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); }
+[data-theme="light"] .mobile-chart-card { background: var(--surface); border: 1px solid var(--hairline); }
+[data-theme="light"] .form-group select option { background: #ffffff; color: #1c1c1e; }
+[data-theme="light"] .mobile-filter-btn { background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text-2); }
+[data-theme="light"] .mobile-filter-btn.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 
 *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
 body{
@@ -176,9 +99,7 @@ body::before{
 
 .leaflet-pane,.leaflet-tile-pane,.leaflet-overlay-pane,.leaflet-shadow-pane,.leaflet-marker-pane,.leaflet-tooltip-pane,.leaflet-popup-pane{z-index:1 !important;}
 #mobileMap{filter:grayscale(.15) invert(1) contrast(.9) brightness(.92) hue-rotate(180deg);}
-[data-theme="light"] #mobileMap {
-  filter: none !important;
-}
+[data-theme="light"] #mobileMap { filter: none !important; }
 
 /* ============ TOP / BOTTOM BARS ============ */
 .mobile-header{
@@ -240,6 +161,61 @@ body::before{
 .section-title{font-size:13.5px;font-weight:700;margin:6px 0 12px;display:flex;align-items:center;gap:8px;letter-spacing:-.01em;color:var(--text-2);}
 .section-title i{color:var(--blue);font-size:12.5px;}
 
+/* Mobile Filter Bar */
+.mobile-filter-bar {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 14px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 2px;
+}
+.mobile-filter-bar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.mobile-filter-btn {
+  flex: 1 0 auto;
+  padding: 8px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.mobile-filter-btn.active {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+.mobile-filter-btn.offline.active {
+  background: var(--red);
+  border-color: var(--red);
+}
+.mobile-filter-btn.warning.active {
+  background: var(--orange);
+  border-color: var(--orange);
+}
+.mobile-filter-btn .count {
+  background: rgba(255,255,255,.2);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+}
+
 .device-list{display:flex;flex-direction:column;gap:9px;margin-bottom:22px;}
 .device-card{
   background:var(--surface);backdrop-filter:blur(20px);border:1px solid var(--hairline);
@@ -253,8 +229,10 @@ body::before{
 .status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
 .status-badge.online{background:rgba(48,209,88,.12);color:#4ade80;}
 .status-badge.offline{background:rgba(255,69,58,.12);color:#ff8078;}
+.status-badge.alert{background:rgba(255,159,10,.12);color:var(--orange);}
 .status-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
 .status-badge.online .status-dot{animation:pulse 2s infinite;}
+.status-badge.alert .status-dot{animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
 
 .device-card .device-info{display:flex;gap:14px;font-size:11px;color:var(--text-3);flex-wrap:wrap;font-weight:500;}
@@ -263,7 +241,106 @@ body::before{
 
 #mobileMap{height:210px;border-radius:16px;border:1px solid var(--hairline);overflow:hidden;margin-bottom:22px;position:relative;z-index:1;transition: filter 0.3s ease;}
 
-/* ============ FAB MENU (seperti WhatsApp) ============ */
+/* ============ ANALYTICS ============ */
+.mobile-chart-card{
+  background:var(--surface);backdrop-filter:blur(20px);border:1px solid var(--hairline);
+  border-radius:16px;padding:14px;margin-bottom:12px;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+.mobile-chart-header{
+  display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;
+}
+.mobile-chart-title{font-size:12px;font-weight:700;color:var(--text);}
+.mobile-chart-actions{display:flex;gap:6px;}
+.mobile-chart-btn{
+  width:26px;height:26px;border-radius:7px;
+  background:var(--surface-2);border:1px solid var(--hairline);
+  color:var(--text-3);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:10px;
+  pointer-events:auto;
+  position:relative;
+  z-index: 40;
+}
+.mobile-chart-btn.edit:hover{background:rgba(10,132,255,.1);color:var(--blue);}
+.mobile-chart-btn.delete:hover{background:rgba(255,69,58,.1);color:var(--red);}
+.mobile-chart-canvas{position:relative;height:200px;touch-action:pan-y;}
+
+/* Time Range - No Scrollbar */
+.mobile-time-range{
+  display:flex;
+  gap:4px;
+  margin-bottom:16px;
+  flex-wrap:nowrap;
+  background:var(--surface-2);
+  padding:5px;
+  border-radius:10px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.mobile-time-range::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.mobile-time-btn{
+  flex: 1 0 auto;
+  min-width: 42px;
+  padding:10px 10px;
+  text-align:center;
+  font-size:11px;
+  font-weight:600;
+  color:var(--text-3);
+  cursor:pointer;
+  transition:all .2s;
+  white-space:nowrap;
+  font-family:inherit;
+  border:none;
+  border-radius:8px;
+  background:transparent;
+}
+.mobile-time-btn.active{
+  background:var(--blue);
+  color:#fff;
+}
+
+/* Checkbox Grid */
+.mobile-checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  padding: 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+}
+.mobile-checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.mobile-checkbox-item input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--blue);
+}
+.mobile-checkbox-item .data-color {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ============ FAB MENU ============ */
 .fab-wrapper {
   position: fixed;
   bottom: 82px;
@@ -274,7 +351,6 @@ body::before{
   align-items: flex-end;
   gap: 10px;
 }
-
 .fab-menu {
   display: none;
   flex-direction: column;
@@ -282,52 +358,33 @@ body::before{
   gap: 10px;
   margin-bottom: 8px;
 }
-
-.fab-menu.open {
-  display: flex;
-}
-
+.fab-menu.open { display: flex; }
 .fab-menu-item {
   background: rgba(28,28,30,.85);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--hairline);
   border-radius: 14px;
-  padding: 12px 18px;
+  padding: 11px 16px;
   color: var(--text-2);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   font-family: var(--font);
   transition: all 0.25s var(--ease);
   box-shadow: 0 8px 24px rgba(0,0,0,.3);
   animation: menuSlideIn 0.3s var(--ease);
   white-space: nowrap;
 }
-.fab-menu-item i {
-  font-size: 16px;
-  width: 20px;
-  text-align: center;
-}
-.fab-menu-item:hover {
-  background: rgba(255,255,255,.08);
-  color: var(--text);
-}
-
+.fab-menu-item i { font-size: 15px; width: 18px; text-align: center; }
+.fab-menu-item:hover { background: rgba(255,255,255,.08); color: var(--text); }
 @keyframes menuSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  from { opacity: 0; transform: translateY(10px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
-
 .fab {
   width: 52px;
   height: 52px;
@@ -343,12 +400,8 @@ body::before{
   justify-content: center;
   transition: transform 0.25s var(--ease), background 0.3s ease, box-shadow 0.3s ease;
 }
-.fab:active {
-  transform: scale(.88);
-}
-.fab.open {
-  transform: rotate(45deg);
-}
+.fab:active { transform: scale(.88); }
+.fab.open { transform: rotate(45deg); }
 
 /* ============ MODALS ============ */
 .mobile-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:9999;align-items:flex-end;justify-content:center;}
@@ -358,9 +411,30 @@ body::before{
   border:1px solid var(--hairline);border-top-left-radius:24px;border-top-right-radius:24px;
   padding:22px 20px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:520px;max-height:82vh;overflow-y:auto;
   animation:slideUp .35s var(--ease);position:relative;z-index:10000;
-  transition: background 0.3s ease, border-color 0.3s ease;
+  transition: background 0.3s ease, border-color 0.3s ease, transform .3s var(--ease);
 }
-.sheet-handle{width:36px;height:4px;border-radius:3px;background:var(--hairline);margin:0 auto 16px;}
+.sheet-handle-area{
+  position:relative;
+  padding:12px 0 16px;
+  cursor:grab;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-touch-callout:none;
+  touch-action:pan-y;
+}
+.sheet-handle-area:active{cursor:grabbing;}
+.sheet-handle{
+  width:36px;
+  height:4px;
+  border-radius:3px;
+  background:var(--hairline);
+  margin:0 auto;
+  pointer-events:none;
+  transition:background 0.2s;
+}
+.sheet-handle-area:active .sheet-handle{
+  background:var(--text-3);
+}
 @keyframes slideUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
 
 .form-group{margin-bottom:13px;}
@@ -368,6 +442,8 @@ body::before{
 .form-group input,.form-group select{width:100%;padding:12px 13px;background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;font-size:14px;font-family:inherit;color:var(--text);outline:none;transition: border-color 0.3s ease, background 0.3s ease, color 0.3s ease;}
 .form-group input::placeholder{color:var(--text-3);}
 .form-group input:focus,.form-group select:focus{border-color:rgba(10,132,255,.55);}
+.form-group select option{background:var(--bg);color:var(--text);}
+[data-theme="light"] .form-group select option { background: #ffffff; color: #1c1c1e; }
 
 .modal-actions{display:flex;gap:9px;margin-top:18px;}
 .btn{flex:1;padding:13px;border:none;border-radius:12px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;transition:transform .15s;}
@@ -397,6 +473,7 @@ body::before{
   </div>
 
   <div class="mobile-content">
+    <!-- DASHBOARD SECTION -->
     <div id="mDashboardSection">
       <div class="mobile-stats">
         <div class="mobile-stat-card" style="animation-delay:.02s;">
@@ -421,24 +498,76 @@ body::before{
       <div id="mobileMap"></div>
 
       <div class="section-title"><i class="fa-solid fa-list"></i> Daftar Perangkat</div>
+      <div class="mobile-filter-bar" id="mFilterBar">
+        <button class="mobile-filter-btn active" data-filter="all" onclick="setMFilter('all')">
+          <i class="fa-solid fa-server"></i> Semua <span class="count" id="mFilterCountAll">0</span>
+        </button>
+        <button class="mobile-filter-btn" data-filter="online" onclick="setMFilter('online')">
+          <i class="fa-solid fa-wifi"></i> Online <span class="count" id="mFilterCountOnline">0</span>
+        </button>
+        <button class="mobile-filter-btn offline" data-filter="offline" onclick="setMFilter('offline')">
+          <i class="fa-solid fa-power-off"></i> Offline <span class="count" id="mFilterCountOffline">0</span>
+        </button>
+        <button class="mobile-filter-btn warning" data-filter="alert" onclick="setMFilter('alert')">
+          <i class="fa-solid fa-triangle-exclamation"></i> Alert <span class="count" id="mFilterCountAlert">0</span>
+        </button>
+      </div>
       <div class="device-list" id="mDeviceList">
         <div class="loading-state"><div class="spinner"></div><div>Memuat…</div></div>
       </div>
     </div>
 
+    <!-- ANALYTICS SECTION -->
+    <div id="mAnalyticsSection" style="display:none;">
+      <div class="section-title"><i class="fa-solid fa-chart-line"></i> Analitik</div>
+      
+      <div class="mobile-time-range" id="mTimeRange">
+        <button class="mobile-time-btn" data-minutes="10" onclick="setMTimeRange(10)">10m</button>
+        <button class="mobile-time-btn" data-minutes="60" onclick="setMTimeRange(60)">1j</button>
+        <button class="mobile-time-btn" data-minutes="180" onclick="setMTimeRange(180)">3j</button>
+        <button class="mobile-time-btn" data-minutes="360" onclick="setMTimeRange(360)">6j</button>
+        <button class="mobile-time-btn active" data-minutes="1440" onclick="setMTimeRange(1440)">24j</button>
+        <button class="mobile-time-btn" data-minutes="10080" onclick="setMTimeRange(10080)">7h</button>
+        <button class="mobile-time-btn" data-minutes="43200" onclick="setMTimeRange(43200)">1bln</button>
+        <button class="mobile-time-btn" data-minutes="129600" onclick="setMTimeRange(129600)">3bln</button>
+      </div>
+
+      <div id="mChartsList">
+        <div class="loading-state"><div class="spinner"></div><div>Memuat…</div></div>
+      </div>
+    </div>
+
+    <!-- DEVICES SECTION -->
     <div id="mDevicesSection" style="display:none;">
       <div class="section-title"><i class="fa-solid fa-microchip"></i> Semua Perangkat</div>
+      <div class="mobile-filter-bar" id="mFilterBarFull">
+        <button class="mobile-filter-btn active" data-filter="all" onclick="setMFilterFull('all')">
+          <i class="fa-solid fa-server"></i> Semua
+        </button>
+        <button class="mobile-filter-btn" data-filter="online" onclick="setMFilterFull('online')">
+          <i class="fa-solid fa-wifi"></i> Online
+        </button>
+        <button class="mobile-filter-btn offline" data-filter="offline" onclick="setMFilterFull('offline')">
+          <i class="fa-solid fa-power-off"></i> Offline
+        </button>
+        <button class="mobile-filter-btn warning" data-filter="alert" onclick="setMFilterFull('alert')">
+          <i class="fa-solid fa-triangle-exclamation"></i> Alert
+        </button>
+      </div>
       <div class="device-list" id="mDeviceListFull">
         <div class="loading-state"><div class="spinner"></div><div>Memuat…</div></div>
       </div>
     </div>
   </div>
 
-  <!-- FAB Menu (seperti WhatsApp) -->
+  <!-- FAB Menu -->
   <div class="fab-wrapper">
     <div class="fab-menu" id="fabMenu">
-      <div class="fab-menu-item" onclick="openAddModal()">
-        <i class="fa-solid fa-plus"></i> Tambah Perangkat
+      <div class="fab-menu-item" onclick="openAddDeviceFromFab()">
+        <i class="fa-solid fa-microchip"></i> Tambah Perangkat
+      </div>
+      <div class="fab-menu-item" onclick="openAddChartFromFab()">
+        <i class="fa-solid fa-chart-line"></i> Tambah Diagram
       </div>
       <div class="fab-menu-item" onclick="toggleTheme()">
         <i class="fa-solid fa-moon" id="mobileThemeIcon"></i>
@@ -450,16 +579,20 @@ body::before{
     </button>
   </div>
 
+  <!-- BOTTOM NAV -->
   <div class="bottom-nav">
     <div class="bottom-nav-item active" onclick="showMSection('dashboard')"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></div>
+    <div class="bottom-nav-item" onclick="showMSection('analytics')"><i class="fa-solid fa-chart-line"></i><span>Analitik</span></div>
     <div class="bottom-nav-item" onclick="showMSection('devices')"><i class="fa-solid fa-server"></i><span>Perangkat</span></div>
-    <div class="bottom-nav-item" onclick="window.location.href='/'"><i class="fa-solid fa-display"></i><span>Desktop</span></div>
     <div class="bottom-nav-item" onclick="logoutM()" style="color:#ff8078;"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Logout</span></div>
   </div>
 
+  <!-- ADD DEVICE MODAL -->
   <div class="mobile-modal" id="mAddModal">
     <div class="mobile-modal-content">
-      <div class="sheet-handle"></div>
+      <div class="sheet-handle-area">
+        <div class="sheet-handle"></div>
+      </div>
       <h3 style="margin-bottom:16px;font-size:16px;font-weight:800;color:var(--text);">Tambah Perangkat</h3>
       <div class="form-group"><label>Device ID</label><input type="text" id="mAddId" placeholder="ESP32-001"></div>
       <div class="form-group"><label>Nama</label><input type="text" id="mAddName" placeholder="Sensor Suhu"></div>
@@ -472,9 +605,46 @@ body::before{
     </div>
   </div>
 
+  <!-- CHART MODAL -->
+  <div class="mobile-modal" id="mChartModal">
+    <div class="mobile-modal-content">
+      <div class="sheet-handle-area">
+        <div class="sheet-handle"></div>
+      </div>
+      <h3 style="margin-bottom:16px;font-size:16px;font-weight:800;color:var(--text);" id="mChartModalTitle">Tambah Diagram</h3>
+      <input type="hidden" id="mEditChartId" value="">
+      <div class="form-group"><label>Judul Diagram</label><input type="text" id="mChartTitle" placeholder="Contoh: Suhu Ruang Server"></div>
+      <div class="form-group">
+        <label>Pilih Perangkat</label>
+        <select id="mChartDeviceSelect"><option value="">Pilih Perangkat…</option></select>
+      </div>
+      <div class="form-group">
+        <label>Tipe Diagram</label>
+        <select id="mChartTypeSelect">
+          <option value="line">Line Chart</option>
+          <option value="bar">Bar Chart</option>
+          <option value="area">Area Chart</option>
+          <option value="doughnut">Doughnut Chart</option>
+          <option value="pie">Pie Chart</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Data yang Ditampilkan</label>
+        <div class="mobile-checkbox-grid" id="mChartDataCheckboxes"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeMChartModal()">Batal</button>
+        <button class="btn btn-success" onclick="saveMChart()"><i class="fa-solid fa-check"></i> Simpan</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- API KEY MODAL -->
   <div class="mobile-modal" id="mApiKeyModal">
     <div class="mobile-modal-content">
-      <div class="sheet-handle"></div>
+      <div class="sheet-handle-area">
+        <div class="sheet-handle"></div>
+      </div>
       <h3 style="margin-bottom:10px;font-size:16px;font-weight:800;color:var(--text);">API Key</h3>
       <p style="font-size:12px;color:var(--text-2);margin-bottom:10px;">Simpan API Key ini — hanya muncul sekali:</p>
       <div class="api-key-box">
@@ -489,6 +659,80 @@ body::before{
     let mMap;
     let mDevices = [];
     let isFabOpen = false;
+    let mCharts = [];
+    let mChartIdCounter = 0;
+    let mGlobalTimeMinutes = 1440;
+    let mCurrentFilter = 'all';
+    let mCurrentFilterFull = 'all';
+
+    const M_CHART_COLORS = ['#ff453a', '#bf5af2', '#30d158', '#ff9f0a', '#0a84ff', '#ff375f', '#64d2ff', '#a3e635'];
+    const M_DATA_KEYS = {
+      temperature: { label: 'Suhu', unit: '°C', color: '#ff453a' },
+      humidity: { label: 'Kelembaban', unit: '%', color: '#bf5af2' },
+      gas_level: { label: 'Gas', unit: '%', color: '#ff9f0a' },
+      smoke: { label: 'Asap', unit: 'ppm', color: '#ff6482' },
+      motion: { label: 'Gerakan', unit: '', color: '#40c4ff' },
+      rfid: { label: 'RFID', unit: '', color: '#a3e635' },
+      moisture: { label: 'K. Tanah', unit: '%', color: '#64d2ff' },
+      lux: { label: 'Cahaya', unit: 'lux', color: '#ffd60a' },
+      co2: { label: 'CO2', unit: 'ppm', color: '#30d158' }
+    };
+
+    // ============ DEVICE FILTER ============
+    function setMFilter(filter) {
+      mCurrentFilter = filter;
+      document.querySelectorAll('#mFilterBar .mobile-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderMFilteredDevices();
+    }
+
+    function setMFilterFull(filter) {
+      mCurrentFilterFull = filter;
+      document.querySelectorAll('#mFilterBarFull .mobile-filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderMFilteredDevicesFull();
+    }
+
+    function getMDeviceAlertStatus(device) {
+      if (device.status === 'alert') return true;
+      return false;
+    }
+
+    function filterMDevicesByStatus(devices, filter) {
+      switch(filter) {
+        case 'online':
+          return devices.filter(d => d.status === 'online');
+        case 'offline':
+          return devices.filter(d => d.status === 'offline');
+        case 'alert':
+          return devices.filter(d => getMDeviceAlertStatus(d));
+        default:
+          return devices;
+      }
+    }
+
+    function renderMFilteredDevices() {
+      const filtered = filterMDevicesByStatus(mDevices, mCurrentFilter);
+      renderMDeviceList(filtered, 'mDeviceList');
+    }
+
+    function renderMFilteredDevicesFull() {
+      const filtered = filterMDevicesByStatus(mDevices, mCurrentFilterFull);
+      renderMDeviceList(filtered, 'mDeviceListFull');
+    }
+
+    function updateMFilterCounts() {
+      const onlineCount = mDevices.filter(d => d.status === 'online').length;
+      const offlineCount = mDevices.filter(d => d.status === 'offline').length;
+      const alertCount = mDevices.filter(d => getMDeviceAlertStatus(d)).length;
+      
+      document.getElementById('mFilterCountAll').textContent = mDevices.length;
+      document.getElementById('mFilterCountOnline').textContent = onlineCount;
+      document.getElementById('mFilterCountOffline').textContent = offlineCount;
+      document.getElementById('mFilterCountAlert').textContent = alertCount;
+    }
 
     function logoutM() { window.location.href = '/logout'; }
 
@@ -505,6 +749,18 @@ body::before{
       }
     }
 
+    function openAddDeviceFromFab() {
+      if (isFabOpen) toggleFabMenu();
+      showMSection('devices');
+      setTimeout(() => { openAddModal(); }, 150);
+    }
+
+    function openAddChartFromFab() {
+      if (isFabOpen) toggleFabMenu();
+      showMSection('analytics');
+      setTimeout(() => { openMChartModal(); }, 150);
+    }
+
     function updateMobileTime() {
       const now = new Date();
       document.getElementById('mobileTime').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
@@ -515,10 +771,16 @@ body::before{
     function showMSection(section) {
       document.getElementById('mDashboardSection').style.display = section === 'dashboard' ? 'block' : 'none';
       document.getElementById('mDevicesSection').style.display = section === 'devices' ? 'block' : 'none';
+      document.getElementById('mAnalyticsSection').style.display = section === 'analytics' ? 'block' : 'none';
+      
       document.querySelectorAll('.bottom-nav-item').forEach((item, i) => {
-        item.classList.toggle('active', i === (section === 'dashboard' ? 0 : 1));
+        const sections = ['dashboard', 'analytics', 'devices', 'logout'];
+        item.classList.toggle('active', sections[i] === section);
       });
-      if (isFabOpen) toggleFabMenu();
+      
+      if (section === 'analytics') {
+        loadMCharts();
+      }
     }
 
     function initMobileMap() {
@@ -527,9 +789,13 @@ body::before{
     }
 
     function loadMMarkers() {
+      if (!mMap) return;
+      mMap.eachLayer(layer => {
+        if (layer instanceof L.CircleMarker) mMap.removeLayer(layer);
+      });
       mDevices.forEach(d => {
         if (d.latitude && d.longitude) {
-          const color = d.status === 'online' ? '#30d158' : '#ff453a';
+          const color = d.status === 'online' ? '#30d158' : d.status === 'alert' ? '#ff9f0a' : '#ff453a';
           L.circleMarker([d.latitude, d.longitude], { radius: 7, color, fillColor: color, fillOpacity: 0.75, weight: 2 })
             .addTo(mMap).bindPopup(`<b>${d.device_name}</b><br>${d.device_id}`);
         }
@@ -556,32 +822,25 @@ body::before{
           document.getElementById('mOnlineDevices').textContent = data.summary.online_devices;
           document.getElementById('mOfflineDevices').textContent = data.summary.offline_devices;
           loadMMarkers();
-          renderMDeviceList(data.devices, 'mDeviceList');
-          renderMDeviceList(data.devices, 'mDeviceListFull');
-
-          const savedDevice = localStorage.getItem('selectedDeviceId');
-          if (savedDevice) {
-            const deviceCard = document.querySelector(`.device-card[data-device-id="${savedDevice}"]`);
-            if (deviceCard) {
-              deviceCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              deviceCard.style.borderColor = 'var(--blue)';
-              deviceCard.style.boxShadow = '0 0 20px rgba(10,132,255,.28)';
-            }
-          }
+          updateMFilterCounts();
+          renderMFilteredDevices();
+          renderMFilteredDevicesFull();
         }
       } catch (e) { console.error(e); }
     }
 
     function renderMDeviceList(devices, elementId) {
       const container = document.getElementById(elementId);
+      if (!container) return;
       if (devices.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);font-size:12.5px;">Belum ada perangkat</div>';
+        container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);font-size:12.5px;">Tidak ada perangkat</div>';
         return;
       }
       container.innerHTML = '';
       devices.forEach(d => {
         const uptime = formatMUptime(d.latest_uptime_seconds || 0);
         const wifi = d.latest_wifi_ssid || '-';
+        const statusClass = getMDeviceAlertStatus(d) ? 'alert' : d.status;
         const card = document.createElement('div');
         card.className = 'device-card';
         card.dataset.deviceId = d.device_id;
@@ -592,7 +851,7 @@ body::before{
               <div class="device-name">${d.device_name}</div>
               <div class="device-id">${d.device_id}</div>
             </div>
-            <span class="status-badge ${d.status}"><span class="status-dot"></span>${d.status}</span>
+            <span class="status-badge ${statusClass}"><span class="status-dot"></span>${statusClass}</span>
           </div>
           <div class="device-info">
             <span><i class="fa-solid fa-wifi"></i> ${wifi}</span>
@@ -605,13 +864,427 @@ body::before{
 
     function viewMDevice(id) { window.location.href = `/device/${id}`; }
 
+    // ============ ANALYTICS ============
+    function setMTimeRange(minutes) {
+      mGlobalTimeMinutes = minutes;
+      document.querySelectorAll('.mobile-time-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.minutes) === minutes);
+      });
+      loadMCharts();
+    }
+
+    function loadMCharts() {
+      const container = document.getElementById('mChartsList');
+      if (mCharts.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center;padding:30px;color:var(--text-3);">
+            <i class="fa-solid fa-chart-column" style="font-size:30px;margin-bottom:10px;display:block;"></i>
+            <p style="font-size:13px;font-weight:600;">Belum ada diagram</p>
+            <p style="font-size:11px;margin-top:4px;">Klik tombol + untuk menambahkan diagram</p>
+          </div>
+        `;
+        return;
+      }
+      
+      container.innerHTML = '';
+      mCharts.forEach(chart => {
+        const card = document.createElement('div');
+        card.className = 'mobile-chart-card';
+        card.id = `mchart_${chart.id}`;
+        card.innerHTML = `
+          <div class="mobile-chart-header">
+            <div class="mobile-chart-title">${chart.title}</div>
+            <div class="mobile-chart-actions">
+              <button class="mobile-chart-btn edit" data-action="edit" data-chart-id="${chart.id}"><i class="fa-solid fa-pen"></i></button>
+              <button class="mobile-chart-btn delete" data-action="delete" data-chart-id="${chart.id}"><i class="fa-solid fa-trash"></i></button>
+            </div>
+          </div>
+          <div class="mobile-chart-canvas">
+            <canvas id="mchart_canvas_${chart.id}"></canvas>
+          </div>
+        `;
+        container.appendChild(card);
+        
+        // Add event listeners
+        const editBtn = card.querySelector('.edit');
+        const deleteBtn = card.querySelector('.delete');
+        
+        if (editBtn) {
+          editBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            openMEditChart(chart.id);
+          });
+        }
+        
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            e.preventDefault();
+            removeMChart(chart.id);
+          });
+        }
+        
+        loadMChartData(chart);
+      });
+    }
+
+    function openMChartModal() {
+      document.getElementById('mChartModalTitle').textContent = 'Tambah Diagram';
+      document.getElementById('mEditChartId').value = '';
+      document.getElementById('mChartTitle').value = '';
+      
+      const select = document.getElementById('mChartDeviceSelect');
+      select.innerHTML = '<option value="">Pilih Perangkat…</option>';
+      mDevices.forEach(d => {
+        select.innerHTML += `<option value="${d.device_id}">${d.device_name} (${d.device_id})</option>`;
+      });
+      
+      document.getElementById('mChartTypeSelect').value = 'line';
+      generateMDataCheckboxes({ temperature: true });
+      
+      document.getElementById('mChartModal').classList.add('active');
+    }
+
+    function openMEditChart(chartId) {
+      const chart = mCharts.find(c => c.id === chartId);
+      if (!chart) return;
+      
+      document.getElementById('mChartModalTitle').textContent = 'Edit Diagram';
+      document.getElementById('mEditChartId').value = chartId;
+      document.getElementById('mChartTitle').value = chart.title;
+      
+      const select = document.getElementById('mChartDeviceSelect');
+      select.innerHTML = '<option value="">Pilih Perangkat…</option>';
+      mDevices.forEach(d => {
+        const selected = d.device_id === chart.deviceId ? 'selected' : '';
+        select.innerHTML += `<option value="${d.device_id}" ${selected}>${d.device_name} (${d.device_id})</option>`;
+      });
+      
+      document.getElementById('mChartTypeSelect').value = chart.chartType;
+      generateMDataCheckboxes(chart.showData);
+      
+      document.getElementById('mChartModal').classList.add('active');
+    }
+
+    function closeMChartModal() { closeModalById('mChartModal'); }
+
+    function generateMDataCheckboxes(selectedData = {}) {
+      const container = document.getElementById('mChartDataCheckboxes');
+      container.innerHTML = '';
+      
+      Object.entries(M_DATA_KEYS).forEach(([key, info]) => {
+        const isChecked = selectedData[key] || false;
+        const item = document.createElement('label');
+        item.className = 'mobile-checkbox-item';
+        item.innerHTML = `
+          <input type="checkbox" class="m-chart-checkbox" data-key="${key}" ${isChecked ? 'checked' : ''}>
+          <span class="data-color" style="background:${info.color};"></span>
+          <span>${info.label}</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function saveMChart() {
+      const editId = document.getElementById('mEditChartId').value;
+      const title = document.getElementById('mChartTitle').value.trim() || 'Diagram';
+      const deviceId = document.getElementById('mChartDeviceSelect').value;
+      const chartType = document.getElementById('mChartTypeSelect').value;
+      
+      const showData = {};
+      document.querySelectorAll('.m-chart-checkbox').forEach(cb => {
+        showData[cb.dataset.key] = cb.checked;
+      });
+
+      if (!deviceId) { alert('Pilih perangkat terlebih dahulu!'); return; }
+      if (!Object.values(showData).some(v => v)) { alert('Pilih minimal satu jenis data!'); return; }
+
+      if (editId) {
+        const chartIndex = mCharts.findIndex(c => c.id === editId);
+        if (chartIndex !== -1) {
+          mCharts[chartIndex].title = title;
+          mCharts[chartIndex].deviceId = deviceId;
+          mCharts[chartIndex].chartType = chartType;
+          mCharts[chartIndex].showData = showData;
+          if (mCharts[chartIndex].chartInstance) {
+            mCharts[chartIndex].chartInstance.destroy();
+            mCharts[chartIndex].chartInstance = null;
+          }
+        }
+      } else {
+        const chartId = `mchart_${++mChartIdCounter}`;
+        mCharts.push({
+          id: chartId,
+          title: title,
+          deviceId: deviceId,
+          chartType: chartType,
+          showData: showData,
+          chartInstance: null
+        });
+      }
+      
+      saveMChartsToStorage();
+      closeMChartModal();
+      loadMCharts();
+    }
+
+    function removeMChart(chartId) {
+      const index = mCharts.findIndex(c => c.id === chartId);
+      if (index !== -1) {
+        if (mCharts[index].chartInstance) {
+          try {
+            mCharts[index].chartInstance.destroy();
+          } catch (e) {}
+          mCharts[index].chartInstance = null;
+        }
+        mCharts.splice(index, 1);
+      }
+      saveMChartsToStorage();
+      loadMCharts();
+    }
+
+    async function loadMChartData(chart) {
+      try {
+        const hours = Math.max(1, Math.ceil(mGlobalTimeMinutes / 60));
+        const res = await fetch(`/api/v1/devices/${chart.deviceId}/history?hours=${hours}`);
+        const data = await res.json();
+        
+        if (data.success && data.history && data.history.length > 0) {
+          const now = new Date();
+          const cutoffTime = new Date(now.getTime() - mGlobalTimeMinutes * 60 * 1000);
+          const filteredHistory = data.history.filter(item => {
+            try { return new Date(item.timestamp) >= cutoffTime; } catch (e) { return false; }
+          });
+
+          const canvas = document.getElementById(`mchart_canvas_${chart.id}`);
+          if (!canvas) return;
+          const ctx = canvas.getContext('2d');
+
+          const labels = filteredHistory.map(item => {
+            try {
+              return new Date(item.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return ''; }
+          });
+
+          const datasets = [];
+          const activeDataKeys = Object.entries(chart.showData).filter(([key, val]) => val).map(([key]) => key);
+
+          activeDataKeys.forEach((dataKey, index) => {
+            const info = M_DATA_KEYS[dataKey];
+            if (!info) return;
+            const values = filteredHistory.map(item => item.data?.[dataKey] ?? null);
+            if (!values.some(v => v !== null)) return;
+            
+            const color = M_CHART_COLORS[index % M_CHART_COLORS.length];
+            datasets.push({
+              label: info.label,
+              data: values,
+              borderColor: color,
+              backgroundColor: color + '30',
+              fill: chart.chartType === 'area',
+              tension: 0.35,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              pointBackgroundColor: color,
+              pointBorderColor: color,
+              pointBorderWidth: 1,
+              borderWidth: 2
+            });
+          });
+
+          if (datasets.length === 0) return;
+
+          const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+          const gridColor = isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.15)';
+          const labelColor = isLight ? 'rgba(60,60,67,0.60)' : 'rgba(235,235,245,0.60)';
+          const tooltipBg = isLight ? 'rgba(255,255,255,0.95)' : 'rgba(28,28,30,0.95)';
+          const tooltipBorder = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)';
+          const tooltipTitleColor = isLight ? '#1c1c1e' : '#f5f5f7';
+          const tooltipBodyColor = isLight ? 'rgba(60,60,67,0.75)' : 'rgba(235,235,245,0.8)';
+
+          let chartType = chart.chartType;
+          if (chartType === 'area') chartType = 'line';
+
+          const chartInstance = new Chart(ctx, {
+            type: chartType,
+            data: { labels, datasets },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              interaction: { mode: 'index', intersect: false, axis: 'x' },
+              plugins: {
+                legend: {
+                  labels: { color: labelColor, font: { size: 9, weight: '600' }, boxWidth: 10, padding: 8, usePointStyle: true, pointStyle: 'circle' }
+                },
+                tooltip: {
+                  enabled: true,
+                  backgroundColor: tooltipBg,
+                  titleColor: tooltipTitleColor,
+                  bodyColor: tooltipBodyColor,
+                  borderColor: tooltipBorder,
+                  borderWidth: 1,
+                  padding: 10,
+                  cornerRadius: 8,
+                  displayColors: true,
+                  boxPadding: 4,
+                  titleFont: { size: 10, weight: '700' },
+                  bodyFont: { size: 9 },
+                  position: 'average',
+                  intersect: false,
+                  mode: 'index'
+                }
+              },
+              hover: { mode: 'index', intersect: false, animationDuration: 100 },
+              scales: {
+                x: { grid: { color: gridColor, drawBorder: true, borderColor: gridColor }, ticks: { color: labelColor, font: { size: 9 }, maxTicksLimit: 6 } },
+                y: { grid: { color: gridColor, drawBorder: true, borderColor: gridColor }, ticks: { color: labelColor, font: { size: 9 } }, beginAtZero: true }
+              }
+            }
+          });
+
+          const chartIndex = mCharts.findIndex(c => c.id === chart.id);
+          if (chartIndex !== -1) {
+            mCharts[chartIndex].chartInstance = chartInstance;
+          }
+        }
+      } catch (e) { console.error('Error loading mobile chart:', e); }
+    }
+
+    function saveMChartsToStorage() {
+      const chartsToSave = mCharts.map(chart => ({
+        id: chart.id,
+        title: chart.title,
+        deviceId: chart.deviceId,
+        chartType: chart.chartType,
+        showData: chart.showData
+      }));
+      localStorage.setItem('nexus-mobile-charts', JSON.stringify(chartsToSave));
+    }
+
+    function loadMChartsFromStorage() {
+      const saved = localStorage.getItem('nexus-mobile-charts');
+      if (saved) {
+        try {
+          const chartsToLoad = JSON.parse(saved);
+          chartsToLoad.forEach(chartData => {
+            mCharts.push({
+              id: chartData.id,
+              title: chartData.title,
+              deviceId: chartData.deviceId,
+              chartType: chartData.chartType,
+              showData: chartData.showData,
+              chartInstance: null
+            });
+            mChartIdCounter = Math.max(mChartIdCounter, parseInt(chartData.id.split('_')[1]) || 0);
+          });
+        } catch (e) { console.error('Error loading mobile charts:', e); }
+      }
+    }
+
+    // ============ MODAL DRAG & CLOSE ============
+    function initializeModalDrag(modalId) {
+      const modal = document.getElementById(modalId);
+      const content = modal.querySelector('.mobile-modal-content');
+      const handleArea = modal.querySelector('.sheet-handle-area');
+      
+      if (!modal || !content || !handleArea) return;
+      
+      let startY = 0;
+      let currentY = 0;
+      let isDragging = false;
+      
+      handleArea.addEventListener('touchstart', (e) => {
+        startY = e.touches[0].clientY;
+        currentY = 0;
+        isDragging = true;
+        e.preventDefault();
+      });
+      
+      handleArea.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const deltaY = e.touches[0].clientY - startY;
+        if (deltaY > 0) {
+          currentY = deltaY;
+          content.style.transform = `translateY(${deltaY}px)`;
+          content.style.transition = 'none';
+          e.preventDefault();
+        }
+      });
+      
+      handleArea.addEventListener('touchend', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        content.style.transition = 'transform .3s var(--ease)';
+        if (currentY > 80) {
+          closeModalById(modalId);
+        } else {
+          content.style.transform = '';
+        }
+        currentY = 0;
+      });
+      
+      handleArea.addEventListener('mousedown', (e) => {
+        startY = e.clientY;
+        currentY = 0;
+        isDragging = true;
+        e.preventDefault();
+      });
+      
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const deltaY = e.clientY - startY;
+        if (deltaY > 0) {
+          currentY = deltaY;
+          content.style.transform = `translateY(${deltaY}px)`;
+          content.style.transition = 'none';
+        }
+      });
+      
+      document.addEventListener('mouseup', (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        content.style.transition = 'transform .3s var(--ease)';
+        if (currentY > 80) {
+          closeModalById(modalId);
+        } else {
+          content.style.transform = '';
+        }
+        currentY = 0;
+      });
+      
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          closeModalById(modalId);
+        }
+      });
+    }
+
+    function closeModalById(modalId) {
+      const modal = document.getElementById(modalId);
+      if (modal) {
+        const content = modal.querySelector('.mobile-modal-content');
+        if (content) {
+          content.style.transition = 'transform .3s var(--ease)';
+          content.style.transform = 'translateY(100%)';
+          setTimeout(() => {
+            modal.classList.remove('active');
+            content.style.transform = '';
+            content.style.transition = '';
+          }, 300);
+        } else {
+          modal.classList.remove('active');
+        }
+      }
+    }
+
+    // ============ DEVICE FUNCTIONS ============
     function openAddModal() { 
       document.getElementById('mAddModal').classList.add('active');
-      if (isFabOpen) toggleFabMenu();
     }
-    function closeAddModal() { document.getElementById('mAddModal').classList.remove('active'); }
+    function closeAddModal() { closeModalById('mAddModal'); }
     function openApiKeyModal() { document.getElementById('mApiKeyModal').classList.add('active'); }
-    function closeApiKeyModal() { document.getElementById('mApiKeyModal').classList.remove('active'); }
+    function closeApiKeyModal() { closeModalById('mApiKeyModal'); }
 
     async function addMobileDevice() {
       const deviceId = document.getElementById('mAddId').value.trim();
@@ -657,6 +1330,12 @@ body::before{
       document.documentElement.setAttribute('data-theme', newTheme);
       localStorage.setItem('nexus-theme', newTheme);
       updateMobileThemeUI(newTheme);
+      if (isFabOpen) toggleFabMenu();
+      setTimeout(() => {
+        if (document.getElementById('mAnalyticsSection').style.display !== 'none') {
+          loadMCharts();
+        }
+      }, 100);
     }
 
     function updateMobileThemeUI(theme) {
@@ -677,12 +1356,16 @@ body::before{
       updateMobileThemeUI(savedTheme);
     }
 
+    // ============ INITIALIZATION ============
     loadMobileTheme();
-    // ============ END THEME TOGGLE ============
-
+    loadMChartsFromStorage();
     initMobileMap();
     loadMDashboard();
     setInterval(loadMDashboard, 30000);
+    
+    initializeModalDrag('mAddModal');
+    initializeModalDrag('mChartModal');
+    initializeModalDrag('mApiKeyModal');
   </script>
 </body>
 </html>

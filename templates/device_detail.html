@@ -121,18 +121,6 @@
   color: var(--text-3);
 }
 
-/* Tombol theme di detail - lebih kontras */
-[data-theme="light"] .theme-toggle-detail {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-  color: var(--text-2);
-}
-[data-theme="light"] .theme-toggle-detail:hover {
-  background: rgba(0,0,0,.1);
-  color: var(--text);
-  border-color: rgba(0,0,0,.25);
-}
-
 [data-theme="light"] .info-item .value {
   color: var(--text);
 }
@@ -204,27 +192,6 @@ body::before{
   transition:all .25s var(--ease);
 }
 .back-btn:hover{background:rgba(255,255,255,.08);color:var(--text);border-color:rgba(255,255,255,.18);transform:translateX(-3px);}
-
-/* Theme toggle button di sebelah tombol kembali - lebih kontras */
-.theme-toggle-detail {
-  display:inline-flex;align-items:center;gap:8px;
-  padding:10px 14px;
-  background:rgba(255,255,255,.05);
-  border:1px solid var(--hairline);
-  border-radius:12px;
-  color:var(--text-2);
-  cursor:pointer;
-  font-size:13px;
-  font-weight:600;
-  transition:all .25s var(--ease);
-  font-family:var(--font);
-}
-.theme-toggle-detail:hover{
-  background:rgba(255,255,255,.12);
-  color:var(--text);
-  border-color:rgba(255,255,255,.25);
-}
-.theme-toggle-detail i{font-size:14px;}
 
 .container{
   max-width:1080px;margin:-30px auto 40px;padding:0 22px;position:relative;z-index:3;
@@ -321,10 +288,6 @@ body::before{
         </div>
       </div>
       <div class="hero-actions">
-        <button class="theme-toggle-detail" onclick="toggleTheme()" id="themeToggleBtn">
-          <i class="fa-solid fa-moon" id="themeIcon"></i>
-          <span id="themeLabel">Tema</span>
-        </button>
         <a href="/" class="back-btn"><i class="fa-solid fa-arrow-left"></i> Kembali</a>
       </div>
     </div>
@@ -379,35 +342,13 @@ body::before{
       return `${m}m`;
     }
 
-    // ============ THEME TOGGLE ============
-    function toggleTheme() {
-      const currentTheme = document.documentElement.getAttribute('data-theme');
-      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('nexus-theme', newTheme);
-      updateDetailThemeUI(newTheme);
-    }
-
-    function updateDetailThemeUI(theme) {
-      const icon = document.getElementById('themeIcon');
-      const label = document.getElementById('themeLabel');
-      if (theme === 'light') {
-        icon.className = 'fa-solid fa-sun';
-        label.textContent = 'Terang';
-      } else {
-        icon.className = 'fa-solid fa-moon';
-        label.textContent = 'Gelap';
-      }
-    }
-
-    function loadDetailTheme() {
+    // Load theme dari localStorage (tema diatur di dashboard/mobile)
+    function loadTheme() {
       const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
-      updateDetailThemeUI(savedTheme);
     }
 
-    loadDetailTheme();
-    // ============ END THEME TOGGLE ============
+    loadTheme();
 
     async function loadDeviceDetail() {
       try {

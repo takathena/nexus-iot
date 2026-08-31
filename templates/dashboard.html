@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.27/dist/interact.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
@@ -18,14 +19,8 @@
 </script>
 
 <style>
-/* ============ ROOT VARIABLES ============ */
 :root{
-  /* Dark Mode (default) */
   --bg:#000000;
-  --bg-radial-dark: radial-gradient(60% 40% at 15% 0%, rgba(10,132,255,.07), transparent 60%),
-                    radial-gradient(50% 35% at 100% 100%, rgba(191,90,242,.05), transparent 60%);
-  --bg-radial-light: radial-gradient(60% 40% at 15% 0%, rgba(10,132,255,.05), transparent 60%),
-                     radial-gradient(50% 35% at 100% 100%, rgba(191,90,242,.03), transparent 60%);
   --surface: rgba(28,28,30,.55);
   --surface-solid:#1c1c1e;
   --surface-2: rgba(255,255,255,.045);
@@ -35,7 +30,6 @@
   --text: #f5f5f7;
   --text-2: rgba(235,235,245,.72);
   --text-3: rgba(235,235,245,.45);
-  --text-inverse: #1c1c1e;
   --blue:#0a84ff;
   --blue-hover:#2b95ff;
   --green:#30d158;
@@ -43,14 +37,8 @@
   --orange:#ff9f0a;
   --purple:#bf5af2;
   --teal:#64d2ff;
-  
-  /* Chart colors for dark mode */
-  --chart-grid: rgba(255,255,255,.08);
-  --chart-label: rgba(235,235,245,.45);
-  --chart-legend: rgba(235,235,245,.6);
-  --chart-tooltip-bg: rgba(28,28,30,.95);
-  --chart-tooltip-border: rgba(255,255,255,.1);
-  
+  --sidebar-bg: rgba(10,10,12,.92);
+  --topbar-bg: rgba(0,0,0,.85);
   --sidebar-w: 248px;
   --sidebar-w-collapsed: 84px;
   --font: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', sans-serif;
@@ -58,19 +46,17 @@
   --ease: cubic-bezier(.16,1,.3,1);
 }
 
-/* ============ LIGHT THEME ============ */
 [data-theme="light"] {
-  --bg: #f0f0f5;
-  --surface: rgba(255,255,255,.72);
-  --surface-solid: #e5e5ea;
-  --surface-2: rgba(0,0,0,.05);
-  --surface-2-hover: rgba(0,0,0,.08);
-  --hairline: rgba(0,0,0,.12);
-  --hairline-soft: rgba(0,0,0,.07);
+  --bg: #f5f5f7;
+  --surface: rgba(255,255,255,.85);
+  --surface-solid: #ffffff;
+  --surface-2: rgba(0,0,0,.04);
+  --surface-2-hover: rgba(0,0,0,.07);
+  --hairline: rgba(0,0,0,.10);
+  --hairline-soft: rgba(0,0,0,.06);
   --text: #1c1c1e;
   --text-2: rgba(60,60,67,.75);
   --text-3: rgba(60,60,67,.50);
-  --text-inverse: #f5f5f7;
   --blue: #007aff;
   --blue-hover: #0066d9;
   --green: #34c759;
@@ -78,320 +64,15 @@
   --orange: #ff9500;
   --purple: #af52de;
   --teal: #5ac8fa;
-  
-  /* Chart colors for light mode - lebih gelap dan kontras */
-  --chart-grid: rgba(0,0,0,.12);
-  --chart-label: rgba(60,60,67,.60);
-  --chart-legend: rgba(60,60,67,.70);
-  --chart-tooltip-bg: rgba(255,255,255,.95);
-  --chart-tooltip-border: rgba(0,0,0,.1);
+  --sidebar-bg: #ffffff;
+  --topbar-bg: #ffffff;
 }
 
+[data-theme="light"] body { background: #f5f5f7; }
 [data-theme="light"] body::before {
-  background: var(--bg-radial-light);
+  background: radial-gradient(60% 40% at 15% 0%, rgba(0,122,255,.04), transparent 60%),
+              radial-gradient(50% 35% at 100% 100%, rgba(175,82,222,.03), transparent 60%);
 }
-
-[data-theme="light"] .sidebar {
-  background: rgba(240,240,245,.88);
-  border-right: 1px solid var(--hairline-soft);
-}
-
-[data-theme="light"] .logo-ring {
-  background: linear-gradient(155deg, #e5e5ea, #d1d1d6);
-  border: 1px solid var(--hairline);
-  box-shadow: 0 6px 18px rgba(0,122,255,.15);
-  color: var(--blue);
-}
-
-[data-theme="light"] .nav-item.active {
-  background: linear-gradient(180deg, rgba(0,122,255,.12), rgba(0,122,255,.05));
-  color: var(--blue);
-}
-[data-theme="light"] .nav-item.active .badge {
-  background: rgba(0,122,255,.15);
-  color: var(--blue);
-}
-
-[data-theme="light"] .topbar {
-  background: rgba(240,240,245,.75);
-  border-bottom: 1px solid var(--hairline-soft);
-}
-
-[data-theme="light"] .search-box input {
-  background: var(--surface-2);
-  color: var(--text);
-}
-[data-theme="light"] .search-box input::placeholder {
-  color: var(--text-3);
-}
-[data-theme="light"] .search-box input:focus {
-  background: rgba(0,122,255,.06);
-}
-
-
-[data-theme="light"] .card,
-[data-theme="light"] .ring-card,
-[data-theme="light"] .stat-card,
-[data-theme="light"] .section-card {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  backdrop-filter: blur(20px);
-}
-
-[data-theme="light"] .ring-track {
-  stroke: rgba(0,0,0,.08);
-}
-
-[data-theme="light"] .stat-card:hover {
-  border-color: rgba(0,0,0,.16);
-}
-
-[data-theme="light"] .device-table tbody tr:hover {
-  background: rgba(0,0,0,.025);
-}
-
-[data-theme="light"] .device-id {
-  background: rgba(0,0,0,.05);
-}
-
-[data-theme="light"] .action-btn {
-  border: 1px solid var(--hairline);
-  background: var(--surface-2);
-  color: var(--text-3);
-}
-[data-theme="light"] .action-btn:hover {
-  color: var(--text);
-}
-
-[data-theme="light"] .graph-tab.active {
-  background: var(--surface-solid);
-  color: var(--text);
-  box-shadow: 0 1px 4px rgba(0,0,0,.1);
-}
-
-[data-theme="light"] .graph-container {
-  background: rgba(255,255,255,.5);
-  border: 1px solid var(--hairline-soft);
-}
-
-[data-theme="light"] .btn-secondary {
-  background: var(--surface-2);
-  color: var(--text-2);
-  border: 1px solid var(--hairline);
-}
-[data-theme="light"] .btn-secondary:hover {
-  background: var(--surface-2-hover);
-  color: var(--text);
-}
-
-[data-theme="light"] .modal-content {
-  background: rgba(240,240,245,.96);
-  border: 1px solid var(--hairline);
-}
-
-[data-theme="light"] .api-key-display {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-}
-[data-theme="light"] .api-key-display code {
-  color: var(--teal);
-}
-
-[data-theme="light"] .toast {
-  background: rgba(240,240,245,.94);
-  border: 1px solid var(--hairline);
-  color: var(--text);
-}
-
-[data-theme="light"] .status-badge.online {
-  background: rgba(52,199,89,.12);
-  color: #34c759;
-}
-[data-theme="light"] .status-badge.offline {
-  background: rgba(255,59,48,.12);
-  color: #ff3b30;
-}
-
-[data-theme="light"] .nav-item {
-  color: var(--text-2);
-}
-[data-theme="light"] .nav-item:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-[data-theme="light"] .sidebar-footer .nav-item {
-  color: #ff3b30;
-}
-[data-theme="light"] .sidebar-footer .nav-item:hover {
-  background: rgba(255,59,48,.1);
-  color: #ff3b30;
-}
-
-[data-theme="light"] .device-select-wrapper select {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-  color: var(--text);
-}
-
-[data-theme="light"] .leaflet-control-zoom a {
-  background: rgba(255,255,255,.9) !important;
-  color: #1c1c1e !important;
-  border-color: rgba(0,0,0,.1) !important;
-}
-[data-theme="light"] .leaflet-control-zoom a:hover {
-  background: #fff !important;
-}
-
-[data-theme="light"] .leaflet-tile-pane {
-  filter: none !important;
-}
-[data-theme="light"] #mapPreview,
-[data-theme="light"] #mapFull {
-  filter: none !important;
-}
-
-[data-theme="light"] .ring-center .pct {
-  color: var(--text);
-}
-[data-theme="light"] .ring-center .lbl {
-  color: var(--text-3);
-}
-[data-theme="light"] .ring-caption {
-  color: var(--text-2);
-}
-
-[data-theme="light"] .stat-info .value {
-  color: var(--text);
-}
-[data-theme="light"] .stat-info h3 {
-  color: var(--text-3);
-}
-
-[data-theme="light"] .section-title {
-  color: var(--text);
-}
-
-[data-theme="light"] .device-name {
-  color: var(--text);
-}
-
-[data-theme="light"] .device-table th {
-  color: var(--text-3);
-}
-[data-theme="light"] .device-table td {
-  color: var(--text-2);
-}
-
-[data-theme="light"] .modal-header h3 {
-  color: var(--text);
-}
-
-[data-theme="light"] .form-group label {
-  color: var(--text-3);
-}
-[data-theme="light"] .form-group input,
-[data-theme="light"] .form-group select,
-[data-theme="light"] .form-group textarea {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-  color: var(--text);
-}
-[data-theme="light"] .form-group input::placeholder {
-  color: var(--text-3);
-}
-
-[data-theme="light"] .form-group input:focus,
-[data-theme="light"] .form-group select:focus {
-  border-color: rgba(0,122,255,.55);
-}
-
-[data-theme="light"] .modal-close {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-  color: var(--text-2);
-}
-[data-theme="light"] .modal-close:hover {
-  background: var(--surface-2-hover);
-  color: var(--text);
-}
-
-[data-theme="light"] .theme-toggle-btn {
-  color: var(--text-2);
-}
-[data-theme="light"] .theme-toggle-btn:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-[data-theme="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,.15);
-}
-
-[data-theme="light"] .nav-section {
-  color: var(--text-3);
-}
-
-[data-theme="light"] .device-select-wrapper i {
-  color: var(--text-3);
-}
-
-[data-theme="light"] .graph-tab {
-  color: var(--text-3);
-}
-[data-theme="light"] .graph-tab:hover {
-  color: var(--text-2);
-}
-[data-theme="light"] .graph-tab.active {
-  color: var(--text);
-}
-
-[data-theme="light"] .status-badge {
-  color: var(--text);
-}
-
-[data-theme="light"] .stat-icon.total {
-  background: rgba(175,82,222,.14);
-  color: var(--purple);
-}
-[data-theme="light"] .stat-icon.offline {
-  background: rgba(255,59,48,.14);
-  color: var(--red);
-}
-[data-theme="light"] .stat-icon.alerts {
-  background: rgba(255,149,0,.14);
-  color: var(--orange);
-}
-
-[data-theme="light"] .btn-primary {
-  background: var(--blue);
-  color: #fff;
-}
-[data-theme="light"] .btn-primary:hover {
-  background: var(--blue-hover);
-}
-
-[data-theme="light"] .btn-success {
-  background: var(--green);
-  color: #fff;
-}
-
-[data-theme="light"] .topbar-title {
-  color: var(--text);
-}
-
-[data-theme="light"] #mapSelectedInfo {
-  color: var(--text-3);
-}
-
-[data-theme="light"] .toast.success {
-  border-left: 3px solid var(--green);
-}
-[data-theme="light"] .toast.error {
-  border-left: 3px solid var(--red);
-}
-
-/* ============ END LIGHT THEME ============ */
 
 *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
 body{
@@ -406,215 +87,168 @@ body{
 body::before{
   content:'';
   position:fixed; inset:0;
-  background:var(--bg-radial-dark);
+  background:radial-gradient(60% 40% at 15% 0%, rgba(10,132,255,.07), transparent 60%),
+             radial-gradient(50% 35% at 100% 100%, rgba(191,90,242,.05), transparent 60%);
   pointer-events:none;
   z-index:0;
-  transition: background 0.3s ease;
 }
 
 .leaflet-pane,.leaflet-tile-pane,.leaflet-overlay-pane,.leaflet-shadow-pane,.leaflet-marker-pane,.leaflet-tooltip-pane,.leaflet-popup-pane{z-index:1 !important;}
 .leaflet-control{z-index:2 !important;}
-#mapPreview,#mapFull{position:relative;z-index:1;filter:grayscale(.15) invert(1) contrast(.9) brightness(.92) hue-rotate(180deg);transition: filter 0.3s ease;}
-[data-theme="light"] #mapPreview,
-[data-theme="light"] #mapFull {
-  filter: none !important;
-}
+#mapPreview,#mapFull{position:relative;z-index:1;filter:grayscale(.15) invert(1) contrast(.9) brightness(.92) hue-rotate(180deg);}
+[data-theme="light"] #mapPreview,[data-theme="light"] #mapFull{filter:none !important;}
 
 /* ============ SIDEBAR ============ */
 .sidebar{
   width:var(--sidebar-w);
-  background:rgba(10,10,12,.72);
-  backdrop-filter:blur(30px) saturate(160%);
-  -webkit-backdrop-filter:blur(30px) saturate(160%);
+  background:var(--sidebar-bg);
   border-right:1px solid var(--hairline-soft);
   position:fixed; top:0; left:0; bottom:0;
   z-index:100;
-  transition:width .35s var(--ease), background .3s ease, border-color .3s ease;
+  transition:width .35s var(--ease), background 0.3s ease, border-color 0.3s ease;
   overflow-y:auto; overflow-x:hidden;
   display:flex; flex-direction:column;
 }
 .sidebar.collapsed{width:var(--sidebar-w-collapsed);}
 
 .sidebar-header{
-  padding:26px 22px 22px;
-  display:flex; align-items:center; gap:13px;
+  padding:0 22px;
+  display:flex;
+  align-items:center;
+  gap:13px;
+  border-bottom:1px solid var(--hairline-soft);
+  height:73px;
+  box-sizing:border-box;
 }
 .logo-ring{
-  width:38px;height:38px;
-  border-radius:11px;
+  width:38px;height:38px;border-radius:11px;
   background:linear-gradient(155deg,#2c2c2e,#0f0f10);
   border:1px solid var(--hairline);
   display:flex;align-items:center;justify-content:center;
-  font-size:16px;color:var(--blue);
-  flex-shrink:0;
-  cursor:pointer;
-  transition:transform .25s var(--ease), box-shadow .25s, background .3s ease, border-color .3s ease;
+  font-size:16px;color:var(--blue);flex-shrink:0;cursor:pointer;
+  transition:transform .25s var(--ease), background 0.3s ease;
   box-shadow:0 6px 18px rgba(10,132,255,.15);
 }
+[data-theme="light"] .logo-ring { background: linear-gradient(155deg, #e5e5ea, #d1d1d6); color: var(--blue); }
 .logo-ring:hover{transform:scale(1.08);}
 .sidebar-header .title{font-size:15.5px;font-weight:800;letter-spacing:-.02em;white-space:nowrap;color:var(--text);}
 .sidebar.collapsed .title{display:none;}
 
 .sidebar-nav{padding:6px 14px;flex:1;}
-.nav-section{
-  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;
-  color:var(--text-3); margin:20px 12px 10px;
-  transition: color 0.3s ease;
-}
+.nav-section{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:var(--text-3);margin:20px 12px 10px;}
 .sidebar.collapsed .nav-section{display:none;}
 
 .nav-item{
   display:flex;align-items:center;gap:13px;
   padding:10px 14px;margin-bottom:2px;
   border-radius:11px;cursor:pointer;
-  color:var(--text-2);
-  font-size:13.5px;font-weight:600;
-  white-space:nowrap;
-  transition:background .2s, color .2s;
+  color:var(--text-2);font-size:13.5px;font-weight:600;
+  white-space:nowrap;transition:background .2s, color .2s;
 }
 .nav-item:hover{background:var(--surface-2);color:var(--text);}
-.nav-item.active{background:linear-gradient(180deg, rgba(10,132,255,.16), rgba(10,132,255,.07));color:#5eb1ff;}
+.nav-item.active{background:linear-gradient(180deg, rgba(10,132,255,.16), rgba(10,132,255,.07));color:var(--blue);}
+[data-theme="light"] .nav-item.active { background: rgba(0,122,255,.1); color: #007aff; }
 .nav-item .icon{width:19px;text-align:center;font-size:14.5px;}
 .sidebar.collapsed .nav-item .label,.sidebar.collapsed .nav-item .badge{display:none;}
 .sidebar.collapsed .nav-item{justify-content:center;}
-
-.nav-item .badge{
-  margin-left:auto;
-  background:var(--surface-2);
-  color:var(--text-2);
-  padding:2px 8px;
-  border-radius:20px;
-  font-size:11px;font-weight:700;
-  font-family:var(--mono);
-}
-.nav-item.active .badge{background:rgba(10,132,255,.22);color:#8ec9ff;}
+.nav-item .badge{margin-left:auto;background:var(--surface-2);color:var(--text-2);padding:2px 8px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--mono);}
+.nav-item.active .badge{background:rgba(10,132,255,.22);color:var(--blue);}
 
 .sidebar-footer{padding:14px;border-top:1px solid var(--hairline-soft);}
 .sidebar-footer .nav-item{color:#ff8078;}
 .sidebar-footer .nav-item:hover{background:rgba(255,69,58,.1);color:#ff8078;}
 
-/* Theme toggle button in sidebar footer */
-.theme-toggle-btn {
-  display:flex;
-  align-items:center;
-  gap:13px;
-  padding:10px 14px;
-  border-radius:11px;
-  cursor:pointer;
-  color:var(--text-3);
-  font-size:13.5px;
-  font-weight:600;
-  white-space:nowrap;
-  transition:background .2s, color .2s;
-  background:transparent;
-  border:none;
-  width:100%;
-  font-family:var(--font);
+.theme-toggle-btn{
+  display:flex;align-items:center;gap:13px;
+  padding:10px 14px;border-radius:11px;cursor:pointer;
+  color:var(--text-3);font-size:13.5px;font-weight:600;
+  white-space:nowrap;transition:background .2s, color .2s;
+  background:transparent;border:none;width:100%;font-family:var(--font);
 }
-.theme-toggle-btn:hover {
-  background:var(--surface-2);
-  color:var(--text-2);
-}
-.theme-toggle-btn .icon {
-  width:19px;
-  text-align:center;
-  font-size:14.5px;
-}
+.theme-toggle-btn:hover{background:var(--surface-2);color:var(--text-2);}
+.theme-toggle-btn .icon{width:19px;text-align:center;font-size:14.5px;}
 .sidebar.collapsed .theme-toggle-btn .label{display:none;}
 .sidebar.collapsed .theme-toggle-btn{justify-content:center;}
 
-/* ============ MAIN ============ */
+/* ============ MAIN CONTENT ============ */
 .main-content{margin-left:var(--sidebar-w);transition:margin-left .35s var(--ease);position:relative;z-index:1;min-height:100vh;}
 .main-content.expanded{margin-left:var(--sidebar-w-collapsed);}
 
 .topbar{
-  padding:22px 34px;
-  display:flex;align-items:center;justify-content:space-between;
-  position:sticky; top:0; z-index:50;
-  background:rgba(0,0,0,.55);
-  backdrop-filter:blur(24px) saturate(160%);
-  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  padding:0 34px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  position:sticky;
+  top:0;
+  z-index:50;
+  background:var(--topbar-bg);
   border-bottom:1px solid var(--hairline-soft);
-  flex-wrap:wrap; gap:14px;
+  flex-wrap:wrap;
+  gap:14px;
+  height:73px;
+  box-sizing:border-box;
   transition: background 0.3s ease, border-color 0.3s ease;
 }
 .topbar-left{display:flex;align-items:center;gap:12px;}
 .page-indicator{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 0 4px rgba(48,209,88,.15);animation:pulse-dot 2.4s infinite;}
 @keyframes pulse-dot{0%,100%{opacity:1;}50%{opacity:.4;}}
-.topbar-title{font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--text);}
+.topbar-title{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--text);}
 .topbar-right{display:flex;align-items:center;gap:11px;flex-wrap:wrap;}
 
 .search-box{position:relative;}
 .search-box input{
-  background:var(--surface-2);
-  border:1px solid var(--hairline);
-  border-radius:11px;
-  padding:9px 15px 9px 37px;
-  color:var(--text);
-  font-family:inherit;font-size:13.5px;width:220px;
-  outline:none; transition:all .2s;
+  background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;
+  padding:9px 15px 9px 37px;color:var(--text);font-family:inherit;font-size:13.5px;width:220px;
+  outline:none;transition:all .2s;
 }
 .search-box input::placeholder{color:var(--text-3);}
 .search-box input:focus{border-color:rgba(10,132,255,.5);background:rgba(10,132,255,.06);width:250px;}
 .search-box i{position:absolute;left:13px;top:50%;transform:translateY(-50%);color:var(--text-3);font-size:12.5px;}
 
-.datetime-display{
-  text-align:right;padding:7px 14px;
-  border-radius:11px;
-  transition: background 0.3s ease, border-color 0.3s ease;
-}
+.datetime-display{text-align:right;padding:4px 14px;border-radius:11px;}
 .datetime-display .date{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;font-weight:600;}
 .datetime-display .time{font-size:15px;font-weight:700;font-family:var(--mono);color:var(--text);}
 
 .content-area{padding:30px 34px 50px;position:relative;z-index:1;}
 
-/* ============ OVERVIEW / HEALTH RING ============ */
-.overview-grid{
-  display:grid;
-  grid-template-columns:280px 1fr;
-  gap:18px;
-  margin-bottom:22px;
-}
-.ring-card{
+/* ============ CARDS ============ */
+.overview-grid{display:grid;grid-template-columns:280px 1fr;gap:18px;margin-bottom:22px;}
+.ring-card,.stat-card,.section-card,.chart-card{
   background:var(--surface);
-  backdrop-filter:blur(20px);
   border:1px solid var(--hairline);
-  border-radius:22px;
-  padding:26px;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  gap:6px;
+  transition: background 0.3s ease, border-color 0.3s ease, transform .3s var(--ease);
+}
+[data-theme="light"] .ring-card,
+[data-theme="light"] .stat-card,
+[data-theme="light"] .section-card,
+[data-theme="light"] .chart-card { background: #ffffff; box-shadow: 0 2px 8px rgba(0,0,0,.04); }
+
+.ring-card{
+  border-radius:22px;padding:26px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
   animation:rise .5s var(--ease);
-  transition: background 0.3s ease, border-color 0.3s ease;
 }
 .ring-wrap{position:relative;width:150px;height:150px;}
 .ring-wrap svg{transform:rotate(-90deg);}
-.ring-track{fill:none;stroke:rgba(255,255,255,.07);stroke-width:11;transition: stroke 0.3s ease;}
+.ring-track{fill:none;stroke:rgba(255,255,255,.07);stroke-width:11;}
+[data-theme="light"] .ring-track{stroke:rgba(0,0,0,.08);}
 .ring-progress{fill:none;stroke:url(#ringGrad);stroke-width:11;stroke-linecap:round;transition:stroke-dashoffset 1s var(--ease);}
 .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .ring-center .pct{font-size:30px;font-weight:800;letter-spacing:-.02em;font-family:var(--mono);color:var(--text);}
 .ring-center .lbl{font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;font-weight:700;margin-top:2px;}
 .ring-caption{font-size:12.5px;color:var(--text-2);font-weight:600;margin-top:8px;}
 
-.stats-grid{
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:16px;
-}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
 .stat-card{
-  background:var(--surface);
-  backdrop-filter:blur(20px);
-  border:1px solid var(--hairline);
-  border-radius:20px;
-  padding:22px;
-  display:flex; flex-direction:column; gap:16px;
-  transition:transform .3s var(--ease), border-color .3s, background .3s ease;
-  cursor:default;
-  animation:rise .5s var(--ease) backwards;
+  border-radius:20px;padding:22px;
+  display:flex;flex-direction:column;gap:16px;
+  cursor:default;animation:rise .5s var(--ease) backwards;
 }
 .stat-card:nth-child(1){animation-delay:.03s;}
 .stat-card:nth-child(2){animation-delay:.07s;}
 .stat-card:nth-child(3){animation-delay:.11s;}
-.stat-card:hover{transform:translateY(-3px);border-color:rgba(255,255,255,.16);}
+.stat-card:hover{transform:translateY(-3px);border-color:rgba(10,132,255,.3);}
 @keyframes rise{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
 
 .stat-top{display:flex;align-items:center;justify-content:space-between;}
@@ -625,73 +259,240 @@ body::before{
 .stat-info h3{font-size:11px;color:var(--text-3);text-transform:uppercase;font-weight:700;letter-spacing:.06em;margin-bottom:6px;}
 .stat-info .value{font-size:30px;font-weight:800;font-family:var(--mono);letter-spacing:-.01em;color:var(--text);}
 
-/* ============ SECTION CARDS ============ */
-.section-card{
-  background:var(--surface);
-  backdrop-filter:blur(20px);
-  border:1px solid var(--hairline);
-  border-radius:22px;
-  margin-bottom:20px;
-  overflow:hidden;
-  animation:rise .5s var(--ease);
-  transition: background 0.3s ease, border-color 0.3s ease;
-}
+.section-card{border-radius:22px;margin-bottom:20px;overflow:hidden;animation:rise .5s var(--ease);}
 .section-header{
-  padding:19px 24px;
-  border-bottom:1px solid var(--hairline-soft);
-  display:flex;align-items:center;justify-content:space-between;
-  flex-wrap:wrap;gap:12px;
+  padding:19px 24px;border-bottom:1px solid var(--hairline-soft);
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;
 }
 .section-title{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:9px;letter-spacing:-.01em;color:var(--text);}
 .section-title i{color:var(--blue);font-size:14px;}
 .section-body{padding:20px;}
 
+/* Filter Bar */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--hairline-soft);
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-btn {
+  padding: 8px 14px;
+  border: 1px solid var(--hairline);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: inherit;
+}
+
+.filter-btn:hover {
+  background: var(--surface-2-hover);
+  color: var(--text);
+}
+
+.filter-btn.active {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+
+.filter-btn .count {
+  background: rgba(255,255,255,.2);
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.filter-btn.offline.active {
+  background: var(--red);
+  border-color: var(--red);
+}
+
+.filter-btn.warning.active {
+  background: var(--orange);
+  border-color: var(--orange);
+}
+
 #mapPreview{height:640px;border-radius:14px;border:1px solid var(--hairline);overflow:hidden;}
 #mapFull{height:70vh;min-height:480px;border-radius:14px;border:1px solid var(--hairline);overflow:hidden;}
 
-/* ============ BUTTONS ============ */
 .btn{
   padding:9.8px 17px;border:none;border-radius:10px;
   font-size:13px;font-weight:600;cursor:pointer;
   transition:all .2s var(--ease);
-  display:inline-flex;align-items:center;gap:7px;
-  font-family:inherit;
+  display:inline-flex;align-items:center;gap:7px;font-family:inherit;
 }
 .btn:active{transform:scale(.96);}
 .btn-primary{background:var(--blue);color:#fff;box-shadow:0 4px 14px rgba(10,132,255,.25);}
 .btn-primary:hover{background:var(--blue-hover);}
 .btn-success{background:var(--green);color:#fff;}
-.btn-success:hover{filter:brightness(1.08);}
 .btn-danger{background:var(--red);color:#fff;}
-.btn-danger:hover{filter:brightness(1.08);}
 .btn-secondary{background:var(--surface-2);color:var(--text-2);border:1px solid var(--hairline);}
 .btn-secondary:hover{background:var(--surface-2-hover);color:var(--text);}
 
-/* ============ GRAPH TOOLBAR ============ */
-.graph-toolbar{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;background:var(--surface-2);padding:4px;border-radius:11px;width:fit-content;}
-.graph-tab{
-  padding:7px 15px;border:none;border-radius:8px;
+/* Time Range Bar */
+.time-range-bar{
+  display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;
+  background:var(--surface-2);padding:6px;border-radius:12px;width:fit-content;
+}
+.time-range-btn{
+  padding:10px 18px;border:none;border-radius:10px;
   background:transparent;cursor:pointer;
-  font-size:12px;font-weight:600;color:var(--text-3);
+  font-size:13px;font-weight:600;color:var(--text-3);
   font-family:inherit;transition:all .2s;
+  display:flex;align-items:center;gap:7px;
 }
-.graph-tab:hover{color:var(--text-2);}
-.graph-tab.active{background:var(--surface-solid);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.4);}
-.graph-container{position:relative;height:330px;background:rgba(255,255,255,.02);border-radius:14px;padding:16px;border:1px solid var(--hairline-soft);transition: background 0.3s ease, border-color 0.3s ease;}
+.time-range-btn i{font-size:12px;}
+.time-range-btn:hover{color:var(--text-2);background:var(--surface-2-hover);}
+.time-range-btn.active{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(10,132,255,.3);}
+[data-theme="light"] .time-range-btn.active { background: #007aff; color: #fff; }
 
-.device-select-wrapper{position:relative;}
-.device-select-wrapper select{
-  background:var(--surface-2);border:1px solid var(--hairline);border-radius:10px;
-  padding:9px 36px 9px 14px;color:var(--text);font-size:13px;font-weight:600;
-  font-family:inherit;cursor:pointer;appearance:none;min-width:190px;
+/* Charts Grid Wrapper */
+.charts-grid-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
 }
-.device-select-wrapper select option {
-  background: var(--bg);
-  color: var(--text);
-}
-.device-select-wrapper i{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none;font-size:11px;}
 
-/* ============ TABLE ============ */
+.charts-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(450px, 1fr));
+  gap:18px;
+  position:relative;
+  min-height:400px;
+  background-color: var(--surface-2);
+  background-image: 
+    linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  border: 1px solid var(--hairline-soft);
+  border-radius: 14px;
+  padding: 15px;
+  overflow-y:auto;
+  overflow-x:hidden;
+  resize:vertical;
+  width:100%;
+  min-width:100%;
+  max-width:100%;
+  min-height:400px;
+}
+[data-theme="light"] .charts-grid {
+  background-color: rgba(0,0,0,.02);
+  background-image: 
+    linear-gradient(rgba(0,0,0,.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,.04) 1px, transparent 1px);
+}
+
+.charts-grid-resize-handle {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 20px;
+  cursor: ns-resize;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.charts-grid-resize-handle::after {
+  content: '';
+  width: 40px;
+  height: 3px;
+  background: var(--blue);
+  border-radius: 2px;
+  opacity: 0.7;
+  transition: opacity .2s;
+}
+
+.charts-grid-wrapper:hover .charts-grid-resize-handle::after {
+  opacity: 1;
+}
+
+.chart-card{
+  border-radius:16px;overflow:hidden;
+  animation:rise .5s var(--ease);
+  position:relative;cursor:grab;
+  min-width:280px;min-height:200px;
+  transition: box-shadow .2s ease;
+}
+.chart-card:hover {
+  box-shadow: 0 4px 16px rgba(10,132,255,.15);
+}
+.chart-card:active{cursor:grabbing;}
+.chart-card.dragging{opacity:0.7;box-shadow:0 20px 40px rgba(0,0,0,.3);z-index:1000;}
+.chart-card.resizing{opacity:0.8;}
+.chart-card-header{
+  padding:14px 16px;border-bottom:1px solid var(--hairline-soft);
+  display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
+  background:var(--surface-2);cursor:grab;user-select:none;
+}
+.chart-card-header:active{cursor:grabbing;}
+.chart-card-title{font-size:12.5px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:8px;pointer-events:none;}
+.chart-card-title i{color:var(--blue);font-size:11px;}
+.chart-actions{
+  display:flex;
+  gap:6px;
+  pointer-events:auto;
+  position:relative;
+  z-index: 30;
+}
+.chart-edit-btn,.chart-remove-btn{
+  width:26px;height:26px;border-radius:7px;
+  background:var(--surface-2);border:1px solid var(--hairline);
+  color:var(--text-3);cursor:pointer;
+  display:flex;align-items:center;justify-content:center;font-size:10px;
+  transition:all .2s;
+  pointer-events:auto;
+  position:relative;
+  z-index: 40;
+}
+.chart-edit-btn:hover{background:rgba(10,132,255,.1);color:var(--blue);border-color:rgba(10,132,255,.3);}
+.chart-remove-btn:hover{background:rgba(255,69,58,.1);color:var(--red);border-color:rgba(255,69,58,.3);}
+.chart-card-body{
+  padding:12px;
+  height:calc(100% - 55px);
+  overflow:hidden;
+}
+.chart-canvas-container{
+  position:relative;
+  height:100%;
+  min-height:180px;
+}
+.chart-resize-handle{
+  position:absolute;bottom:0;right:0;
+  width:28px;height:28px;
+  cursor:se-resize;z-index:10;
+  display:flex;align-items:flex-end;justify-content:flex-end;
+  padding:4px;
+}
+.chart-resize-handle::after{
+  content:'';
+  width:10px;height:10px;
+  border-right:2.5px solid var(--blue);
+  border-bottom:2.5px solid var(--blue);
+  border-bottom-right-radius:3px;
+  opacity:0.6;
+  transition:opacity .2s;
+}
+.chart-card:hover .chart-resize-handle::after{opacity:1;}
+
+/* Table */
 .table-wrapper{overflow-x:auto;}
 .device-table{width:100%;border-collapse:collapse;min-width:800px;}
 .device-table th{
@@ -700,39 +501,84 @@ body::before{
 }
 .device-table td{padding:14px 22px;border-bottom:1px solid var(--hairline-soft);font-size:13px;color:var(--text-2);}
 .device-table tbody tr{transition:background .2s;}
-.device-table tbody tr:hover{background:rgba(255,255,255,.025);}
+.device-table tbody tr:hover{background:var(--surface-2);}
 
 .status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;text-transform:capitalize;}
-.status-badge.online{background:rgba(48,209,88,.12);color:#4ade80;}
-.status-badge.offline{background:rgba(255,69,58,.12);color:#ff8078;}
+.status-badge.online{background:rgba(48,209,88,.12);color:var(--green);}
+.status-badge.offline{background:rgba(255,69,58,.12);color:var(--red);}
+.status-badge.alert{background:rgba(255,159,10,.12);color:var(--orange);}
 .status-dot-inline{width:6px;height:6px;border-radius:50%;background:currentColor;}
 .status-badge.online .status-dot-inline{animation:pulse-dot 2s infinite;}
+.status-badge.alert .status-dot-inline{animation:pulse-dot 1s infinite;}
 
-.device-id{font-family:var(--mono);font-size:12px;color:var(--text-2);background:rgba(255,255,255,.05);padding:3px 8px;border-radius:6px;}
+.device-id{font-family:var(--mono);font-size:12px;color:var(--text-2);background:var(--surface-2);padding:3px 8px;border-radius:6px;}
 .device-name{font-weight:700;color:var(--text);font-size:13px;}
-
 .device-actions{display:flex;gap:6px;}
 .action-btn{
   width:30px;height:30px;border:1px solid var(--hairline);border-radius:9px;
   background:var(--surface-2);color:var(--text-3);cursor:pointer;
-  display:flex;align-items:center;justify-content:center;font-size:12px;
-  transition:all .2s;
+  display:flex;align-items:center;justify-content:center;font-size:12px;transition:all .2s;
 }
-.action-btn:hover{color:var(--text);border-color:transparent;}
+.action-btn:hover{color:var(--text);}
 .action-btn.view:hover{background:var(--blue);color:#fff;}
 .action-btn.delete:hover{background:var(--red);color:#fff;}
 
-/* ============ MODALS ============ */
+/* Checkbox Grid */
+.checkbox-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: 10px;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 12px;
+  color: var(--text-2);
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.checkbox-item:hover {
+  background: var(--surface-2-hover);
+}
+
+.checkbox-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--blue);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.checkbox-item .data-color {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Modals */
 .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);z-index:9999;align-items:center;justify-content:center;padding:20px;}
 .modal.active{display:flex;}
 .modal-content{
-  background:rgba(28,28,30,.92);backdrop-filter:blur(30px);
+  background:var(--surface-solid);
   border:1px solid var(--hairline);border-radius:22px;padding:26px;
-  max-width:420px;width:100%;max-height:90vh;overflow-y:auto;
+  max-width:480px;width:100%;max-height:90vh;overflow-y:auto;
   animation:modalIn .3s var(--ease);
-  box-shadow:0 30px 70px rgba(0,0,0,.6);
-  transition: background 0.3s ease, border-color 0.3s ease;
+  box-shadow:0 30px 70px rgba(0,0,0,.4);
 }
+[data-theme="light"] .modal-content { background: #ffffff; }
 @keyframes modalIn{from{opacity:0;transform:scale(.94) translateY(10px);}to{opacity:1;transform:scale(1) translateY(0);}}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;}
 .modal-header h3{font-size:16px;font-weight:800;letter-spacing:-.01em;color:var(--text);}
@@ -743,22 +589,21 @@ body::before{
 .form-group label{display:block;font-size:10.5px;font-weight:700;margin-bottom:6px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;}
 .form-group input,.form-group select,.form-group textarea{
   width:100%;padding:11px 13px;background:var(--surface-2);border:1px solid var(--hairline);
-  border-radius:10px;font-size:13.5px;font-family:inherit;color:var(--text);outline:none;
-  transition:border-color .2s;
+  border-radius:10px;font-size:13.5px;font-family:inherit;color:var(--text);outline:none;transition:border-color .2s;
 }
 .form-group input::placeholder{color:var(--text-3);}
 .form-group input:focus,.form-group select:focus{border-color:rgba(10,132,255,.55);}
+.form-group select option{background:var(--bg);color:var(--text);}
+[data-theme="light"] .form-group select option { background: #ffffff; color: #1c1c1e; }
 .modal-actions{display:flex;gap:9px;justify-content:flex-end;margin-top:20px;}
 
-.api-key-display{background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;padding:13px;display:flex;align-items:center;gap:10px;}
-.api-key-display code{flex:1;font-size:11.5px;color:var(--teal);word-break:break-all;font-family:var(--mono);}
-
 .toast{
-  position:fixed;bottom:22px;right:22px;background:rgba(28,28,30,.92);backdrop-filter:blur(20px);
+  position:fixed;bottom:22px;right:22px;background:var(--surface-solid);
   border:1px solid var(--hairline);border-radius:12px;padding:13px 18px;z-index:9999;
-  font-size:13px;font-weight:600;animation:slideIn .35s var(--ease);box-shadow:0 12px 30px rgba(0,0,0,.5);
+  font-size:13px;font-weight:600;animation:slideIn .35s var(--ease);box-shadow:0 12px 30px rgba(0,0,0,.3);
   color:var(--text);
 }
+[data-theme="light"] .toast { background: #ffffff; }
 .toast.success{border-left:3px solid var(--green);}
 .toast.error{border-left:3px solid var(--red);}
 @keyframes slideIn{from{transform:translateX(120%);}to{transform:translateX(0);}}
@@ -766,11 +611,12 @@ body::before{
 ::-webkit-scrollbar{width:6px;height:6px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
+[data-theme="light"] ::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);}
 
-/* ============ RESPONSIVE ============ */
 @media (max-width:1200px){
   .overview-grid{grid-template-columns:1fr;}
   .stats-grid{grid-template-columns:repeat(3,1fr);}
+  .charts-grid{grid-template-columns:1fr;}
 }
 @media (max-width:992px){
   .sidebar{width:80px;}
@@ -790,7 +636,6 @@ body::before{
 </style>
 </head>
 <body>
-  <!-- SVG defs for ring gradient -->
   <svg width="0" height="0" style="position:absolute">
     <defs>
       <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -832,7 +677,6 @@ body::before{
       <div class="topbar-left"><div class="page-indicator"></div><h1 class="topbar-title" id="pageTitle">Dashboard</h1></div>
       <div class="topbar-right">
         <div class="search-box"><i class="fa-solid fa-magnifying-glass"></i><input type="text" id="searchInput" placeholder="Cari perangkat…" onkeyup="filterDevices()"></div>
-        <button class="btn btn-primary" onclick="openAddDeviceModal()"><i class="fa-solid fa-plus"></i> Tambah</button>
         <div class="datetime-display"><div class="date" id="currentDate"></div><div class="time" id="currentTime"></div></div>
       </div>
     </div>
@@ -873,7 +717,26 @@ body::before{
         </div>
 
         <div class="section-card">
-          <div class="section-header"><div class="section-title"><i class="fa-solid fa-list"></i> Daftar Perangkat</div><button class="btn btn-secondary" onclick="refreshData()"><i class="fa-solid fa-arrow-rotate-right"></i> Refresh</button></div>
+          <div class="section-header">
+            <div class="section-title"><i class="fa-solid fa-list"></i> Daftar Perangkat</div>
+            <div style="display:flex;gap:10px;align-items:center;">
+              <button class="btn btn-primary" onclick="openAddDeviceModal()"><i class="fa-solid fa-plus"></i> Tambah Perangkat</button>
+            </div>
+          </div>
+          <div class="filter-bar" id="deviceFilterBar">
+            <button class="filter-btn active" data-filter="all" onclick="setDeviceFilter('all')">
+              <i class="fa-solid fa-server"></i> Semua <span class="count" id="filterCountAll">0</span>
+            </button>
+            <button class="filter-btn" data-filter="online" onclick="setDeviceFilter('online')">
+              <i class="fa-solid fa-wifi"></i> Online <span class="count" id="filterCountOnline">0</span>
+            </button>
+            <button class="filter-btn offline" data-filter="offline" onclick="setDeviceFilter('offline')">
+              <i class="fa-solid fa-power-off"></i> Offline <span class="count" id="filterCountOffline">0</span>
+            </button>
+            <button class="filter-btn warning" data-filter="alert" onclick="setDeviceFilter('alert')">
+              <i class="fa-solid fa-triangle-exclamation"></i> Alert <span class="count" id="filterCountAlert">0</span>
+            </button>
+          </div>
           <div class="section-body" style="padding:0;">
             <div class="table-wrapper">
               <table class="device-table">
@@ -895,11 +758,11 @@ body::before{
         <div class="section-card">
           <div class="section-header">
             <div class="section-title"><i class="fa-solid fa-globe"></i> Peta Interaktif</div>
-            <div class="device-select-wrapper">
-              <select id="mapDeviceSelect" style="min-width:200px;">
+            <div style="position:relative;">
+              <select id="mapDeviceSelect" style="min-width:200px;background:var(--surface-2);border:1px solid var(--hairline);border-radius:10px;padding:9px 36px 9px 14px;color:var(--text);font-size:13px;font-weight:600;font-family:inherit;cursor:pointer;appearance:none;">
                 <option value="">Pilih Perangkat…</option>
               </select>
-              <i class="fa-solid fa-chevron-down"></i>
+              <i class="fa-solid fa-chevron-down" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--text-3);pointer-events:none;font-size:11px;"></i>
             </div>
           </div>
           <div class="section-body">
@@ -915,47 +778,44 @@ body::before{
       <!-- GRAPH SECTION -->
       <div id="graphSection" style="display:none;">
         <div class="section-card">
-          <div class="section-header"><div class="section-title"><i class="fa-solid fa-chart-line"></i> Visualisasi Gabungan Semua Perangkat</div></div>
-          <div class="section-body">
-            <div class="graph-toolbar" data-chart="combined">
-              <button class="graph-tab active" data-hours="24">24 Jam</button>
-              <button class="graph-tab" data-hours="6">6 Jam</button>
-              <button class="graph-tab" data-hours="3">3 Jam</button>
-              <button class="graph-tab" data-hours="1">1 Jam</button>
-            </div>
-            <div class="graph-container"><canvas id="combinedChart"></canvas></div>
-          </div>
-        </div>
-
-        <div class="section-card">
           <div class="section-header">
-            <div class="section-title"><i class="fa-solid fa-chart-area"></i> Analitik Perangkat 1</div>
-            <div class="device-select-wrapper"><select id="deviceSelect1"><option value="">Pilih Perangkat…</option></select><i class="fa-solid fa-chevron-down"></i></div>
+            <div class="section-title"><i class="fa-solid fa-chart-line"></i> Analitik Dinamis</div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-secondary" onclick="refreshAllCharts()"><i class="fa-solid fa-rotate"></i> Refresh Data</button>
+              <button class="btn btn-secondary" onclick="resetChartLayout()"><i class="fa-solid fa-arrows-rotate"></i> Reset Layout</button>
+              <button class="btn btn-primary" onclick="openAddChartModal()"><i class="fa-solid fa-plus"></i> Tambah Diagram</button>
+            </div>
           </div>
           <div class="section-body">
-            <div class="graph-toolbar" data-chart="individual1">
-              <button class="graph-tab active" data-hours="24">24 Jam</button>
-              <button class="graph-tab" data-hours="6">6 Jam</button>
-              <button class="graph-tab" data-hours="3">3 Jam</button>
-              <button class="graph-tab" data-hours="1">1 Jam</button>
+            <div style="display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:12px;">
+              <div class="time-range-bar" id="globalTimeRange">
+                <button class="time-range-btn" data-minutes="5" onclick="setGlobalTimeRange(5)"><i class="fa-solid fa-clock"></i> 5 Menit</button>
+                <button class="time-range-btn" data-minutes="10" onclick="setGlobalTimeRange(10)"><i class="fa-solid fa-clock"></i> 10 Menit</button>
+                <button class="time-range-btn" data-minutes="30" onclick="setGlobalTimeRange(30)"><i class="fa-solid fa-clock"></i> 30 Menit</button>
+                <button class="time-range-btn" data-minutes="60" onclick="setGlobalTimeRange(60)"><i class="fa-solid fa-hourglass-half"></i> 1 Jam</button>
+                <button class="time-range-btn" data-minutes="180" onclick="setGlobalTimeRange(180)"><i class="fa-solid fa-hourglass-half"></i> 3 Jam</button>
+                <button class="time-range-btn" data-minutes="360" onclick="setGlobalTimeRange(360)"><i class="fa-solid fa-hourglass-half"></i> 6 Jam</button>
+                <button class="time-range-btn" data-minutes="720" onclick="setGlobalTimeRange(720)"><i class="fa-solid fa-hourglass"></i> 12 Jam</button>
+                <button class="time-range-btn active" data-minutes="1440" onclick="setGlobalTimeRange(1440)"><i class="fa-solid fa-calendar-day"></i> 24 Jam</button>
+                <button class="time-range-btn" data-minutes="10080" onclick="setGlobalTimeRange(10080)"><i class="fa-solid fa-calendar-week"></i> 7 Hari</button>
+                <button class="time-range-btn" data-minutes="43200" onclick="setGlobalTimeRange(43200)"><i class="fa-solid fa-calendar"></i> 30 Hari</button>
+              </div>
             </div>
-            <div class="graph-container"><canvas id="sensorChart1"></canvas></div>
-          </div>
-        </div>
 
-        <div class="section-card">
-          <div class="section-header">
-            <div class="section-title"><i class="fa-solid fa-chart-area"></i> Analitik Perangkat 2</div>
-            <div class="device-select-wrapper"><select id="deviceSelect2"><option value="">Pilih Perangkat…</option></select><i class="fa-solid fa-chevron-down"></i></div>
-          </div>
-          <div class="section-body">
-            <div class="graph-toolbar" data-chart="individual2">
-              <button class="graph-tab active" data-hours="24">24 Jam</button>
-              <button class="graph-tab" data-hours="6">6 Jam</button>
-              <button class="graph-tab" data-hours="3">3 Jam</button>
-              <button class="graph-tab" data-hours="1">1 Jam</button>
+            <p style="font-size:11px;color:var(--text-3);margin-bottom:14px;">
+              <i class="fa-solid fa-info-circle"></i> 
+              Tips: Drag header untuk memindahkan diagram, drag sudut kanan bawah diagram untuk resize. Drag handle di bawah area kanvas untuk resize ke bawah.
+            </p>
+            <div class="charts-grid-wrapper">
+              <div class="charts-grid" id="chartsGrid">
+                <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
+                  <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;"></i>
+                  <p style="font-size:14px;font-weight:600;">Belum ada diagram</p>
+                  <p style="font-size:12px;margin-top:4px;">Klik "Tambah Diagram" untuk membuat visualisasi baru</p>
+                </div>
+              </div>
+              <div class="charts-grid-resize-handle"></div>
             </div>
-            <div class="graph-container"><canvas id="sensorChart2"></canvas></div>
           </div>
         </div>
       </div>
@@ -964,6 +824,20 @@ body::before{
       <div id="devicesSection" style="display:none;">
         <div class="section-card">
           <div class="section-header"><div class="section-title"><i class="fa-solid fa-microchip"></i> Semua Perangkat</div><button class="btn btn-primary" onclick="openAddDeviceModal()"><i class="fa-solid fa-plus"></i> Tambah</button></div>
+          <div class="filter-bar" id="deviceFilterBarFull">
+            <button class="filter-btn active" data-filter="all" onclick="setDeviceFilterFull('all')">
+              <i class="fa-solid fa-server"></i> Semua
+            </button>
+            <button class="filter-btn" data-filter="online" onclick="setDeviceFilterFull('online')">
+              <i class="fa-solid fa-wifi"></i> Online
+            </button>
+            <button class="filter-btn offline" data-filter="offline" onclick="setDeviceFilterFull('offline')">
+              <i class="fa-solid fa-power-off"></i> Offline
+            </button>
+            <button class="filter-btn warning" data-filter="alert" onclick="setDeviceFilterFull('alert')">
+              <i class="fa-solid fa-triangle-exclamation"></i> Alert
+            </button>
+          </div>
           <div class="section-body" style="padding:0;">
             <div class="table-wrapper">
               <table class="device-table">
@@ -989,11 +863,60 @@ body::before{
     </div>
   </div>
 
+  <!-- CHART MODAL -->
+  <div class="modal" id="chartModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="chartModalTitle">Tambah Diagram</h3>
+        <button class="modal-close" onclick="closeModal('chartModal')">&times;</button>
+      </div>
+      <input type="hidden" id="editChartId" value="">
+      <div class="form-group"><label>Judul Diagram</label><input type="text" id="chartTitle" placeholder="Contoh: Suhu Ruang Server"></div>
+      <div class="form-group">
+        <label>Pilih Perangkat</label>
+        <select id="chartDeviceSelect"><option value="">Pilih Perangkat…</option></select>
+      </div>
+      <div class="form-group">
+        <label>Tipe Diagram</label>
+        <select id="chartTypeSelect">
+          <optgroup label="Dasar">
+            <option value="line">Line Chart</option>
+            <option value="bar">Bar Chart</option>
+            <option value="area">Area Chart</option>
+            <option value="scatter">Scatter Plot</option>
+          </optgroup>
+          <optgroup label="Statistik">
+            <option value="doughnut">Doughnut Chart</option>
+            <option value="pie">Pie Chart</option>
+            <option value="polarArea">Polar Area</option>
+            <option value="radar">Radar Chart</option>
+          </optgroup>
+          <optgroup label="Khusus">
+            <option value="horizontalBar">Horizontal Bar</option>
+            <option value="stackedBar">Stacked Bar</option>
+            <option value="stackedArea">Stacked Area</option>
+          </optgroup>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Data yang Ditampilkan</label>
+        <div class="checkbox-grid" id="chartDataCheckboxes"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="closeModal('chartModal')">Batal</button>
+        <button class="btn btn-success" onclick="saveChart()"><i class="fa-solid fa-check"></i> Simpan</button>
+      </div>
+    </div>
+  </div>
+
   <div class="modal" id="apiKeyModal">
     <div class="modal-content">
       <div class="modal-header"><h3>API Key</h3><button class="modal-close" onclick="closeModal('apiKeyModal')">&times;</button></div>
       <p style="font-size:12.5px;color:var(--text-2);margin-bottom:10px;">Simpan API Key ini — hanya muncul sekali:</p>
-      <div class="api-key-display"><code id="apiKeyDisplay"></code><button class="btn btn-primary" onclick="copyApiKey()">Copy</button></div>
+      <div class="api-key-display" style="background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;padding:13px;display:flex;align-items:center;gap:10px;">
+        <code id="apiKeyDisplay" style="flex:1;font-size:11.5px;color:var(--teal);word-break:break-all;font-family:var(--mono);"></code>
+        <button class="btn btn-primary" onclick="copyApiKey()">Copy</button>
+      </div>
       <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="closeModal('apiKeyModal')">Saya Sudah Simpan</button>
     </div>
   </div>
@@ -1011,14 +934,88 @@ body::before{
 
   <script>
     let mapPreview, mapFull, marker;
-    let combinedChart, sensorChart1, sensorChart2;
     let selectedLat = null, selectedLng = null;
     let selectedMapDeviceId = null;
-    let currentDevice1 = null, currentDevice2 = null;
-    let combinedHours = 24, individual1Hours = 24, individual2Hours = 24;
     let allDevices = [];
+    let dynamicCharts = [];
+    let chartIdCounter = 0;
+    let globalTimeMinutes = 1440;
+    let currentDeviceFilter = 'all';
+    let currentDeviceFilterFull = 'all';
 
     const CHART_FONT = "'Inter', -apple-system, sans-serif";
+    const CHART_COLORS = ['#ff453a', '#bf5af2', '#30d158', '#ff9f0a', '#0a84ff', '#ff375f', '#64d2ff', '#a3e635'];
+
+    const DATA_KEYS = {
+      temperature: { label: 'Suhu', unit: '°C', color: '#ff453a' },
+      humidity: { label: 'Kelembaban', unit: '%', color: '#bf5af2' },
+      gas_level: { label: 'Gas', unit: '%', color: '#ff9f0a' },
+      smoke: { label: 'Asap', unit: 'ppm', color: '#ff6482' },
+      motion: { label: 'Gerakan', unit: '', color: '#40c4ff' },
+      rfid: { label: 'RFID', unit: '', color: '#a3e635' },
+      moisture: { label: 'Kelembaban Tanah', unit: '%', color: '#64d2ff' },
+      lux: { label: 'Cahaya', unit: 'lux', color: '#ffd60a' },
+      co2: { label: 'CO2', unit: 'ppm', color: '#30d158' }
+    };
+
+    // ============ DEVICE FILTER ============
+    function setDeviceFilter(filter) {
+      currentDeviceFilter = filter;
+      document.querySelectorAll('#deviceFilterBar .filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderFilteredDevices();
+    }
+
+    function setDeviceFilterFull(filter) {
+      currentDeviceFilterFull = filter;
+      document.querySelectorAll('#deviceFilterBarFull .filter-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.filter === filter);
+      });
+      renderFilteredDevicesFull();
+    }
+
+    function getDeviceAlertStatus(device) {
+      // Check if device has alert status
+      if (device.status === 'alert') return true;
+      // Check if latest data contains smoke or high gas
+      // Placeholder for future alert implementation
+      return false;
+    }
+
+    function filterDevicesByStatus(devices, filter) {
+      switch(filter) {
+        case 'online':
+          return devices.filter(d => d.status === 'online');
+        case 'offline':
+          return devices.filter(d => d.status === 'offline');
+        case 'alert':
+          return devices.filter(d => getDeviceAlertStatus(d));
+        default:
+          return devices;
+      }
+    }
+
+    function renderFilteredDevices() {
+      const filtered = filterDevicesByStatus(allDevices, currentDeviceFilter);
+      renderTable(filtered, 'deviceTableBody', false);
+    }
+
+    function renderFilteredDevicesFull() {
+      const filtered = filterDevicesByStatus(allDevices, currentDeviceFilterFull);
+      renderTable(filtered, 'deviceTableBodyFull', true);
+    }
+
+    function updateFilterCounts() {
+      const onlineCount = allDevices.filter(d => d.status === 'online').length;
+      const offlineCount = allDevices.filter(d => d.status === 'offline').length;
+      const alertCount = allDevices.filter(d => getDeviceAlertStatus(d)).length;
+      
+      document.getElementById('filterCountAll').textContent = allDevices.length;
+      document.getElementById('filterCountOnline').textContent = onlineCount;
+      document.getElementById('filterCountOffline').textContent = offlineCount;
+      document.getElementById('filterCountAlert').textContent = alertCount;
+    }
 
     // ============ THEME TOGGLE ============
     function toggleTheme() {
@@ -1027,19 +1024,7 @@ body::before{
       document.documentElement.setAttribute('data-theme', newTheme);
       localStorage.setItem('nexus-theme', newTheme);
       updateThemeUI(newTheme);
-      // Refresh charts when theme changes
-      setTimeout(() => {
-        if (combinedChart) {
-          const currentHours = combinedHours;
-          loadCombinedGraph(currentHours);
-        }
-        if (currentDevice1 && sensorChart1) {
-          loadIndividualGraph(1, currentDevice1, individual1Hours);
-        }
-        if (currentDevice2 && sensorChart2) {
-          loadIndividualGraph(2, currentDevice2, individual2Hours);
-        }
-      }, 100);
+      setTimeout(() => refreshAllCharts(), 100);
     }
 
     function updateThemeUI(theme) {
@@ -1060,26 +1045,697 @@ body::before{
       updateThemeUI(savedTheme);
     }
 
-    // ============ CHART HELPER ============
     function getChartColors() {
       const isLight = document.documentElement.getAttribute('data-theme') === 'light';
       return {
-        gridColor: isLight ? 'rgba(0,0,0,0.12)' : 'rgba(255,255,255,0.08)',
+        gridColor: isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.08)',
         labelColor: isLight ? 'rgba(60,60,67,0.60)' : 'rgba(235,235,245,0.45)',
         legendColor: isLight ? 'rgba(60,60,67,0.70)' : 'rgba(235,235,245,0.6)',
         tooltipBg: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(28,28,30,0.95)',
         tooltipBorder: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
         tooltipTitleColor: isLight ? '#1c1c1e' : '#f5f5f7',
         tooltipBodyColor: isLight ? 'rgba(60,60,67,0.75)' : 'rgba(235,235,245,0.72)',
-        fillColor1: isLight ? 'rgba(255,69,58,0.12)' : 'rgba(255,69,58,0.08)',
-        fillColor2: isLight ? 'rgba(191,90,242,0.12)' : 'rgba(191,90,242,0.08)',
-        fillColor3: isLight ? 'rgba(255,159,10,0.12)' : 'rgba(255,159,10,0.08)',
         pointBorderColor: isLight ? '#fff' : '#000',
       };
     }
 
-    // ============ END CHART HELPER ============
+    // ============ GLOBAL TIME RANGE ============
+    function setGlobalTimeRange(minutes) {
+      globalTimeMinutes = minutes;
+      document.querySelectorAll('.time-range-btn').forEach(btn => {
+        btn.classList.toggle('active', parseInt(btn.dataset.minutes) === minutes);
+      });
+      localStorage.setItem('nexus-global-time', minutes);
+      refreshAllCharts();
+      showToast(`Rentang waktu diubah ke ${formatTimeRange(minutes)}`, 'success');
+    }
 
+    function formatTimeRange(minutes) {
+      if (minutes < 60) return `${minutes} menit`;
+      if (minutes < 1440) return `${minutes / 60} jam`;
+      if (minutes < 10080) return `${minutes / 1440} hari`;
+      return `${minutes / 10080} minggu`;
+    }
+
+    function loadGlobalTimeRange() {
+      const saved = localStorage.getItem('nexus-global-time');
+      if (saved) {
+        globalTimeMinutes = parseInt(saved);
+        document.querySelectorAll('.time-range-btn').forEach(btn => {
+          btn.classList.toggle('active', parseInt(btn.dataset.minutes) === globalTimeMinutes);
+        });
+      }
+    }
+
+    // ============ SAVE & LOAD CHARTS ============
+    function saveChartsToStorage() {
+      const chartsToSave = dynamicCharts.map(chart => {
+        const el = document.getElementById(chart.id);
+        return {
+          id: chart.id,
+          title: chart.title,
+          deviceId: chart.deviceId,
+          chartType: chart.chartType,
+          showData: chart.showData,
+          width: el?.style.width || '100%',
+          height: el?.style.height || '350px',
+          x: el?.getAttribute('data-x') || '0',
+          y: el?.getAttribute('data-y') || '0'
+        };
+      });
+      localStorage.setItem('nexus-dynamic-charts', JSON.stringify(chartsToSave));
+    }
+
+    function loadChartsFromStorage() {
+      const saved = localStorage.getItem('nexus-dynamic-charts');
+      if (saved) {
+        try {
+          const chartsToLoad = JSON.parse(saved);
+          chartsToLoad.forEach(chartData => {
+            const chartConfig = {
+              id: chartData.id,
+              title: chartData.title,
+              deviceId: chartData.deviceId,
+              deviceName: allDevices.find(d => d.device_id === chartData.deviceId)?.device_name || chartData.deviceId,
+              chartType: chartData.chartType,
+              showData: chartData.showData,
+              chartInstance: null,
+              isLoading: false
+            };
+            dynamicCharts.push(chartConfig);
+            renderChartCard(chartConfig, chartData.width, chartData.height, chartData.x, chartData.y);
+            loadDynamicChartData(chartConfig);
+            initializeDragResize(chartData.id);
+            chartIdCounter = Math.max(chartIdCounter, parseInt(chartData.id.split('_')[1]) || 0);
+          });
+        } catch (e) {
+          console.error('Error loading saved charts:', e);
+        }
+      }
+    }
+
+    // ============ CHART MODAL ============
+    function generateDataCheckboxes(selectedData = {}) {
+      const container = document.getElementById('chartDataCheckboxes');
+      container.innerHTML = '';
+      
+      Object.entries(DATA_KEYS).forEach(([key, info]) => {
+        const isChecked = selectedData[key] || false;
+        const item = document.createElement('label');
+        item.className = 'checkbox-item';
+        item.innerHTML = `
+          <input type="checkbox" class="chart-data-checkbox" data-key="${key}" ${isChecked ? 'checked' : ''}>
+          <span class="data-color" style="background:${info.color};"></span>
+          <span>${info.label} (${info.unit})</span>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    function openAddChartModal() {
+      document.getElementById('chartModalTitle').textContent = 'Tambah Diagram';
+      document.getElementById('editChartId').value = '';
+      document.getElementById('chartTitle').value = '';
+      
+      const select = document.getElementById('chartDeviceSelect');
+      select.innerHTML = '<option value="">Pilih Perangkat…</option>';
+      allDevices.forEach(d => {
+        select.innerHTML += `<option value="${d.device_id}">${d.device_name} (${d.device_id})</option>`;
+      });
+      
+      document.getElementById('chartTypeSelect').value = 'line';
+      generateDataCheckboxes({ temperature: true });
+      
+      openModal('chartModal');
+    }
+
+    function openEditChartModal(chartId) {
+      const chart = dynamicCharts.find(c => c.id === chartId);
+      if (!chart) return;
+      
+      document.getElementById('chartModalTitle').textContent = 'Edit Diagram';
+      document.getElementById('editChartId').value = chartId;
+      document.getElementById('chartTitle').value = chart.title;
+      
+      const select = document.getElementById('chartDeviceSelect');
+      select.innerHTML = '<option value="">Pilih Perangkat…</option>';
+      allDevices.forEach(d => {
+        const selected = d.device_id === chart.deviceId ? 'selected' : '';
+        select.innerHTML += `<option value="${d.device_id}" ${selected}>${d.device_name} (${d.device_id})</option>`;
+      });
+      
+      document.getElementById('chartTypeSelect').value = chart.chartType;
+      generateDataCheckboxes(chart.showData);
+      
+      openModal('chartModal');
+    }
+
+    function saveChart() {
+      const editId = document.getElementById('editChartId').value;
+      const title = document.getElementById('chartTitle').value.trim() || 'Diagram';
+      const deviceId = document.getElementById('chartDeviceSelect').value;
+      const chartType = document.getElementById('chartTypeSelect').value;
+      
+      const showData = {};
+      document.querySelectorAll('.chart-data-checkbox').forEach(cb => {
+        showData[cb.dataset.key] = cb.checked;
+      });
+
+      if (!deviceId) {
+        showToast('Pilih perangkat terlebih dahulu!', 'error');
+        return;
+      }
+
+      if (!Object.values(showData).some(v => v)) {
+        showToast('Pilih minimal satu jenis data!', 'error');
+        return;
+      }
+
+      if (editId) {
+        const chartIndex = dynamicCharts.findIndex(c => c.id === editId);
+        if (chartIndex !== -1) {
+          dynamicCharts[chartIndex].title = title;
+          dynamicCharts[chartIndex].deviceId = deviceId;
+          dynamicCharts[chartIndex].deviceName = allDevices.find(d => d.device_id === deviceId)?.device_name || deviceId;
+          dynamicCharts[chartIndex].chartType = chartType;
+          dynamicCharts[chartIndex].showData = showData;
+          
+          const card = document.getElementById(editId);
+          if (card) {
+            const dataLabels = Object.entries(showData)
+              .filter(([key, val]) => val)
+              .map(([key]) => DATA_KEYS[key]?.label || key)
+              .join(', ');
+            
+            card.querySelector('.chart-card-title').innerHTML = `
+              <i class="fa-solid fa-chart-line"></i>
+              ${title}
+              <span style="font-size:10px;color:var(--text-3);font-weight:500;">(${dynamicCharts[chartIndex].deviceName} - ${dataLabels})</span>
+            `;
+          }
+          
+          loadDynamicChartData(dynamicCharts[chartIndex]);
+          saveChartsToStorage();
+          showToast('Diagram berhasil diperbarui', 'success');
+        }
+      } else {
+        const chartId = `chart_${++chartIdCounter}`;
+        const chartConfig = {
+          id: chartId,
+          title: title,
+          deviceId: deviceId,
+          deviceName: allDevices.find(d => d.device_id === deviceId)?.device_name || deviceId,
+          chartType: chartType,
+          showData: showData,
+          chartInstance: null,
+          isLoading: false
+        };
+
+        dynamicCharts.push(chartConfig);
+        renderChartCard(chartConfig);
+        loadDynamicChartData(chartConfig);
+        initializeDragResize(chartId);
+        saveChartsToStorage();
+        showToast('Diagram berhasil ditambahkan', 'success');
+      }
+
+      closeModal('chartModal');
+    }
+
+    function renderChartCard(chartConfig, width = '100%', height = '350px', x = '0', y = '0') {
+      const grid = document.getElementById('chartsGrid');
+      const emptyState = grid.querySelector('.empty-charts');
+      if (emptyState) emptyState.remove();
+
+      const card = document.createElement('div');
+      card.className = 'chart-card';
+      card.id = chartConfig.id;
+      card.style.width = width;
+      card.style.height = height;
+      card.setAttribute('data-x', x);
+      card.setAttribute('data-y', y);
+      if (x !== '0' || y !== '0') {
+        card.style.transform = `translate(${x}px, ${y}px)`;
+      }
+
+      const dataLabels = Object.entries(chartConfig.showData)
+        .filter(([key, val]) => val)
+        .map(([key]) => DATA_KEYS[key]?.label || key)
+        .join(', ');
+
+      card.innerHTML = `
+        <div class="chart-card-header">
+          <div class="chart-card-title">
+            <i class="fa-solid fa-chart-line"></i>
+            ${chartConfig.title}
+            <span style="font-size:10px;color:var(--text-3);font-weight:500;">(${chartConfig.deviceName} - ${dataLabels})</span>
+          </div>
+          <div class="chart-actions">
+            <button class="chart-edit-btn" data-action="edit" data-chart-id="${chartConfig.id}" title="Edit diagram">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+            <button class="chart-remove-btn" data-action="delete" data-chart-id="${chartConfig.id}" title="Hapus diagram">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        <div class="chart-card-body">
+          <div class="chart-canvas-container">
+            <canvas id="${chartConfig.id}_canvas"></canvas>
+          </div>
+        </div>
+        <div class="chart-resize-handle"></div>
+      `;
+      
+      grid.appendChild(card);
+
+      const editBtn = card.querySelector('.chart-edit-btn');
+      const deleteBtn = card.querySelector('.chart-remove-btn');
+
+      if (editBtn) {
+        editBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          e.preventDefault();
+          openEditChartModal(chartConfig.id);
+        });
+      }
+
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          e.preventDefault();
+          removeChart(chartConfig.id);
+        });
+      }
+    }
+
+    function initializeDragResize(chartId) {
+      const element = document.getElementById(chartId);
+      if (!element) return;
+
+      interact(element)
+        .draggable({
+          allowFrom: '.chart-card-header',
+          ignoreFrom: '.chart-actions',
+          inertia: true,
+          modifiers: [
+            interact.modifiers.restrictRect({
+              restriction: '#chartsGrid',
+              endOnly: true
+            })
+          ],
+          autoScroll: true,
+          listeners: {
+            start(event) { element.classList.add('dragging'); },
+            move(event) {
+              const target = event.target;
+              const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
+              const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
+              target.style.transform = `translate(${x}px, ${y}px)`;
+              target.setAttribute('data-x', x);
+              target.setAttribute('data-y', y);
+            },
+            end(event) {
+              element.classList.remove('dragging');
+              saveChartsToStorage();
+            }
+          }
+        })
+        .resizable({
+          edges: { right: true, bottom: true, left: false, top: false },
+          inertia: true,
+          modifiers: [
+            interact.modifiers.restrictSize({
+              min: { width: 280, height: 200 }
+            })
+          ],
+          listeners: {
+            start(event) { element.classList.add('resizing'); },
+            move(event) {
+              const width = event.rect.width;
+              const height = event.rect.height;
+              Object.assign(element.style, {
+                width: `${width}px`,
+                height: `${height}px`
+              });
+              const chartConfig = dynamicCharts.find(c => c.id === chartId);
+              if (chartConfig && chartConfig.chartInstance) {
+                chartConfig.chartInstance.resize();
+              }
+            },
+            end(event) {
+              element.classList.remove('resizing');
+              const chartConfig = dynamicCharts.find(c => c.id === chartId);
+              if (chartConfig && chartConfig.chartInstance) {
+                chartConfig.chartInstance.resize();
+              }
+              saveChartsToStorage();
+            }
+          }
+        });
+    }
+
+    function initializeChartsGridResize() {
+      const gridWrapper = document.querySelector('.charts-grid-wrapper');
+      const grid = document.getElementById('chartsGrid');
+      
+      if (!gridWrapper || !grid) return;
+      
+      interact(gridWrapper)
+        .resizable({
+          edges: { right: false, bottom: true, left: false, top: false },
+          inertia: false,
+          modifiers: [
+            interact.modifiers.restrictSize({
+              min: { width: 0, height: 400 }
+            })
+          ],
+          listeners: {
+            move(event) {
+              const height = event.rect.height;
+              grid.style.height = `${height}px`;
+              grid.style.width = '100%';
+              grid.style.minWidth = '100%';
+              grid.style.maxWidth = '100%';
+            },
+            end(event) {
+              dynamicCharts.forEach(chart => {
+                if (chart.chartInstance) {
+                  chart.chartInstance.resize();
+                }
+              });
+            }
+          }
+        });
+    }
+
+    function removeChart(chartId) {
+      const index = dynamicCharts.findIndex(c => c.id === chartId);
+      if (index !== -1) {
+        if (dynamicCharts[index].chartInstance) {
+          try {
+            dynamicCharts[index].chartInstance.destroy();
+          } catch (e) {
+            console.warn('Error destroying chart:', e);
+          }
+          dynamicCharts[index].chartInstance = null;
+        }
+        dynamicCharts.splice(index, 1);
+      }
+      
+      const card = document.getElementById(chartId);
+      if (card) {
+        try {
+          interact(card).unset();
+        } catch (e) {
+          console.warn('Error unsetting interact:', e);
+        }
+        card.remove();
+      }
+
+      if (dynamicCharts.length === 0) {
+        const grid = document.getElementById('chartsGrid');
+        grid.innerHTML = `
+          <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
+            <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;"></i>
+            <p style="font-size:14px;font-weight:600;">Belum ada diagram</p>
+            <p style="font-size:12px;margin-top:4px;">Klik "Tambah Diagram" untuk membuat visualisasi baru</p>
+          </div>
+        `;
+      }
+
+      saveChartsToStorage();
+      showToast('Diagram dihapus', 'success');
+    }
+
+    function resetChartLayout() {
+      dynamicCharts.forEach(chart => {
+        const element = document.getElementById(chart.id);
+        if (element) {
+          element.style.transform = '';
+          element.setAttribute('data-x', 0);
+          element.setAttribute('data-y', 0);
+          element.style.width = '100%';
+          element.style.height = '350px';
+          if (chart.chartInstance) {
+            chart.chartInstance.resize();
+          }
+        }
+      });
+      saveChartsToStorage();
+      showToast('Layout diagram direset', 'success');
+    }
+
+    async function loadDynamicChartData(chartConfig) {
+      try {
+        if (chartConfig.isLoading) return;
+        chartConfig.isLoading = true;
+        
+        const hours = Math.max(1, Math.ceil(globalTimeMinutes / 60));
+        const res = await fetch(`/api/v1/devices/${chartConfig.deviceId}/history?hours=${hours}`);
+        const data = await res.json();
+        
+        if (data.success && data.history && data.history.length > 0) {
+          const now = new Date();
+          const cutoffTime = new Date(now.getTime() - globalTimeMinutes * 60 * 1000);
+          
+          const filteredHistory = data.history.filter(item => {
+            try {
+              const itemTime = new Date(item.timestamp);
+              return itemTime >= cutoffTime;
+            } catch (e) { return false; }
+          });
+
+          if (filteredHistory.length === 0) {
+            if (data.history.length > 0) {
+              await renderChartData(chartConfig, data.history);
+            } else {
+              showChartEmpty(chartConfig.id, 'Menunggu data...');
+            }
+            return;
+          }
+
+          await renderChartData(chartConfig, filteredHistory);
+        } else {
+          showChartEmpty(chartConfig.id, 'Menunggu data sensor...');
+        }
+      } catch (e) {
+        console.error(`Error loading chart ${chartConfig.id}:`, e);
+      } finally {
+        chartConfig.isLoading = false;
+      }
+    }
+
+    async function renderChartData(chartConfig, historyData) {
+      try {
+        const canvasContainer = document.querySelector(`#${chartConfig.id} .chart-canvas-container`);
+        if (canvasContainer && !canvasContainer.querySelector('canvas')) {
+          canvasContainer.innerHTML = `<canvas id="${chartConfig.id}_canvas"></canvas>`;
+        }
+
+        const canvas = document.getElementById(`${chartConfig.id}_canvas`);
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const chartColors = getChartColors();
+
+        const labels = historyData.map(item => {
+          try {
+            return new Date(item.timestamp).toLocaleTimeString('id-ID', { 
+              hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta'
+            });
+          } catch (e) { return ''; }
+        });
+
+        const datasets = [];
+        const activeDataKeys = Object.entries(chartConfig.showData)
+          .filter(([key, val]) => val)
+          .map(([key]) => key);
+
+        for (let index = 0; index < activeDataKeys.length; index++) {
+          const dataKey = activeDataKeys[index];
+          const dataInfo = DATA_KEYS[dataKey];
+          if (!dataInfo) continue;
+
+          const values = historyData.map(item => {
+            const itemData = item.data || {};
+            return itemData[dataKey] ?? itemData[dataKey.toLowerCase()] ?? itemData[dataKey.toUpperCase()] ?? null;
+          });
+
+          const validValues = values.filter(v => v !== null && v !== undefined);
+          if (validValues.length === 0) continue;
+
+          const color = CHART_COLORS[index % CHART_COLORS.length];
+          const isAreaType = chartConfig.chartType === 'area' || chartConfig.chartType === 'stackedArea';
+          const isStacked = chartConfig.chartType === 'stackedBar' || chartConfig.chartType === 'stackedArea';
+
+          datasets.push({
+            label: `${dataInfo.label} (${dataInfo.unit})`,
+            data: values,
+            borderColor: color,
+            backgroundColor: isAreaType ? color + '30' : color + '80',
+            fill: isAreaType,
+            tension: 0.35,
+            pointRadius: 2,
+            pointHoverRadius: 5,
+            pointBackgroundColor: color,
+            pointBorderColor: chartColors.pointBorderColor,
+            pointBorderWidth: 1,
+            borderWidth: 2,
+            stack: isStacked ? 'stack1' : undefined
+          });
+        }
+
+        if (datasets.length === 0) {
+          showChartEmpty(chartConfig.id, 'Tidak ada data sensor yang cocok');
+          return;
+        }
+
+        const chartIndex = dynamicCharts.findIndex(c => c.id === chartConfig.id);
+        if (chartIndex !== -1 && dynamicCharts[chartIndex].chartInstance) {
+          try { dynamicCharts[chartIndex].chartInstance.destroy(); } catch (e) {}
+          dynamicCharts[chartIndex].chartInstance = null;
+        }
+
+        let chartType = chartConfig.chartType;
+
+        if (['doughnut', 'pie', 'polarArea', 'radar'].includes(chartConfig.chartType)) {
+          const latestData = historyData[historyData.length - 1];
+          const gaugeLabels = [];
+          const gaugeValues = [];
+          
+          activeDataKeys.forEach(dataKey => {
+            const dataInfo = DATA_KEYS[dataKey];
+            if (!dataInfo) return;
+            const value = latestData.data?.[dataKey] ?? null;
+            if (value !== null && value !== undefined) {
+              gaugeLabels.push(dataInfo.label);
+              gaugeValues.push(value);
+            }
+          });
+
+          if (gaugeValues.length === 0) {
+            showChartEmpty(chartConfig.id, 'Tidak ada data terbaru');
+            return;
+          }
+
+          const chartInstance = new Chart(ctx, {
+            type: chartConfig.chartType,
+            data: {
+              labels: gaugeLabels,
+              datasets: [{
+                data: gaugeValues,
+                backgroundColor: gaugeValues.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + '80'),
+                borderColor: gaugeValues.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+                borderWidth: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: {
+                legend: {
+                  position: 'right',
+                  labels: { color: chartColors.legendColor, font: { size: 11, family: CHART_FONT }, usePointStyle: true, padding: 12 }
+                }
+              }
+            }
+          });
+
+          updateChartInstance(chartConfig, chartInstance);
+          return;
+        }
+
+        if (chartType === 'area' || chartType === 'stackedArea') chartType = 'line';
+        if (chartType === 'horizontalBar' || chartType === 'stackedBar') chartType = 'bar';
+
+        const chartInstance = new Chart(ctx, {
+          type: chartType,
+          data: { labels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            indexAxis: chartConfig.chartType === 'horizontalBar' ? 'y' : 'x',
+            animation: { duration: 750, easing: 'easeOutQuart' },
+            plugins: {
+              legend: {
+                labels: { color: chartColors.legendColor, font: { size: 11, family: CHART_FONT }, usePointStyle: true, pointStyle: 'circle', padding: 12 }
+              },
+              tooltip: {
+                backgroundColor: chartColors.tooltipBg,
+                titleColor: chartColors.tooltipTitleColor,
+                bodyColor: chartColors.tooltipBodyColor,
+                borderColor: chartColors.tooltipBorder,
+                borderWidth: 1,
+                padding: 12,
+                cornerRadius: 10,
+                displayColors: true,
+                boxPadding: 5
+              }
+            },
+            scales: {
+              x: {
+                grid: { color: chartColors.gridColor },
+                ticks: { color: chartColors.labelColor, font: { family: CHART_FONT }, maxTicksLimit: 10, maxRotation: 45, autoSkip: true },
+                stacked: chartConfig.chartType === 'stackedBar' || chartConfig.chartType === 'stackedArea'
+              },
+              y: {
+                grid: { color: chartColors.gridColor },
+                ticks: { color: chartColors.labelColor, font: { family: CHART_FONT } },
+                stacked: chartConfig.chartType === 'stackedBar' || chartConfig.chartType === 'stackedArea',
+                beginAtZero: true
+              }
+            }
+          }
+        });
+
+        updateChartInstance(chartConfig, chartInstance);
+      } catch (e) {
+        console.error(`Error rendering chart ${chartConfig.id}:`, e);
+      }
+    }
+
+    function updateChartInstance(chartConfig, chartInstance) {
+      const chartIndex = dynamicCharts.findIndex(c => c.id === chartConfig.id);
+      if (chartIndex !== -1) {
+        dynamicCharts[chartIndex].chartInstance = chartInstance;
+      }
+    }
+
+    function showChartEmpty(chartId, message) {
+      const canvasContainer = document.querySelector(`#${chartId} .chart-canvas-container`);
+      if (canvasContainer) {
+        canvasContainer.innerHTML = `
+          <div style="text-align:center;padding:40px;color:var(--text-3);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:10px;">
+            <i class="fa-solid fa-satellite-dish" style="font-size:24px;opacity:0.5;"></i>
+            <span>${message}</span>
+            <span style="font-size:11px;">Data akan muncul otomatis saat tersedia</span>
+          </div>
+        `;
+      }
+    }
+
+    let refreshTimeout = null;
+    function refreshAllCharts() {
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => {
+        dynamicCharts.forEach(chart => loadDynamicChartData(chart));
+      }, 300);
+    }
+
+    let autoRefreshInterval = null;
+    function startAutoRefresh() {
+      if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+      autoRefreshInterval = setInterval(() => {
+        const graphSection = document.getElementById('graphSection');
+        if (graphSection && graphSection.style.display !== 'none') {
+          refreshAllCharts();
+        }
+      }, 15000);
+    }
+
+    // ============ TOAST ============
     function showToast(msg, type = 'success') {
       const t = document.getElementById('toast');
       t.className = `toast ${type}`;
@@ -1116,6 +1772,7 @@ body::before{
         setTimeout(populateMapDeviceSelect, 150);
       }
       if (section === 'dashboard') setTimeout(() => { if (mapPreview) mapPreview.invalidateSize(); }, 100);
+      if (section === 'graph') setTimeout(() => refreshAllCharts(), 100);
     }
 
     function updateDateTime() {
@@ -1141,8 +1798,7 @@ body::before{
         document.getElementById('saveLocationBtn').style.display = 'inline-flex';
         document.getElementById('saveLocationBtn').textContent = `Simpan Lokasi ke ${selectedMapDeviceId || 'perangkat'}`;
         if (selectedMapDeviceId) {
-          const info = document.getElementById('mapSelectedInfo');
-          info.textContent = `📍 Klik peta untuk memilih lokasi untuk: ${selectedMapDeviceId}`;
+          document.getElementById('mapSelectedInfo').textContent = `📍 Klik peta untuk memilih lokasi untuk: ${selectedMapDeviceId}`;
         }
       });
     }
@@ -1174,10 +1830,7 @@ body::before{
     document.getElementById('mapDeviceSelect').addEventListener('change', function() {
       selectedMapDeviceId = this.value;
       updateMapDeviceInfo();
-      if (marker) {
-        marker.remove();
-        marker = null;
-      }
+      if (marker) { marker.remove(); marker = null; }
       selectedLat = null;
       selectedLng = null;
       document.getElementById('saveLocationBtn').style.display = 'none';
@@ -1203,8 +1856,6 @@ body::before{
       return `${m}m`;
     }
 
-    function refreshData() { loadDashboard(); showToast('Data diperbarui', 'success'); }
-
     function updateHealthRing(online, total) {
       const pct = total > 0 ? Math.round((online / total) * 100) : 0;
       const circumference = 2 * Math.PI * 63;
@@ -1228,43 +1879,23 @@ body::before{
           updateHealthRing(data.summary.online_devices, data.summary.total_devices);
           loadMarkers(mapPreview);
           if (mapFull) loadMarkers(mapFull);
-
-          const select1 = document.getElementById('deviceSelect1');
-          const select2 = document.getElementById('deviceSelect2');
-          const savedDevice1 = localStorage.getItem('selectedDevice1') || '';
-          const savedDevice2 = localStorage.getItem('selectedDevice2') || '';
-
-          select1.innerHTML = '<option value="">Pilih Perangkat…</option>';
-          select2.innerHTML = '<option value="">Pilih Perangkat…</option>';
-          allDevices.forEach(d => {
-            select1.innerHTML += `<option value="${d.device_id}">${d.device_name}</option>`;
-            select2.innerHTML += `<option value="${d.device_id}">${d.device_name}</option>`;
-          });
-
           populateMapDeviceSelect();
-
-          if (savedDevice1) {
-            select1.value = savedDevice1;
-            currentDevice1 = savedDevice1;
-            loadIndividualGraph(1, savedDevice1, individual1Hours);
+          updateFilterCounts();
+          renderFilteredDevices();
+          renderFilteredDevicesFull();
+          
+          if (dynamicCharts.length === 0) {
+            loadChartsFromStorage();
           }
-          if (savedDevice2) {
-            select2.value = savedDevice2;
-            currentDevice2 = savedDevice2;
-            loadIndividualGraph(2, savedDevice2, individual2Hours);
-          }
-
-          loadCombinedGraph(combinedHours);
-          renderTable(allDevices, 'deviceTableBody', false);
-          renderTable(allDevices, 'deviceTableBodyFull', true);
         }
       } catch (e) { console.error(e); }
     }
 
     function renderTable(devices, tbodyId, full) {
       const tbody = document.getElementById(tbodyId);
+      if (!tbody) return;
       if (devices.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-3);">Belum ada perangkat</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-3);">Tidak ada perangkat</td></tr>`;
         return;
       }
       tbody.innerHTML = '';
@@ -1272,9 +1903,10 @@ body::before{
         const lastSeen = d.last_seen ? new Date(d.last_seen).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) : '-';
         const uptime = formatUptime(d.latest_uptime_seconds || 0);
         const wifi = d.latest_wifi_ssid || '-';
+        const statusClass = getDeviceAlertStatus(d) ? 'alert' : d.status;
         tbody.innerHTML += `
           <tr>
-            <td><span class="status-badge ${d.status}"><span class="status-dot-inline"></span>${d.status}</span></td>
+            <td><span class="status-badge ${statusClass}"><span class="status-dot-inline"></span>${statusClass}</span></td>
             <td><span class="device-id">${d.device_id}</span></td>
             <td><span class="device-name">${d.device_name}</span></td>
             ${full ? `<td>${d.device_type || '-'}</td>` : ''}
@@ -1292,9 +1924,13 @@ body::before{
 
     function filterDevices() {
       const term = document.getElementById('searchInput').value.toLowerCase();
-      const filtered = allDevices.filter(d => d.device_id.toLowerCase().includes(term) || d.device_name.toLowerCase().includes(term) || (d.location && d.location.toLowerCase().includes(term)));
+      const searchFiltered = allDevices.filter(d => d.device_id.toLowerCase().includes(term) || d.device_name.toLowerCase().includes(term) || (d.location && d.location.toLowerCase().includes(term)));
+      
+      const filtered = filterDevicesByStatus(searchFiltered, currentDeviceFilter);
+      const filteredFull = filterDevicesByStatus(searchFiltered, currentDeviceFilterFull);
+      
       renderTable(filtered, 'deviceTableBody', false);
-      renderTable(filtered, 'deviceTableBodyFull', true);
+      renderTable(filteredFull, 'deviceTableBodyFull', true);
     }
 
     function openAddDeviceModal() { openModal('addDeviceModal'); }
@@ -1335,204 +1971,10 @@ body::before{
       } catch (e) { showToast('Terjadi kesalahan', 'error'); }
     }
 
-    async function loadCombinedGraph(hours) {
-      try {
-        const allData = [];
-        for (const device of allDevices) {
-          const res = await fetch(`/api/v1/devices/${device.device_id}/history?hours=${hours}`);
-          const data = await res.json();
-          if (data.success && data.history.length > 0) {
-            allData.push({ device_name: device.device_name, history: data.history });
-          }
-        }
-        if (allData.length === 0) return;
-
-        const ctx = document.getElementById('combinedChart').getContext('2d');
-        if (combinedChart) combinedChart.destroy();
-
-        const colors = ['#ff453a', '#bf5af2', '#30d158', '#ff9f0a', '#0a84ff', '#ff375f', '#64d2ff', '#a3e635'];
-        const datasets = [];
-        const labels = allData[0].history.map(i => new Date(i.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-
-        allData.forEach((deviceData, index) => {
-          const color = colors[index % colors.length];
-          const temps = deviceData.history.map(item => item.data.temperature ?? null);
-          if (temps.some(v => v !== null)) {
-            datasets.push({
-              label: `${deviceData.device_name} (°C)`,
-              data: temps, borderColor: color, backgroundColor: 'transparent',
-              fill: false, tension: 0.35, pointRadius: 2, pointHoverRadius: 5,
-              pointBackgroundColor: color, pointBorderColor: '#000', pointBorderWidth: 1, borderWidth: 2
-            });
-          }
-        });
-
-        const chartColors = getChartColors();
-
-        combinedChart = new Chart(ctx, {
-          type: 'line',
-          data: { labels, datasets },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-              legend: { 
-                position: 'top', 
-                labels: { 
-                  font: { size: 11, weight: '600', family: CHART_FONT }, 
-                  usePointStyle: true, 
-                  pointStyle: 'circle', 
-                  padding: 16, 
-                  color: chartColors.legendColor 
-                } 
-              },
-              tooltip: {
-                enabled: true, 
-                backgroundColor: chartColors.tooltipBg,
-                titleColor: chartColors.tooltipTitleColor,
-                bodyColor: chartColors.tooltipBodyColor,
-                titleFont: { size: 12, weight: '700', family: CHART_FONT },
-                bodyFont: { size: 11, family: CHART_FONT }, 
-                padding: 12, cornerRadius: 10,
-                borderColor: chartColors.tooltipBorder, 
-                borderWidth: 1, 
-                displayColors: true, 
-                boxPadding: 5
-              }
-            },
-            scales: {
-              x: { 
-                grid: { display: false }, 
-                ticks: { color: chartColors.labelColor, maxTicksLimit: 10, font: { family: CHART_FONT } } 
-              },
-              y: { 
-                grid: { color: chartColors.gridColor }, 
-                ticks: { color: chartColors.labelColor, font: { family: CHART_FONT } } 
-              }
-            }
-          }
-        });
-      } catch (e) { console.error(e); }
-    }
-
-    async function loadIndividualGraph(chartNumber, deviceId, hours) {
-      if (!deviceId) return;
-      try {
-        const res = await fetch(`/api/v1/devices/${deviceId}/history?hours=${hours}`);
-        const data = await res.json();
-        if (data.success && data.history.length > 0) {
-          const labels = [], temps = [], hums = [], gases = [];
-          data.history.forEach(item => {
-            labels.push(new Date(item.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }));
-            temps.push(item.data.temperature ?? null);
-            hums.push(item.data.humidity ?? null);
-            gases.push(item.data.gas_level ?? null);
-          });
-
-          const canvasId = chartNumber === 1 ? 'sensorChart1' : 'sensorChart2';
-          const ctx = document.getElementById(canvasId).getContext('2d');
-          if (chartNumber === 1 && sensorChart1) sensorChart1.destroy();
-          if (chartNumber === 2 && sensorChart2) sensorChart2.destroy();
-
-          const chartColors = getChartColors();
-
-          const datasets = [];
-          if (temps.some(v => v !== null)) datasets.push({ 
-            label: 'Suhu (°C)', 
-            data: temps, 
-            borderColor: '#ff453a', 
-            backgroundColor: chartColors.fillColor1, 
-            fill: true, 
-            tension: 0.35, 
-            pointRadius: 2, 
-            pointHoverRadius: 5, 
-            pointBackgroundColor: '#ff453a', 
-            pointBorderColor: chartColors.pointBorderColor, 
-            pointBorderWidth: 1 
-          });
-          if (hums.some(v => v !== null)) datasets.push({ 
-            label: 'Kelembaban (%)', 
-            data: hums, 
-            borderColor: '#bf5af2', 
-            backgroundColor: chartColors.fillColor2, 
-            fill: true, 
-            tension: 0.35, 
-            pointRadius: 2, 
-            pointHoverRadius: 5, 
-            pointBackgroundColor: '#bf5af2', 
-            pointBorderColor: chartColors.pointBorderColor, 
-            pointBorderWidth: 1 
-          });
-          if (gases.some(v => v !== null)) datasets.push({ 
-            label: 'Gas (%)', 
-            data: gases, 
-            borderColor: '#ff9f0a', 
-            backgroundColor: chartColors.fillColor3, 
-            fill: true, 
-            tension: 0.35, 
-            pointRadius: 2, 
-            pointHoverRadius: 5, 
-            pointBackgroundColor: '#ff9f0a', 
-            pointBorderColor: chartColors.pointBorderColor, 
-            pointBorderWidth: 1 
-          });
-
-          const chart = new Chart(ctx, {
-            type: 'line',
-            data: { labels, datasets },
-            options: {
-              responsive: true, maintainAspectRatio: false,
-              interaction: { mode: 'index', intersect: false },
-              plugins: {
-                legend: { 
-                  labels: { 
-                    color: chartColors.legendColor, 
-                    font: { size: 11, family: CHART_FONT } 
-                  } 
-                },
-                tooltip: {
-                  enabled: true, 
-                  backgroundColor: chartColors.tooltipBg,
-                  titleColor: chartColors.tooltipTitleColor,
-                  bodyColor: chartColors.tooltipBodyColor,
-                  titleFont: { size: 12, weight: '700', family: CHART_FONT },
-                  bodyFont: { size: 11, family: CHART_FONT }, 
-                  padding: 12, cornerRadius: 10,
-                  borderColor: chartColors.tooltipBorder, 
-                  borderWidth: 1, 
-                  displayColors: true, 
-                  boxPadding: 5
-                }
-              },
-              scales: {
-                x: { 
-                  grid: { color: chartColors.gridColor }, 
-                  ticks: { color: chartColors.labelColor, font: { family: CHART_FONT } } 
-                },
-                y: { 
-                  grid: { color: chartColors.gridColor }, 
-                  ticks: { color: chartColors.labelColor, font: { family: CHART_FONT } } 
-                }
-              }
-            }
-          });
-
-          if (chartNumber === 1) sensorChart1 = chart;
-          else sensorChart2 = chart;
-        }
-      } catch (e) { console.error(e); }
-    }
-
     document.getElementById('saveLocationBtn').addEventListener('click', function() {
       const deviceId = selectedMapDeviceId;
-      if (!deviceId) {
-        showToast('Pilih perangkat terlebih dahulu!', 'error');
-        return;
-      }
-      if (!selectedLat || !selectedLng) {
-        showToast('Klik peta untuk memilih lokasi!', 'error');
-        return;
-      }
+      if (!deviceId) { showToast('Pilih perangkat terlebih dahulu!', 'error'); return; }
+      if (!selectedLat || !selectedLng) { showToast('Klik peta untuk memilih lokasi!', 'error'); return; }
 
       fetch(`/api/v1/devices/${deviceId}`, {
         method: 'PUT',
@@ -1544,10 +1986,7 @@ body::before{
         if (data.success) {
           showToast(`Lokasi untuk ${deviceId} berhasil disimpan!`, 'success');
           loadDashboard();
-          if (marker) {
-            marker.remove();
-            marker = null;
-          }
+          if (marker) { marker.remove(); marker = null; }
           selectedLat = null;
           selectedLng = null;
           document.getElementById('saveLocationBtn').style.display = 'none';
@@ -1561,38 +2000,16 @@ body::before{
       });
     });
 
-    document.getElementById('deviceSelect1').addEventListener('change', function() {
-      currentDevice1 = this.value;
-      localStorage.setItem('selectedDevice1', currentDevice1);
-      if (currentDevice1) loadIndividualGraph(1, currentDevice1, individual1Hours);
-    });
-
-    document.getElementById('deviceSelect2').addEventListener('change', function() {
-      currentDevice2 = this.value;
-      localStorage.setItem('selectedDevice2', currentDevice2);
-      if (currentDevice2) loadIndividualGraph(2, currentDevice2, individual2Hours);
-    });
-
-    document.querySelectorAll('.graph-toolbar').forEach(toolbar => {
-      const chartType = toolbar.dataset.chart;
-      toolbar.querySelectorAll('.graph-tab').forEach(tab => {
-        tab.addEventListener('click', function() {
-          toolbar.querySelectorAll('.graph-tab').forEach(t => t.classList.remove('active'));
-          this.classList.add('active');
-          const hours = parseInt(this.dataset.hours);
-          if (chartType === 'combined') { combinedHours = hours; loadCombinedGraph(hours); }
-          else if (chartType === 'individual1') { individual1Hours = hours; if (currentDevice1) loadIndividualGraph(1, currentDevice1, hours); }
-          else if (chartType === 'individual2') { individual2Hours = hours; if (currentDevice2) loadIndividualGraph(2, currentDevice2, hours); }
-        });
-      });
-    });
-
+    // ============ INITIALIZATION ============
     loadTheme();
+    loadGlobalTimeRange();
     updateDateTime();
     setInterval(updateDateTime, 1000);
     initMapPreview();
     loadDashboard();
     setInterval(loadDashboard, 30000);
+    startAutoRefresh();
+    initializeChartsGridResize();
   </script>
 </body>
 </html>
