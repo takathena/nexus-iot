@@ -2,12 +2,6 @@
 
 Platform monitoring IoT dengan dashboard real-time, peta interaktif, dan multi-chart analytics. Dibangun menggunakan Flask, Chart.js, dan Leaflet.js dengan fokus pada keamanan dan skalabilitas production.
 
-![Version](https://img.shields.io/badge/version-3.1-blue)
-![Python](https://img.shields.io/badge/python-3.9+-green)
-![Flask](https://img.shields.io/badge/flask-3.1+-red)
-![License](https://img.shields.io/badge/license-MIT-yellow)
-![Docker](https://img.shields.io/badge/docker-ready-blue)
-
 ---
 
 ## Daftar Isi
@@ -30,89 +24,67 @@ Platform monitoring IoT dengan dashboard real-time, peta interaktif, dan multi-c
 
 ## Fitur
 
-### Core Features
-- 🔐 **Autentikasi Aman** - Login dengan session management + CSRF protection
-- 📊 **Dashboard Real-time** - Monitoring perangkat dengan auto-refresh 30 detik
-- 🗺️ **Peta Interaktif** - Visualisasi lokasi dengan Leaflet.js
-- 📈 **Multi-Chart Analytics** - Drag & resize chart, 10+ tipe visualisasi
-- 📱 **Responsive Design** - Auto-redirect ke mobile UI, bottom navigation
-- 🌙 **Dark/Light Theme** - Toggle tema tersimpan di localStorage
+**Core:**
+- Autentikasi dengan session management dan CSRF protection
+- Dashboard real-time, auto-refresh setiap 30 detik
+- Peta interaktif dengan Leaflet.js
+- Multi-chart analytics dengan drag dan resize, 10+ tipe visualisasi
+- Responsive design dengan mobile UI dan bottom navigation
+- Dark/light theme tersimpan di localStorage
 
-### Device Management
-- 🔄 **Auto-deteksi Online/Offline** - Timeout 15 menit (configurable)
-- 🔑 **API Key per Device** - 64-char hex unique, bisa di-regenerate
-- 📡 **Universal Compatibility** - ESP32, ESP8266, Arduino, Raspberry Pi
-- ⏰ **Timezone WIB** - Konsisten di semua tampilan (UTC+7)
+**Device Management:**
+- Auto-deteksi online/offline, timeout 15 menit (configurable)
+- API key unik per device, bisa di-regenerate
+- Universal compatibility: ESP32, ESP8266, Arduino, Raspberry Pi
+- Timezone WIB konsisten di semua tampilan
 
-### Production Features (v3.0)
-- 🛡️ **Rate Limiting** - Anti brute-force login & API abuse
-- ✅ **Input Validation** - Marshmallow schema validation
-- 📝 **Rotating Logs** - File logging dengan rotasi otomatis
-- 💾 **Auto Backup** - Database backup otomatis + retention policy
-- 🧹 **Data Cleanup** - Hapus data lama otomatis (default 30 hari)
-- ❤️ **Health Check** - Endpoint `/health` & `/ready` untuk monitoring
-- 🚦 **Graceful Shutdown** - Background task berhenti dengan bersih
-- 🔔 **Alert System** - Notifikasi otomatis untuk nilai abnormal
-- 📊 **Pagination** - Untuk list device yang besar
-- 🗄️ **Schema Migration** - Versioned database migrations
-- 🐳 **Multi-stage Docker** - Image kecil + non-root user
-- 🔧 **Environment-based Config** - Semua setting dari `.env`
+**Production:**
+- Rate limiting untuk login dan API
+- Input validation dengan Marshmallow
+- Rotating logs dengan backup otomatis
+- Database backup otomatis dengan retention policy
+- Data cleanup otomatis (default 30 hari)
+- Health check endpoint `/health` dan `/ready`
+- Graceful shutdown untuk background task
+- Alert system dengan threshold rules
+- Pagination untuk list device
+- Schema migration dengan versioning
+- Multi-stage Docker build dengan non-root user
+- Semua konfigurasi dari environment variable
 
 ---
 
 ## Arsitektur
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     ESP32/ESP8266/Arduino                        │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │   DHT22      │  │   BME280     │  │   MQ-2       │          │
-│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘          │
-│         └─────────────────┼─────────────────┘                   │
-│                           │ HTTP POST (JSON)                     │
-└───────────────────────────┼─────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      NEXUS IoT SERVER                            │
-│                                                                  │
-│   ┌────────────────────────────────────────────────────────┐   │
-│   │              Flask Application Factory                  │   │
-│   │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐ │   │
-│   │  │  API     │  │  Auth    │  │  Views   │  │ Alerts │ │   │
-│   │  │ Blueprint│  │Blueprint │  │Blueprint │  │ Module │ │   │
-│   │  └──────────┘  └──────────┘  └──────────┘  └────────┘ │   │
-│   │                                                         │   │
-│   │  ┌──────────────────────────────────────────────────┐  │   │
-│   │  │            Extensions                             │  │   │
-│   │  │  CSRF  │  Rate Limiter  │  CORS  │  Logging     │  │   │
-│   │  └──────────────────────────────────────────────────┘  │   │
-│   │                                                         │   │
-│   │  ┌──────────────────────────────────────────────────┐  │   │
-│   │  │         Background Threads (daemon)              │  │   │
-│   │  │  ┌────────────┐ ┌────────────┐ ┌─────────────┐  │  │   │
-│   │  │  │   Status   │ │   Data     │ │   Backup    │  │  │   │
-│   │  │  │  Checker   │ │  Cleanup   │ │  Scheduler  │  │  │   │
-│   │  │  └────────────┘ └────────────┘ └─────────────┘  │  │   │
-│   │  └──────────────────────────────────────────────────┘  │   │
-│   └────────────────────────────────────────────────────────┘   │
-│                                                                  │
-│   ┌────────────────────────────────────────────────────────┐   │
-│   │              SQLite Database (WAL Mode)                 │   │
-│   │   ┌──────────┐  ┌──────────────┐  ┌──────────┐        │   │
-│   │   │ devices  │  │ sensor_data  │  │  alerts  │        │   │
-│   │   └──────────┘  └──────────────┘  └──────────┘        │   │
-│   └────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────┘
-                            │
-                            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                       WEB INTERFACE                              │
-│  ┌────────────┐  ┌────────────┐  ┌────────────────────┐         │
-│  │ Dashboard  │  │   Mobile   │  │  Device Detail     │         │
-│  │ (Desktop)  │  │ (Tablet)   │  │  (Individual)      │         │
-│  └────────────┘  └────────────┘  └────────────────────┘         │
-└─────────────────────────────────────────────────────────────────┘
+ESP32/ESP8266/Arduino (DHT22, BME280, MQ-2, dll)
+                        │
+                        │ HTTP POST (JSON)
+                        ▼
+┌─────────────────────────────────────────────────────┐
+│                 NEXUS IoT SERVER                     │
+│                                                      │
+│  Flask Application Factory                           │
+│  ├── API Blueprint        (data, devices, alerts)    │
+│  ├── Auth Blueprint       (login, logout)            │
+│  ├── Views Blueprint      (dashboard, mobile)        │
+│  └── Alerts Module        (threshold checking)       │
+│                                                      │
+│  Extensions: CSRF, Rate Limiter, CORS, Logging       │
+│                                                      │
+│  Background Threads (daemon):                        │
+│  ├── Status Checker       (set offline > timeout)    │
+│  ├── Data Cleanup         (hapus data lama)          │
+│  └── Backup Scheduler     (backup database)          │
+│                                                      │
+│  SQLite Database (WAL Mode)                          │
+│  ├── devices                                         │
+│  ├── sensor_data                                     │
+│  └── alerts                                          │
+└─────────────────────────────────────────────────────┘
+                        │
+                        ▼
+        Web Interface (Dashboard / Mobile / Device Detail)
 ```
 
 **Tech Stack:**
@@ -121,12 +93,12 @@ Platform monitoring IoT dengan dashboard real-time, peta interaktif, dan multi-c
 |-------|-----------|---------|
 | Backend | Python Flask | 3.1.3 |
 | Database | SQLite | 3.x |
-| Frontend | HTML5, CSS3, Vanilla JS | — |
+| Frontend | HTML5, CSS3, Vanilla JS | - |
 | Charts | Chart.js | 4.4.0 |
 | Maps | Leaflet.js | 1.9.4 |
 | Icons | Font Awesome | 6.5.1 |
 | Server | Gunicorn | 21.2.0 |
-| Container | Docker, Docker Compose | — |
+| Container | Docker, Docker Compose | - |
 
 ---
 
@@ -148,20 +120,20 @@ cd nexus-iot
 # 2. Copy environment file
 cp .env.example .env
 
-# 3. Generate SECRET_KEY dan copy hasilnya
+# 3. Generate SECRET_KEY
 python3 -c "import secrets; print(secrets.token_hex(32))"
 
-# 4. Edit .env — minimal ubah SECRET_KEY & IOT_PASSWORD
+# 4. Edit .env, minimal ubah SECRET_KEY dan IOT_PASSWORD
 nano .env
 
-# 5. Fix permission folder (WAJIB!)
+# 5. Fix permission folder (wajib)
 mkdir -p database logs backup
 chown -R 1000:1000 database logs backup
 
 # 6. Beri permission entrypoint script
 chmod +x docker-entrypoint.sh
 
-# 7. Build & jalankan
+# 7. Build dan jalankan
 docker compose up -d --build
 
 # 8. Tunggu 30 detik, lalu cek status
@@ -170,6 +142,7 @@ docker compose ps
 ```
 
 **Expected output:**
+
 ```
 NAME           STATUS
 nexus-iot      Up (healthy)
@@ -214,7 +187,7 @@ pip install -r requirements.txt
 
 # 4. Setup .env
 cp .env.example .env
-nano .env  # Edit SECRET_KEY & IOT_PASSWORD
+nano .env  # Edit SECRET_KEY dan IOT_PASSWORD
 
 # 5. Inisialisasi database
 python -c "from database import init_db; init_db()"
@@ -226,8 +199,8 @@ python app.py
 **Atau dengan Makefile:**
 
 ```bash
-make dev   # Setup environment
-make run   # Jalankan development server
+make dev       # Setup environment
+make run       # Development server
 make run-prod  # Production dengan Gunicorn
 ```
 
@@ -237,9 +210,7 @@ make run-prod  # Production dengan Gunicorn
 
 Semua konfigurasi ada di file `.env`. Copy dari `.env.example`.
 
-### Environment Variables Reference
-
-#### Server
+### Server
 
 ```env
 HOST=0.0.0.0
@@ -250,11 +221,11 @@ WORKERS=2
 THREADS=4
 ```
 
-#### Security
+### Security
 
 ```env
 # Generate: python3 -c "import secrets; print(secrets.token_hex(32))"
-# WAJIB minimal 32 karakter!
+# Wajib minimal 32 karakter
 SECRET_KEY=your-64-char-hex-secret-key
 
 # Set True jika pakai HTTPS
@@ -262,15 +233,15 @@ SESSION_COOKIE_SECURE=False
 SESSION_LIFETIME_HOURS=24
 ```
 
-#### Authentication
+### Authentication
 
 ```env
-# WAJIB di-set!
+# Wajib di-set
 IOT_USERNAME=admin
 IOT_PASSWORD=ganti-dengan-password-kuat
 ```
 
-#### Database
+### Database
 
 ```env
 DB_PATH=database/iot.db
@@ -282,20 +253,20 @@ BACKUP_RETENTION_DAYS=7
 BACKUP_DIR=backup
 ```
 
-#### Device Monitoring
+### Device Monitoring
 
 ```env
 OFFLINE_TIMEOUT=900   # 15 menit (detik)
 CHECK_INTERVAL=60     # 1 menit (detik)
 ```
 
-#### CORS
+### CORS
 
 ```env
 CORS_ORIGINS=http://localhost:5000,https://iot.example.com
 ```
 
-#### Rate Limiting
+### Rate Limiting
 
 ```env
 RATE_LIMIT_DEFAULT=200 per minute
@@ -303,7 +274,7 @@ RATE_LIMIT_DATA=60 per minute
 RATE_LIMIT_LOGIN=5 per minute
 ```
 
-#### Logging
+### Logging
 
 ```env
 LOG_LEVEL=INFO          # DEBUG | INFO | WARNING | ERROR
@@ -312,7 +283,7 @@ LOG_MAX_BYTES=10485760  # 10 MB
 LOG_BACKUP_COUNT=5
 ```
 
-#### Alerts
+### Alerts
 
 ```env
 ALERT_TEMP_MIN=0
@@ -322,7 +293,7 @@ ALERT_HUMIDITY_MAX=90
 ALERT_GAS_MAX=70
 ```
 
-#### Nginx
+### Nginx
 
 ```env
 NGINX_PORT=5008
@@ -334,9 +305,9 @@ NGINX_PORT=5008
 
 ### File yang Dibutuhkan
 
-- `Dockerfile` — Multi-stage build, non-root user dengan `gosu`
-- `docker-entrypoint.sh` — Handle permission & drop privilege
-- `docker-compose.yml` — Flask + Nginx orchestration
+- `Dockerfile` — Multi-stage build, non-root user dengan gosu
+- `docker-entrypoint.sh` — Handle permission dan drop privilege
+- `docker-compose.yml` — Flask dan Nginx orchestration
 - `.dockerignore` — Exclude file yang tidak perlu
 - `.env` — Konfigurasi
 - `nginx/` — Config Nginx
@@ -351,22 +322,23 @@ NGINX_PORT=5008
 | `./static` | `/static` | Static files (Nginx) |
 | `./.env` | `/app/.env` | Config |
 
-### ⚠️ PENTING: Permission Folder
+### Permission Folder
 
-Container jalan sebagai user `nexus` (UID 1000) untuk security. **Folder di host HARUS dimiliki UID 1000** supaya bisa write:
+Container jalan sebagai user `nexus` (UID 1000) untuk security. Folder di host harus dimiliki UID 1000 supaya bisa write:
 
 ```bash
-# WAJIB dijalankan sebelum `docker compose up`
+# Wajib dijalankan sebelum `docker compose up`
 mkdir -p database logs backup
 chown -R 1000:1000 database logs backup
 ```
 
 Kalau tidak, container akan error:
+
 ```
 PermissionError: [Errno 13] Permission denied: '/app/logs/nexus.log'
 ```
 
-**Kenapa?** Karena Docker volume yang di-mount **mempertahankan ownership dari host**. Entrypoint script akan otomatis fix permission saat startup, tapi hanya kalau folder sudah ada & writeable oleh root.
+Penyebabnya, Docker volume yang di-mount mempertahankan ownership dari host. Entrypoint script akan otomatis fix permission saat startup, tapi hanya kalau folder sudah ada dan writeable oleh root.
 
 ### Commands
 
@@ -374,7 +346,7 @@ PermissionError: [Errno 13] Permission denied: '/app/logs/nexus.log'
 # Build image
 docker compose build
 
-# Build tanpa cache (kalau ada perubahan Dockerfile)
+# Build tanpa cache
 docker compose build --no-cache
 
 # Jalankan (background)
@@ -395,7 +367,7 @@ docker compose restart
 # Stop
 docker compose down
 
-# Stop + hapus volume (HATI-HATI!)
+# Stop dan hapus volume (hati-hati!)
 docker compose down -v
 
 # Shell masuk ke container
@@ -420,15 +392,17 @@ docker compose ps
 docker compose logs nexus-iot | tail -20
 ```
 
-### Cara Kerja `docker-entrypoint.sh`
+### Cara Kerja docker-entrypoint.sh
 
 Script ini otomatis:
+
 1. Buat folder yang dibutuhkan (`database`, `logs`, `backup`)
 2. Chown folder ke user `nexus` (UID 1000)
 3. Drop privilege dari root ke `nexus`
 4. Jalankan Gunicorn sebagai `nexus` (non-root)
 
 Output di log:
+
 ```
 [entrypoint] Running as root, fixing permissions...
 [entrypoint] Permissions OK
@@ -450,7 +424,7 @@ sudo useradd -r -s /bin/false nexus
 sudo mkdir -p /opt/nexus-iot
 sudo chown nexus:nexus /opt/nexus-iot
 
-# Clone & install
+# Clone dan install
 cd /opt
 sudo -u nexus git clone https://github.com/takathena/nexus-iot.git
 cd nexus-iot
@@ -460,7 +434,7 @@ sudo -u nexus venv/bin/pip install -r requirements.txt
 
 # Setup .env
 sudo -u nexus cp .env.example .env
-sudo nano .env  # Edit credentials + SECRET_KEY
+sudo nano .env  # Edit credentials dan SECRET_KEY
 
 # Init DB
 sudo -u nexus venv/bin/python -c "from database import init_db; init_db()"
@@ -613,10 +587,10 @@ Base URL: `http://localhost:5000/api/v1`
 | Endpoint | Method | Auth | Deskripsi |
 |----------|--------|------|-----------|
 | `/data` | POST | API Key | Terima data dari device |
-| `/dashboard` | GET | None | Data dashboard + summary |
+| `/dashboard` | GET | None | Data dashboard dan summary |
 | `/devices` | GET | None | List devices (paginated) |
 | `/devices` | POST | None | Tambah device baru |
-| `/devices/{id}` | GET | None | Detail device + data terbaru |
+| `/devices/{id}` | GET | None | Detail device dan data terbaru |
 | `/devices/{id}` | PUT | None | Update device |
 | `/devices/{id}` | DELETE | None | Hapus device (cascade) |
 | `/devices/{id}/history` | GET | None | Histori data sensor |
@@ -657,6 +631,7 @@ curl -X POST http://localhost:5000/api/v1/data \
 ```
 
 **Response:**
+
 ```json
 {
     "success": true,
@@ -716,12 +691,12 @@ curl http://localhost:5000/health
 
 ```
 ESP32          DHT22
-─────          ─────
-3.3V    ────>  VCC (Pin 1)
-GPIO4   ────>  DATA (Pin 2)
-GND     ────>  GND (Pin 4)
+-----          -----
+3.3V    ---->  VCC (Pin 1)
+GPIO4   ---->  DATA (Pin 2)
+GND     ---->  GND (Pin 4)
 
-* Tambahkan resistor 10kΩ antara VCC dan DATA
+Tambahkan resistor 10k antara VCC dan DATA
 ```
 
 ### Flash MicroPython
@@ -770,6 +745,7 @@ screen /dev/ttyUSB0 115200
 ```
 
 **Output contoh:**
+
 ```
 ==================================================
 ESP32 DHT22 Monitor
@@ -791,7 +767,7 @@ nexus-iot/
 ├── app.py                      # Application factory
 ├── wsgi.py                     # WSGI entry point untuk Gunicorn
 ├── config.py                   # Configuration management
-├── database.py                 # Database layer + migrations
+├── database.py                 # Database layer dan migrations
 ├── extensions.py               # Flask extensions
 ├── logging_config.py           # Logging setup
 ├── validators.py               # Marshmallow schemas
@@ -809,7 +785,7 @@ nexus-iot/
 ├── .dockerignore               # Docker ignore rules
 │
 ├── Dockerfile                  # Multi-stage Docker build
-├── docker-entrypoint.sh        # Entrypoint (fix permission + drop privilege)
+├── docker-entrypoint.sh        # Entrypoint (fix permission, drop privilege)
 ├── docker-compose.yml          # Docker compose config
 ├── Makefile                    # Automation commands
 ├── LICENSE                     # MIT License
@@ -897,7 +873,7 @@ curl -X POST http://localhost:5000/api/v1/data \
 **Test 4: Rate Limiting**
 
 ```bash
-# Kirim 10 request cepat — beberapa harus kena 429
+# Kirim 10 request cepat, beberapa harus kena 429
 for i in {1..10}; do
   curl -X POST http://localhost:5000/login \
     -d "username=wrong&password=wrong" \
@@ -925,7 +901,7 @@ docker compose logs -f nexus-iot
 
 ## Troubleshooting
 
-### ❌ `PermissionError: [Errno 13] Permission denied: '/app/logs/nexus.log'`
+### PermissionError: [Errno 13] Permission denied: '/app/logs/nexus.log'
 
 **Penyebab:** Folder di host dimiliki user lain, container user `nexus` (UID 1000) tidak bisa write.
 
@@ -947,7 +923,7 @@ docker compose up -d
 
 **Pencegahan:** Selalu jalankan `chown -R 1000:1000 database logs backup` sebelum `docker compose up` pertama kali.
 
-### ❌ Container `nexus-iot` status: `unhealthy`
+### Container nexus-iot status: unhealthy
 
 **Cek log:**
 
@@ -962,11 +938,12 @@ docker compose exec nexus-iot curl -v http://localhost:5000/health
 ```
 
 **Kemungkinan penyebab:**
+
 1. Permission issue (lihat di atas)
 2. Config validation gagal (cek `.env`)
 3. Database tidak bisa di-init
 
-### ❌ `docker-entrypoint.sh: no such file or directory`
+### docker-entrypoint.sh: no such file or directory
 
 **Penyebab:** Line ending CRLF (Windows) bukan LF (Linux).
 
@@ -978,7 +955,7 @@ chmod +x docker-entrypoint.sh
 docker compose up -d --build
 ```
 
-### ❌ `gosu: command not found`
+### gosu: command not found
 
 **Penyebab:** Package `gosu` tidak ter-install.
 
@@ -992,18 +969,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ```
 
 Rebuild:
+
 ```bash
 docker compose build --no-cache
 docker compose up -d
 ```
 
-### ❌ Warning: `version` is obsolete
+### Warning: version is obsolete
 
 **Penyebab:** `docker-compose.yml` masih pakai `version: '3.8'` yang sudah deprecated.
 
 **Solusi:** Hapus baris `version: '3.8'` di `docker-compose.yml`.
 
-### ❌ Port Sudah Dipakai
+### Port Sudah Dipakai
 
 ```bash
 # Cek siapa yang pakai port 5008
@@ -1013,9 +991,9 @@ sudo lsof -i :5008
 NGINX_PORT=5009
 ```
 
-### ❌ Database Locked
+### Database Locked
 
-**Penyebab:** Concurrent write dari background thread + request.
+**Penyebab:** Concurrent write dari background thread dan request.
 
 **Solusi:** Pastikan WAL mode aktif:
 
@@ -1024,26 +1002,28 @@ sqlite3 database/iot.db "PRAGMA journal_mode;"
 # Harusnya: wal
 ```
 
-### ❌ ESP32 Tidak Terhubung
+### ESP32 Tidak Terhubung
 
 **Checklist:**
-1. ✅ Cek WiFi SSID & password di firmware
-2. ✅ Cek `API_URL` (IP server + port + `/api/v1/data`)
-3. ✅ Cek `API_KEY` (harus sama dengan dashboard)
-4. ✅ Cek `DEVICE_ID` (harus terdaftar)
-5. ✅ Cek koneksi internet ESP32
-6. ✅ Lihat serial monitor: `screen /dev/ttyUSB0 115200`
 
-### ❌ Login Gagal (400 CSRF)
+1. Cek WiFi SSID dan password di firmware
+2. Cek `API_URL` (IP server, port, dan `/api/v1/data`)
+3. Cek `API_KEY` (harus sama dengan dashboard)
+4. Cek `DEVICE_ID` (harus terdaftar)
+5. Cek koneksi internet ESP32
+6. Lihat serial monitor: `screen /dev/ttyUSB0 115200`
+
+### Login Gagal (400 CSRF)
 
 **Penyebab:** CSRF token tidak dikirim.
 
 **Solusi:**
-1. Cek `login.html` — harus ada `<input type="hidden" name="csrf_token">`
-2. Cek `base.html` — harus ada `<meta name="csrf-token">`
+
+1. Cek `login.html` harus ada `<input type="hidden" name="csrf_token">`
+2. Cek `base.html` harus ada `<meta name="csrf-token">`
 3. Restart server, hard refresh browser (Ctrl+Shift+R)
 
-### ❌ Session Hilang Setiap Restart
+### Session Hilang Setiap Restart
 
 **Penyebab:** `SECRET_KEY` random setiap restart.
 
@@ -1058,7 +1038,7 @@ Copy ke `.env` sebagai `SECRET_KEY`.
 ### Reset Database
 
 ```bash
-# Backup dulu!
+# Backup dulu
 cp database/iot.db backup/iot-manual-$(date +%Y%m%d).db
 
 # Reset
@@ -1111,96 +1091,79 @@ grep WARNING logs/nexus.log | tail -50
 ### Performance Tuning
 
 Kalau lambat:
+
 1. Turunkan `DATA_RETENTION_DAYS` (default 30)
 2. Tingkatkan `CHECK_INTERVAL` (default 60)
 3. Batasi `per_page` di API pagination
-4. Migrasi ke PostgreSQL untuk device > 100
-
----
-
-## Lisensi
-
-MIT License - Lihat file [LICENSE](LICENSE)
-
----
-
-## Kontribusi
-
-1. Fork repository
-2. Buat branch fitur (`git checkout -b feature/AmazingFeature`)
-3. Commit perubahan (`git commit -m 'Add some AmazingFeature'`)
-4. Push ke branch (`git push origin feature/AmazingFeature`)
-5. Buka Pull Request
-
----
-
-## Kontak & Support
-
-- **GitHub:** [takathena/nexus-iot](https://github.com/takathena/nexus-iot)
-- **Issues:** [GitHub Issues](https://github.com/takathena/nexus-iot/issues)
-- **Website:** [iot.takathena.my.id](https://iot.takathena.my.id)
+4. Migrasi ke PostgreSQL untuk device lebih dari 100
 
 ---
 
 ## Changelog
 
-### v3.0.1 (2026-09-12) — Docker Fix
+### v3.0.1 (2026-09-12) - Docker Fix
 
 **Fixed:**
-- 🐛 `PermissionError` saat Docker start — folder `/app/logs` tidak writeable
-- 🐛 Container unhealthy karena permission issue
-- 🐛 Warning `version` obsolete di `docker-compose.yml`
-- 🐛 Health check terlalu cepat timeout
+
+- `PermissionError` saat Docker start, folder `/app/logs` tidak writeable
+- Container unhealthy karena permission issue
+- Warning `version` obsolete di `docker-compose.yml`
+- Health check terlalu cepat timeout
 
 **Added:**
-- ✨ `docker-entrypoint.sh` — auto-fix permission & drop privilege
-- ✨ `.dockerignore` — exclude file yang tidak perlu
-- ✨ Multi-stage Docker build dengan `gosu`
-- ✨ Health check `start-period=60s`
-- ✨ Dokumentasi lengkap troubleshooting Docker
+
+- `docker-entrypoint.sh` untuk auto-fix permission dan drop privilege
+- `.dockerignore` untuk exclude file yang tidak perlu
+- Multi-stage Docker build dengan `gosu`
+- Health check `start-period=60s`
+- Dokumentasi troubleshooting Docker
 
 **Changed:**
-- 🔧 Dockerfile pakai entrypoint script
-- 🔧 Dockerfile tidak set `USER nexus` langsung (entrypoint handle)
-- 🔧 Docker Compose hapus `version` field
 
-### v3.0 (2026-09-12) — Production Ready
+- Dockerfile pakai entrypoint script
+- Dockerfile tidak set `USER nexus` langsung, entrypoint handle
+- Docker Compose hapus `version` field
+
+### v3.0 (2026-09-12) - Production Ready
 
 **Added:**
-- ✨ Application factory pattern
-- ✨ Configurable port via `.env`
-- ✨ CSRF protection
-- ✨ Rate limiting (login 5/min, API 60/min)
-- ✨ Input validation dengan Marshmallow
-- ✨ Rotating file logging
-- ✨ Health check endpoint
-- ✨ Pagination untuk list devices
-- ✨ Alert system dengan threshold
-- ✨ Data retention & auto cleanup
-- ✨ Auto backup dengan retention
-- ✨ Graceful shutdown
-- ✨ API key regeneration
-- ✨ Schema migration system
-- ✨ Multi-stage Docker build
-- ✨ Non-root Docker user
-- ✨ Makefile untuk automation
-- ✨ Centralized error handling
+
+- Application factory pattern
+- Configurable port via `.env`
+- CSRF protection
+- Rate limiting (login 5/min, API 60/min)
+- Input validation dengan Marshmallow
+- Rotating file logging
+- Health check endpoint
+- Pagination untuk list devices
+- Alert system dengan threshold
+- Data retention dan auto cleanup
+- Auto backup dengan retention
+- Graceful shutdown
+- API key regeneration
+- Schema migration system
+- Multi-stage Docker build
+- Non-root Docker user
+- Makefile untuk automation
+- Centralized error handling
 
 **Changed:**
-- 🔧 Refactor `app.py` ke blueprint pattern
-- 🔧 Thread-safe SQLite dengan WAL mode
-- 🔧 Centralized configuration di `config.py`
-- 🔧 Better logging dengan context
-- 🔧 Split templates ke partials
+
+- Refactor `app.py` ke blueprint pattern
+- Thread-safe SQLite dengan WAL mode
+- Centralized configuration di `config.py`
+- Better logging dengan context
+- Split templates ke partials
 
 **Fixed:**
-- 🐛 Race condition di SQLite
-- 🐛 Session cookie security
-- 🐛 CORS terlalu permisif
-- 🐛 CSRF token missing di form
-- 🐛 Thread leak saat shutdown
 
-### v2.0 — Initial Release
+- Race condition di SQLite
+- Session cookie security
+- CORS terlalu permisif
+- CSRF token missing di form
+- Thread leak saat shutdown
+
+### v2.0 - Initial Release
 
 - Dashboard real-time
 - Peta interaktif
@@ -1208,5 +1171,3 @@ MIT License - Lihat file [LICENSE](LICENSE)
 - Mobile UI
 - Dark/Light theme
 - ESP32 firmware
-
----
