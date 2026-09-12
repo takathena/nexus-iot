@@ -1,4 +1,4 @@
-.PHONY: help install dev run test clean docker-build docker-up docker-down backup
+.PHONY: help install dev run run-prod test clean docker-build docker-up docker-down docker-logs docker-restart backup
 
 PYTHON := python3
 VENV := venv
@@ -20,8 +20,8 @@ help:
 	@echo "  make docker-up     - Start docker-compose"
 	@echo "  make docker-down   - Stop docker-compose"
 	@echo "  make docker-logs   - Show docker logs"
+	@echo "  make docker-restart- Restart docker-compose"
 
-# Dependencies
 $(VENV)/bin/activate: requirements.txt
 	$(PYTHON) -m venv $(VENV)
 	$(PIP) install --upgrade pip
@@ -31,17 +31,14 @@ $(VENV)/bin/activate: requirements.txt
 install: $(VENV)/bin/activate
 	@echo "✅ Dependencies installed"
 
-# Setup development (hanya jika belum ada)
 dev: install
 	@if [ ! -f .env ]; then \
 		cp .env.example .env; \
 		echo "📝 Created .env from .env.example"; \
 		echo "⚠️  Edit .env dan set SECRET_KEY + IOT_PASSWORD!"; \
-		exit 1; \
 	fi
 	@echo "✅ Development environment ready"
 
-# Run — TIDAK depend on install supaya tidak double-init
 run:
 	@if [ ! -d $(VENV) ]; then \
 		echo "❌ Virtualenv tidak ada. Jalankan: make dev"; \
@@ -87,4 +84,5 @@ docker-logs:
 	docker-compose logs -f
 
 docker-restart:
-	docker-compose restart
+	docker-compose down
+	docker-compose up -d --build

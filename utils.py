@@ -47,9 +47,3 @@ def parse_datetime(value):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=WIB)
     return dt
-
-
-def paginate(query_result, page, per_page):
-    """Helper untuk pagination"""
-    offset = (page - 1) * per_page
-    return query_result[offset:offset + per_page]

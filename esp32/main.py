@@ -16,63 +16,71 @@ import ntptime
 # ============ KONFIGURASI ============
 WIFI_SSID = ""
 WIFI_PASSWORD = ""
-API_URL = ""
-DEVICE_ID = "100"
+API_URL = "http://nexus.takathena.my.id/api/v1/data"
+DEVICE_ID = "110"
 API_KEY = ""
-SENSOR_TYPE = ""
+SENSOR_TYPE = "DHT22"
 DHT_PIN = 4
-SEND_INTERVAL = 600
-TIMEZONE_OFFSET = 7 * 3600  # WIB (UTC+7)
+SEND_INTERVAL = 20
+TIMEZONE_OFFSET = 7 * 3600
 
 # ============ INISIALISASI ============
 dht_sensor = dht.DHT22(machine.Pin(DHT_PIN))
 wlan = network.WLAN(network.STA_IF)
-start_time = time.time()  # Untuk hitung uptime
+boot_ticks = time.ticks_ms()
 
-# ============ FUNGSI UTAMA ============
+
 def connect_wifi():
-    """Koneksi WiFi"""
     wlan.active(True)
     if not wlan.isconnected():
+        print("[WiFi] Connecting to {}...".format(WIFI_SSID))
         wlan.connect(WIFI_SSID, WIFI_PASSWORD)
         timeout = 20
         while not wlan.isconnected() and timeout > 0:
             time.sleep(1)
             timeout -= 1
+    if wlan.isconnected():
+        print("[WiFi] Connected! IP: {}".format(wlan.ifconfig()[0]))
+    else:
+        print("[WiFi] FAILED to connect!")
     return wlan.isconnected()
 
+
 def sync_time():
-    """Sinkronisasi NTP"""
     try:
         ntptime.settime()
-    except:
-        pass
+        print("[NTP] Time synced")
+    except Exception as e:
+        print("[NTP] Failed: {}".format(e))
+
 
 def get_local_time():
-    """Waktu WIB"""
     return time.localtime(time.mktime(time.localtime()) + TIMEZONE_OFFSET)
 
+
 def format_datetime(t):
-    """Format datetime"""
-    return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(t[0], t[1], t[2], t[3], t[4], t[5])
+    return "{:04d}-{:02d}-{:02d} {:02d}:{:02d}:{:02d}".format(
+        t[0], t[1], t[2], t[3], t[4], t[5]
+    )
+
 
 def get_uptime():
-    """Hitung uptime dalam detik"""
-    return int(time.time() - start_time)
+    return time.ticks_diff(time.ticks_ms(), boot_ticks) // 1000
+
 
 def read_dht22():
-    """Baca sensor DHT22"""
     try:
         dht_sensor.measure()
         return {
             "temperature": round(dht_sensor.temperature(), 1),
             "humidity": round(dht_sensor.humidity(), 1)
         }
-    except:
+    except Exception as e:
+        print("[DHT22] Read error: {}".format(e))
         return None
 
+
 def send_data(sensor_data):
-    """Kirim data ke server"""
     payload = {
         "device_id": DEVICE_ID,
         "api_key": API_KEY,
@@ -81,7 +89,7 @@ def send_data(sensor_data):
         "uptime_seconds": get_uptime(),
         "data": sensor_data
     }
-    
+
     try:
         response = urequests.post(
             API_URL,
@@ -89,52 +97,82 @@ def send_data(sensor_data):
             headers={"Content-Type": "application/json"}
         )
         status = response.status_code
+        body = response.text
         response.close()
-        return status == 200
-    except:
+
+        if status == 200:
+            return True
+        else:
+            print("[HTTP] Status: {} | Body: {}".format(status, body[:150]))
+            return False
+
+    except OSError as e:
+        print("[HTTP] Network error: {}".format(e))
+        return False
+    except Exception as e:
+        print("[HTTP] Error: {} | Type: {}".format(e, type(e).__name__))
         return False
 
-# ============ MAIN LOOP ============
+
 def main():
-    print("=" * 50)
+    print("=" * 60)
     print("ESP32 DHT22 Monitor")
     print("Device ID: {}".format(DEVICE_ID))
-    print("=" * 50)
-    
+    print("API URL  : {}".format(API_URL))
+    print("=" * 60)
+
     if not connect_wifi():
+        print("WiFi gagal, restart...")
         machine.reset()
-    
+
     sync_time()
-    print("WiFi: {} | IP: {}".format(WIFI_SSID, wlan.ifconfig()[0]))
-    print("Mulai monitoring...")
-    
+    print("\n--- Starting main loop ---")
+
+    success_count = 0
+    fail_count = 0
+    consecutive_fails = 0
+
     while True:
         try:
             sensor_data = read_dht22()
-            
+
             if sensor_data:
                 t = get_local_time()
-                print("[{}] Suhu: {}C | Hum: {}% | Uptime: {}s".format(
+                print("\n[{}] Suhu: {}C | Hum: {}% | Uptime: {}s".format(
                     format_datetime(t),
                     sensor_data["temperature"],
                     sensor_data["humidity"],
                     get_uptime()
                 ))
-                
+
                 if send_data(sensor_data):
-                    print("-> Data terkirim")
+                    success_count += 1
+                    consecutive_fails = 0
+                    print("-> ✅ Terkirim (ok: {}, fail: {})".format(success_count, fail_count))
                 else:
-                    print("-> Gagal kirim")
+                    fail_count += 1
+                    consecutive_fails += 1
+                    print("-> ❌ Gagal (ok: {}, fail: {})".format(success_count, fail_count))
+
+                    if consecutive_fails >= 5:
+                        print("[WiFi] Too many failures, reconnecting...")
+                        try:
+                            wlan.disconnect()
+                        except:
+                            pass
+                        time.sleep(2)
+                        connect_wifi()
+                        consecutive_fails = 0
             else:
-                print("-> Gagal baca sensor")
-            
+                print("-> ⚠️  Gagal baca sensor")
+
             gc.collect()
             time.sleep(SEND_INTERVAL)
-            
+
         except Exception as e:
-            print("Error: {}".format(e))
+            print("[MAIN] Error: {} | Type: {}".format(e, type(e).__name__))
             time.sleep(5)
-            machine.reset()
+
 
 if __name__ == "__main__":
     main()

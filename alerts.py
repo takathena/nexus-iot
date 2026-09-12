@@ -9,10 +9,7 @@ logger = logging.getLogger('nexus')
 
 
 def check_and_create_alerts(device_id, sensor_data):
-    """
-    Cek data sensor dan buat/clear alert sesuai threshold.
-    Return: list alert types yang baru aktif
-    """
+    """Cek data sensor dan buat/clear alert sesuai threshold"""
     config = get_config()
     alert_rules = config.ALERT_RULES
     created_alerts = []
@@ -32,7 +29,6 @@ def check_and_create_alerts(device_id, sensor_data):
             is_out_of_range = value < rule['min'] or value > rule['max']
 
             if is_out_of_range:
-                # Cek apakah alert sudah aktif
                 existing = conn.execute('''
                     SELECT id FROM alerts
                     WHERE device_id = ? AND alert_type = ? AND is_active = 1
@@ -50,7 +46,6 @@ def check_and_create_alerts(device_id, sensor_data):
                     created_alerts.append(key)
                     logger.warning(f"Alert created for {device_id}: {message}")
             else:
-                # Clear alert jika nilai kembali normal
                 result = conn.execute('''
                     UPDATE alerts SET is_active = 0
                     WHERE device_id = ? AND alert_type = ? AND is_active = 1

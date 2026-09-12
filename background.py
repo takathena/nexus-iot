@@ -5,7 +5,6 @@ import os
 import sqlite3
 import threading
 import logging
-import time
 from datetime import datetime, timedelta
 
 from config import get_config
@@ -14,13 +13,9 @@ from utils import parse_datetime
 
 logger = logging.getLogger('nexus')
 
-# Event untuk graceful shutdown
 shutdown_event = threading.Event()
 
 
-# ==========================================
-# DEVICE STATUS CHECKER
-# ==========================================
 def check_device_status():
     """Loop cek status online/offline device"""
     config = get_config()
@@ -65,21 +60,16 @@ def check_device_status():
         except Exception as e:
             logger.error(f"Status checker error: {e}", exc_info=True)
 
-        # Sleep dengan interruptible
         shutdown_event.wait(config.CHECK_INTERVAL)
 
     logger.info("Status checker stopped")
 
 
-# ==========================================
-# DATA CLEANUP
-# ==========================================
 def cleanup_old_data():
     """Hapus data sensor yang lebih lama dari retention policy"""
     config = get_config()
     logger.info(f"Data cleanup started (retention={config.DATA_RETENTION_DAYS} days)")
 
-    # Jalankan pertama kali setelah 5 menit (biar app ready dulu)
     shutdown_event.wait(300)
 
     while not shutdown_event.is_set():
@@ -95,20 +85,16 @@ def cleanup_old_data():
                 conn.commit()
 
                 if deleted > 0:
-                    logger.info(f"Cleaned up {deleted} old sensor records (older than {config.DATA_RETENTION_DAYS} days)")
+                    logger.info(f"Cleaned up {deleted} old sensor records")
 
         except Exception as e:
             logger.error(f"Cleanup error: {e}", exc_info=True)
 
-        # Jalankan setiap 24 jam
         shutdown_event.wait(86400)
 
     logger.info("Data cleanup stopped")
 
 
-# ==========================================
-# DATABASE BACKUP
-# ==========================================
 def backup_database():
     """Backup database dengan SQLite backup API"""
     config = get_config()
@@ -118,7 +104,6 @@ def backup_database():
 
     logger.info(f"Backup started (interval={config.BACKUP_INTERVAL_HOURS}h, retention={config.BACKUP_RETENTION_DAYS}d)")
 
-    # Jalankan pertama kali setelah 10 menit
     shutdown_event.wait(600)
 
     while not shutdown_event.is_set():
@@ -128,7 +113,6 @@ def backup_database():
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             backup_path = os.path.join(config.BACKUP_DIR, f'iot_{timestamp}.db')
 
-            # ✅ Pakai SQLite backup API (thread-safe & consistent)
             source = sqlite3.connect(config.DB_PATH, timeout=30.0)
             dest = sqlite3.connect(backup_path)
 
@@ -141,7 +125,6 @@ def backup_database():
             size_mb = os.path.getsize(backup_path) / (1024 * 1024)
             logger.info(f"Backup created: {backup_path} ({size_mb:.2f} MB)")
 
-            # Hapus backup lama
             cutoff_ts = datetime.now().timestamp() - (config.BACKUP_RETENTION_DAYS * 86400)
             for filename in os.listdir(config.BACKUP_DIR):
                 filepath = os.path.join(config.BACKUP_DIR, filename)
@@ -152,15 +135,11 @@ def backup_database():
         except Exception as e:
             logger.error(f"Backup failed: {e}", exc_info=True)
 
-        # Sleep 24 jam (dengan interruptible)
         shutdown_event.wait(config.BACKUP_INTERVAL_HOURS * 3600)
 
     logger.info("Backup task stopped")
 
 
-# ==========================================
-# START ALL BACKGROUND TASKS
-# ==========================================
 def start_background_tasks():
     """Start semua background thread"""
     threads = []

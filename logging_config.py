@@ -8,18 +8,15 @@ from logging.handlers import RotatingFileHandler
 
 def setup_logging(config):
     """Setup logging untuk aplikasi"""
-    # Buat directory log jika belum ada
     log_dir = os.path.dirname(config.LOG_FILE)
     if log_dir:
         os.makedirs(log_dir, exist_ok=True)
 
-    # Format log
     formatter = logging.Formatter(
         '[%(asctime)s] %(levelname)-8s [%(name)s:%(lineno)d] %(message)s',
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    # File handler dengan rotasi
     file_handler = RotatingFileHandler(
         config.LOG_FILE,
         maxBytes=config.LOG_MAX_BYTES,
@@ -29,23 +26,19 @@ def setup_logging(config):
     file_handler.setFormatter(formatter)
     file_handler.setLevel(config.LOG_LEVEL)
 
-    # Console handler
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
     console_handler.setLevel(config.LOG_LEVEL)
 
-    # Root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(config.LOG_LEVEL)
 
-    # Hapus handler lama (untuk reload)
     for handler in root_logger.handlers[:]:
         root_logger.removeHandler(handler)
 
     root_logger.addHandler(file_handler)
     root_logger.addHandler(console_handler)
 
-    # Set level untuk library yang berisik
     logging.getLogger('werkzeug').setLevel(logging.WARNING)
     logging.getLogger('urllib3').setLevel(logging.WARNING)
 

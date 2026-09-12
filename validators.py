@@ -5,7 +5,6 @@ from marshmallow import Schema, fields, validate, ValidationError
 
 
 class DeviceCreateSchema(Schema):
-    """Schema untuk tambah device baru"""
     device_id = fields.Str(
         required=True,
         validate=[
@@ -26,7 +25,6 @@ class DeviceCreateSchema(Schema):
 
 
 class DeviceUpdateSchema(Schema):
-    """Schema untuk update device (semua optional)"""
     device_name = fields.Str(validate=validate.Length(min=1, max=128))
     device_type = fields.Str(validate=validate.Length(max=32))
     location = fields.Str(validate=validate.Length(max=255))
@@ -36,7 +34,6 @@ class DeviceUpdateSchema(Schema):
 
 
 class SensorDataSchema(Schema):
-    """Schema untuk data sensor dari device"""
     device_id = fields.Str(required=True, validate=validate.Length(min=1, max=64))
     api_key = fields.Str(required=True, validate=validate.Length(min=32, max=128))
     sensor_type = fields.Str(required=True, validate=validate.Length(min=1, max=32))
@@ -46,12 +43,10 @@ class SensorDataSchema(Schema):
 
 
 class LoginSchema(Schema):
-    """Schema untuk login form"""
     username = fields.Str(required=True, validate=validate.Length(min=1, max=64))
     password = fields.Str(required=True, validate=validate.Length(min=1, max=128))
 
 
-# Instance schemas
 device_create_schema = DeviceCreateSchema()
 device_update_schema = DeviceUpdateSchema()
 sensor_data_schema = SensorDataSchema()

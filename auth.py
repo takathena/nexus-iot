@@ -13,7 +13,6 @@ def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if 'logged_in' not in session:
-            # Jika request API, return 401 JSON
             if request.path.startswith('/api/'):
                 return jsonify({'success': False, 'error': 'Unauthorized'}), 401
             return redirect(url_for('auth.login_page'))
@@ -30,11 +29,9 @@ def login_page():
         username = request.form.get('username', '').strip()
         password = request.form.get('password', '')
 
-        # Validasi input
         if not username or not password:
             return render_template('login.html', error='Username dan password wajib diisi!')
 
-        # Cek credential
         if username == config.IOT_USERNAME and password == config.IOT_PASSWORD:
             session.clear()
             session['logged_in'] = True
@@ -42,9 +39,10 @@ def login_page():
             session.permanent = True
             return redirect(url_for('views.dashboard'))
 
-        # Log percobaan login gagal
         from flask import current_app
-        current_app.logger.warning(f"Failed login attempt for user '{username}' from {request.remote_addr}")
+        current_app.logger.warning(
+            f"Failed login attempt for user '{username}' from {request.remote_addr}"
+        )
 
         return render_template('login.html', error='Username atau password salah!')
 

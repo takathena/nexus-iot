@@ -35,7 +35,7 @@ class Config:
 
     # CSRF
     WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = None  # Selama session
+    WTF_CSRF_TIME_LIMIT = None
 
     # ==========================================
     # AUTHENTICATION
@@ -59,8 +59,8 @@ class Config:
     # ==========================================
     # DEVICE MONITORING
     # ==========================================
-    OFFLINE_TIMEOUT = int(os.getenv('OFFLINE_TIMEOUT', 900))  # 15 menit
-    CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 60))     # 1 menit
+    OFFLINE_TIMEOUT = int(os.getenv('OFFLINE_TIMEOUT', 900))
+    CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 60))
 
     # ==========================================
     # CORS
@@ -83,7 +83,7 @@ class Config:
     # ==========================================
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = os.getenv('LOG_FILE', os.path.join(BASE_DIR, 'logs', 'nexus.log'))
-    LOG_MAX_BYTES = int(os.getenv('LOG_MAX_BYTES', 10485760))  # 10 MB
+    LOG_MAX_BYTES = int(os.getenv('LOG_MAX_BYTES', 10485760))
     LOG_BACKUP_COUNT = int(os.getenv('LOG_BACKUP_COUNT', 5))
 
     # ==========================================
@@ -115,7 +115,7 @@ class Config:
 
     @classmethod
     def validate(cls):
-        """Validasi config wajib. Raise ValueError jika ada yang salah."""
+        """Validasi config wajib"""
         errors = []
 
         if not cls.SECRET_KEY:
@@ -133,11 +133,9 @@ class Config:
         if not cls.IOT_USERNAME:
             errors.append("IOT_USERNAME wajib di-set")
 
-        # Validasi port
         if not (1 <= cls.PORT <= 65535):
             errors.append(f"PORT harus antara 1-65535, dapat: {cls.PORT}")
 
-        # Validasi timeout
         if cls.OFFLINE_TIMEOUT < 60:
             errors.append("OFFLINE_TIMEOUT minimal 60 detik")
         if cls.CHECK_INTERVAL < 10:

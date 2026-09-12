@@ -19,12 +19,12 @@ def get_wib_time():
 def _configure_connection(conn):
     """Setup PRAGMA untuk performa & stabilitas"""
     conn.row_factory = sqlite3.Row
-    conn.execute('PRAGMA journal_mode=WAL')       # Concurrent read/write
-    conn.execute('PRAGMA synchronous=NORMAL')     # Balance speed/safety
-    conn.execute('PRAGMA foreign_keys=ON')        # Enable FK constraint
-    conn.execute('PRAGMA busy_timeout=30000')     # Wait 30s if locked
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA synchronous=NORMAL')
+    conn.execute('PRAGMA foreign_keys=ON')
+    conn.execute('PRAGMA busy_timeout=30000')
     conn.execute('PRAGMA temp_store=MEMORY')
-    conn.execute('PRAGMA cache_size=-64000')      # 64 MB cache
+    conn.execute('PRAGMA cache_size=-64000')
     return conn
 
 
@@ -35,10 +35,7 @@ def _get_db_path():
 
 
 def get_db():
-    """
-    Get database connection untuk Flask request.
-    Connection disimpan di flask.g dan otomatis close saat request selesai.
-    """
+    """Get database connection untuk Flask request"""
     if 'db' not in g:
         db_path = _get_db_path()
         os.makedirs(os.path.dirname(db_path), exist_ok=True)
@@ -47,7 +44,7 @@ def get_db():
             db_path,
             timeout=30.0,
             check_same_thread=False,
-            isolation_level=None  # Autocommit off manual
+            isolation_level=None
         )
         _configure_connection(g.db)
     return g.db
@@ -62,10 +59,7 @@ def close_db(error=None):
 
 @contextmanager
 def get_db_context():
-    """
-    Context manager untuk background thread (di luar Flask request).
-    Setiap pemanggilan membuat connection baru yang otomatis tertutup.
-    """
+    """Context manager untuk background thread"""
     db_path = _get_db_path()
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
@@ -94,7 +88,6 @@ def init_db():
     with get_db_context() as conn:
         cursor = conn.cursor()
 
-        # Tabel schema_version
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS schema_version (
                 version INTEGER PRIMARY KEY,
@@ -102,13 +95,11 @@ def init_db():
             )
         ''')
 
-        # Cek versi saat ini
         row = cursor.execute('SELECT MAX(version) FROM schema_version').fetchone()
         current_version = row[0] if row and row[0] else 0
 
         print(f"[DB] Current schema version: {current_version}")
 
-        # Migrasi bertahap
         if current_version < 1:
             _migrate_v1(cursor)
             cursor.execute('INSERT INTO schema_version (version) VALUES (1)')
@@ -189,8 +180,7 @@ def _migrate_v1(cursor):
 
 
 def _migrate_v2(cursor):
-    """Tambah kolom untuk tracking (contoh migrasi)"""
-    # Cek kolom yang sudah ada
+    """Tambah kolom untuk tracking"""
     cols = [row[1] for row in cursor.execute('PRAGMA table_info(devices)').fetchall()]
 
     if 'last_ip' not in cols:
