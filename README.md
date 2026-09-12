@@ -2,6 +2,12 @@
 
 Platform monitoring IoT dengan dashboard real-time, peta interaktif, dan multi-chart analytics. Dibangun menggunakan Flask, Chart.js, dan Leaflet.js dengan fokus pada keamanan dan skalabilitas production.
 
+![Version](https://img.shields.io/badge/version-3.0.1-blue)
+![Python](https://img.shields.io/badge/python-3.9+-green)
+![Flask](https://img.shields.io/badge/flask-3.1+-red)
+![License](https://img.shields.io/badge/license-MIT-yellow)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
+
 ---
 
 ## Daftar Isi
