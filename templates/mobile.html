@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>NEXUS — Mobile</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -1366,6 +1367,18 @@ body::before{
     initializeModalDrag('mAddModal');
     initializeModalDrag('mChartModal');
     initializeModalDrag('mApiKeyModal');
+
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
+
+    // Untuk semua fetch POST/PUT/DELETE:
+    fetch('/api/v1/devices', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': CSRF_TOKEN
+        },
+        body: JSON.stringify(data)
+    });
   </script>
 </body>
 </html>

@@ -1,51 +1,90 @@
-# Makefile
-.PHONY: help build up down logs shell clean restart db-init status
+.PHONY: help install dev run test clean docker-build docker-up docker-down backup
+
+PYTHON := python3
+VENV := venv
+VENV_BIN := $(VENV)/bin
+PIP := $(VENV_BIN)/pip
+PYTEST := $(VENV_BIN)/pytest
 
 help:
-	@echo "📦 NEXUS IoT - Docker Management"
-	@echo ""
-	@echo "Available commands:"
-	@echo "  make build      - Build Docker image"
-	@echo "  make up         - Start containers"
-	@echo "  make down       - Stop containers"
-	@echo "  make restart    - Restart containers"
-	@echo "  make logs       - View all logs"
-	@echo "  make status     - Check container status"
-	@echo "  make shell      - Open shell in Flask container"
-	@echo "  make db-init    - Initialize database"
-	@echo ""
-	@echo "🌐 Access: http://localhost:5008"
+	@echo "NEXUS IoT - Available Commands"
+	@echo "================================"
+	@echo "  make install       - Install dependencies"
+	@echo "  make dev           - Setup development environment"
+	@echo "  make run           - Run development server"
+	@echo "  make run-prod      - Run production server (gunicorn)"
+	@echo "  make test          - Run tests"
+	@echo "  make clean         - Clean cache & temp files"
+	@echo "  make backup        - Backup database"
+	@echo "  make docker-build  - Build Docker image"
+	@echo "  make docker-up     - Start docker-compose"
+	@echo "  make docker-down   - Stop docker-compose"
+	@echo "  make docker-logs   - Show docker logs"
 
-build:
-	docker-compose build --no-cache
+# Dependencies
+$(VENV)/bin/activate: requirements.txt
+	$(PYTHON) -m venv $(VENV)
+	$(PIP) install --upgrade pip
+	$(PIP) install -r requirements.txt
+	touch $(VENV)/bin/activate
 
-up:
-	mkdir -p database static
+install: $(VENV)/bin/activate
+	@echo "✅ Dependencies installed"
+
+# Setup development (hanya jika belum ada)
+dev: install
+	@if [ ! -f .env ]; then \
+		cp .env.example .env; \
+		echo "📝 Created .env from .env.example"; \
+		echo "⚠️  Edit .env dan set SECRET_KEY + IOT_PASSWORD!"; \
+		exit 1; \
+	fi
+	@echo "✅ Development environment ready"
+
+# Run — TIDAK depend on install supaya tidak double-init
+run:
+	@if [ ! -d $(VENV) ]; then \
+		echo "❌ Virtualenv tidak ada. Jalankan: make dev"; \
+		exit 1; \
+	fi
+	@$(VENV_BIN)/python app.py
+
+run-prod:
+	@if [ ! -d $(VENV) ]; then \
+		echo "❌ Virtualenv tidak ada. Jalankan: make install"; \
+		exit 1; \
+	fi
+	@$(VENV_BIN)/gunicorn -c gunicorn.conf.py wsgi:app
+
+test: install
+	@$(PYTEST) tests/ -v
+
+backup:
+	@mkdir -p backup
+	@$(VENV_BIN)/python -c "import sqlite3; from config import Config; from datetime import datetime; \
+	src = sqlite3.connect(Config.DB_PATH); \
+	dst = sqlite3.connect(f'backup/iot_{datetime.now().strftime(\"%Y%m%d_%H%M%S\")}.db'); \
+	src.backup(dst); dst.close(); src.close(); \
+	print('✅ Backup created')"
+
+clean:
+	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
+	@find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	@rm -rf build dist *.egg-info 2>/dev/null || true
+	@echo "✅ Cleaned"
+
+docker-build:
+	docker-compose build
+
+docker-up:
 	docker-compose up -d
-	@echo ""
-	@echo "✅ NEXUS IoT is running!"
-	@echo "🌐 http://localhost:5008"
-	@echo "🔑 Login: admin / admin123 (ubah di .env)"
 
-down:
+docker-down:
 	docker-compose down
 
-restart: down up
-
-logs:
+docker-logs:
 	docker-compose logs -f
 
-shell:
-	docker-compose exec nexus-iot /bin/bash
-
-status:
-	docker-compose ps
-	@echo ""
-	@echo "Health Check:"
-	@curl -s http://localhost:5008/health || echo "❌ Not responding"
-
-db-init:
-	docker-compose exec nexus-iot python database.py
-
-nginx-reload:
-	docker-compose exec nginx nginx -s reload
+docker-restart:
+	docker-compose restart

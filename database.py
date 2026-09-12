@@ -1,18 +1,130 @@
-import sqlite3
+"""
+NEXUS IoT - Database Layer
+Thread-safe SQLite dengan WAL mode.
+"""
 import os
+import sqlite3
+from contextlib import contextmanager
+from flask import g
+from datetime import datetime, timedelta, timezone
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'database', 'iot.db')
+WIB = timezone(timedelta(hours=7))
 
-def get_db():
-    conn = sqlite3.connect(DB_PATH)
+
+def get_wib_time():
+    """Waktu WIB (UTC+7)"""
+    return datetime.now(WIB)
+
+
+def _configure_connection(conn):
+    """Setup PRAGMA untuk performa & stabilitas"""
     conn.row_factory = sqlite3.Row
+    conn.execute('PRAGMA journal_mode=WAL')       # Concurrent read/write
+    conn.execute('PRAGMA synchronous=NORMAL')     # Balance speed/safety
+    conn.execute('PRAGMA foreign_keys=ON')        # Enable FK constraint
+    conn.execute('PRAGMA busy_timeout=30000')     # Wait 30s if locked
+    conn.execute('PRAGMA temp_store=MEMORY')
+    conn.execute('PRAGMA cache_size=-64000')      # 64 MB cache
     return conn
 
+
+def _get_db_path():
+    """Ambil DB path dari config/env"""
+    from config import Config
+    return Config.DB_PATH
+
+
+def get_db():
+    """
+    Get database connection untuk Flask request.
+    Connection disimpan di flask.g dan otomatis close saat request selesai.
+    """
+    if 'db' not in g:
+        db_path = _get_db_path()
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+        g.db = sqlite3.connect(
+            db_path,
+            timeout=30.0,
+            check_same_thread=False,
+            isolation_level=None  # Autocommit off manual
+        )
+        _configure_connection(g.db)
+    return g.db
+
+
+def close_db(error=None):
+    """Close database connection"""
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
+
+
+@contextmanager
+def get_db_context():
+    """
+    Context manager untuk background thread (di luar Flask request).
+    Setiap pemanggilan membuat connection baru yang otomatis tertutup.
+    """
+    db_path = _get_db_path()
+    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+    conn = sqlite3.connect(
+        db_path,
+        timeout=30.0,
+        check_same_thread=False,
+        isolation_level=None
+    )
+    _configure_connection(conn)
+
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+
+# ==========================================
+# SCHEMA VERSIONING
+# ==========================================
+SCHEMA_VERSION = 2
+
+
 def init_db():
-    conn = get_db()
-    cursor = conn.cursor()
-    
-    # Tabel devices
+    """Inisialisasi database dan jalankan migrasi"""
+    with get_db_context() as conn:
+        cursor = conn.cursor()
+
+        # Tabel schema_version
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS schema_version (
+                version INTEGER PRIMARY KEY,
+                applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # Cek versi saat ini
+        row = cursor.execute('SELECT MAX(version) FROM schema_version').fetchone()
+        current_version = row[0] if row and row[0] else 0
+
+        print(f"[DB] Current schema version: {current_version}")
+
+        # Migrasi bertahap
+        if current_version < 1:
+            _migrate_v1(cursor)
+            cursor.execute('INSERT INTO schema_version (version) VALUES (1)')
+            print("[DB] Applied migration v1")
+
+        if current_version < 2:
+            _migrate_v2(cursor)
+            cursor.execute('INSERT INTO schema_version (version) VALUES (2)')
+            print("[DB] Applied migration v2")
+
+        conn.commit()
+        print(f"[DB] Database initialized! (version {SCHEMA_VERSION})")
+
+
+def _migrate_v1(cursor):
+    """Initial schema"""
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS devices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,8 +141,7 @@ def init_db():
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
-    # Tabel sensor_data dengan kolom wifi_ssid dan uptime_seconds
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS sensor_data (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,8 +154,7 @@ def init_db():
             FOREIGN KEY (device_id) REFERENCES devices (device_id)
         )
     ''')
-    
-    # Tabel alerts
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS alerts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,16 +166,35 @@ def init_db():
             FOREIGN KEY (device_id) REFERENCES devices (device_id)
         )
     ''')
-    
-    # Index
+
     cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_sensor_data_device_timestamp 
+        CREATE INDEX IF NOT EXISTS idx_sensor_data_device_timestamp
         ON sensor_data (device_id, timestamp)
     ''')
-    
-    conn.commit()
-    conn.close()
-    print("Database initialized!")
 
-if __name__ == '__main__':
-    init_db()
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp
+        ON sensor_data (timestamp)
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_devices_status
+        ON devices (status)
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_alerts_device_active
+        ON alerts (device_id, is_active)
+    ''')
+
+
+def _migrate_v2(cursor):
+    """Tambah kolom untuk tracking (contoh migrasi)"""
+    # Cek kolom yang sudah ada
+    cols = [row[1] for row in cursor.execute('PRAGMA table_info(devices)').fetchall()]
+
+    if 'last_ip' not in cols:
+        cursor.execute('ALTER TABLE devices ADD COLUMN last_ip TEXT DEFAULT ""')
+
+    if 'firmware_version' not in cols:
+        cursor.execute('ALTER TABLE devices ADD COLUMN firmware_version TEXT DEFAULT ""')

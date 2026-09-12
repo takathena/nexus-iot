@@ -1,0 +1,376 @@
+/* ==========================================
+   NEXUS IoT - Shared Styles
+   ========================================== */
+
+/* ============ CSS VARIABLES ============ */
+:root {
+    --bg: #000000;
+    --surface: rgba(28, 28, 30, .55);
+    --surface-solid: #1c1c1e;
+    --surface-2: rgba(255, 255, 255, .045);
+    --surface-2-hover: rgba(255, 255, 255, .075);
+    --hairline: rgba(255, 255, 255, .09);
+    --hairline-soft: rgba(255, 255, 255, .06);
+    --text: #f5f5f7;
+    --text-2: rgba(235, 235, 245, .72);
+    --text-3: rgba(235, 235, 245, .45);
+    --blue: #0a84ff;
+    --blue-hover: #2b95ff;
+    --green: #30d158;
+    --red: #ff453a;
+    --orange: #ff9f0a;
+    --purple: #bf5af2;
+    --teal: #64d2ff;
+    --yellow: #ffd60a;
+
+    --sidebar-bg: rgba(10, 10, 12, .92);
+    --topbar-bg: rgba(0, 0, 0, .85);
+    --sidebar-w: 248px;
+    --sidebar-w-collapsed: 84px;
+
+    --font: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', sans-serif;
+    --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+    --ease: cubic-bezier(.16, 1, .3, 1);
+
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-xl: 22px;
+
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, .15);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, .25);
+    --shadow-lg: 0 20px 50px rgba(0, 0, 0, .4);
+}
+
+/* ============ LIGHT THEME ============ */
+[data-theme="light"] {
+    --bg: #f5f5f7;
+    --surface: rgba(255, 255, 255, .85);
+    --surface-solid: #ffffff;
+    --surface-2: rgba(0, 0, 0, .04);
+    --surface-2-hover: rgba(0, 0, 0, .07);
+    --hairline: rgba(0, 0, 0, .10);
+    --hairline-soft: rgba(0, 0, 0, .06);
+    --text: #1c1c1e;
+    --text-2: rgba(60, 60, 67, .75);
+    --text-3: rgba(60, 60, 67, .50);
+    --blue: #007aff;
+    --blue-hover: #0066d9;
+    --green: #34c759;
+    --red: #ff3b30;
+    --orange: #ff9500;
+    --purple: #af52de;
+    --teal: #5ac8fa;
+    --yellow: #ffcc00;
+
+    --sidebar-bg: #ffffff;
+    --topbar-bg: #ffffff;
+}
+
+/* ============ RESET ============ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    position: relative;
+    transition: background 0.3s ease, color 0.3s ease;
+}
+
+body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+        radial-gradient(60% 40% at 15% 0%, rgba(10, 132, 255, .07), transparent 60%),
+        radial-gradient(50% 35% at 100% 100%, rgba(191, 90, 242, .05), transparent 60%);
+    transition: background 0.3s ease;
+}
+
+[data-theme="light"] body::before {
+    background:
+        radial-gradient(60% 40% at 15% 0%, rgba(0, 122, 255, .04), transparent 60%),
+        radial-gradient(50% 35% at 100% 100%, rgba(175, 82, 222, .03), transparent 60%);
+}
+
+/* ============ SCROLLBAR ============ */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, .12);
+    border-radius: 3px;
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, .15);
+}
+
+/* ============ UTILITY ============ */
+.hidden { display: none !important; }
+.text-center { text-align: center; }
+.text-mono { font-family: var(--mono); }
+.text-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ============ BUTTONS ============ */
+.btn {
+    padding: 10px 17px;
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s var(--ease);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    font-family: inherit;
+    white-space: nowrap;
+}
+
+.btn:active {
+    transform: scale(.96);
+}
+
+.btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn-primary {
+    background: var(--blue);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(10, 132, 255, .25);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--blue-hover);
+}
+
+.btn-success {
+    background: var(--green);
+    color: #fff;
+}
+
+.btn-success:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.btn-danger {
+    background: var(--red);
+    color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+    filter: brightness(1.1);
+}
+
+.btn-secondary {
+    background: var(--surface-2);
+    color: var(--text-2);
+    border: 1px solid var(--hairline);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--surface-2-hover);
+    color: var(--text);
+}
+
+/* ============ FORMS ============ */
+.form-group {
+    margin-bottom: 13px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 11px 13px;
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-md);
+    font-size: 13.5px;
+    font-family: inherit;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s, background .2s;
+}
+
+.form-group input::placeholder {
+    color: var(--text-3);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    border-color: rgba(10, 132, 255, .55);
+    background: rgba(10, 132, 255, .06);
+}
+
+.form-group select option {
+    background: var(--bg);
+    color: var(--text);
+}
+
+[data-theme="light"] .form-group select option {
+    background: #ffffff;
+    color: #1c1c1e;
+}
+
+/* ============ STATUS BADGES ============ */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 11px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.status-badge.online {
+    background: rgba(48, 209, 88, .12);
+    color: var(--green);
+}
+
+.status-badge.offline {
+    background: rgba(255, 69, 58, .12);
+    color: var(--red);
+}
+
+.status-badge.alert {
+    background: rgba(255, 159, 10, .12);
+    color: var(--orange);
+}
+
+.status-dot-inline {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.status-badge.online .status-dot-inline {
+    animation: pulse-dot 2s infinite;
+}
+
+.status-badge.alert .status-dot-inline {
+    animation: pulse-dot 1s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .35; }
+}
+
+/* ============ LOADING ============ */
+.spinner {
+    width: 26px;
+    height: 26px;
+    border: 2.5px solid var(--hairline);
+    border-top-color: var(--blue);
+    border-radius: 50%;
+    animation: spin .8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 50px 20px;
+    gap: 14px;
+    color: var(--text-3);
+    font-size: 12.5px;
+    font-weight: 600;
+}
+
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 50px 20px;
+    text-align: center;
+    gap: 8px;
+}
+
+.empty-state i {
+    font-size: 30px;
+    color: var(--text-3);
+    margin-bottom: 6px;
+}
+
+.empty-state h3 {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.empty-state p {
+    font-size: 12.5px;
+    color: var(--text-3);
+}
+
+/* ============ ANIMATIONS ============ */
+@keyframes rise {
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.animate-rise {
+    animation: rise .5s var(--ease) backwards;
+}

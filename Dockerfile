@@ -1,35 +1,57 @@
-# Dockerfile
-FROM python:3.11-slim
+# ==========================================
+# Stage 1: Builder
+# ==========================================
+FROM python:3.11-slim AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Python dependencies ke virtualenv
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# ==========================================
+# Stage 2: Runtime
+# ==========================================
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Copy virtualenv dari builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy application code
+# Copy application
 COPY . .
 
-# Create database directory
-RUN mkdir -p /app/database
+# Buat directory yang dibutuhkan
+RUN mkdir -p database logs backup
 
-# Create static directory for Nginx
-RUN mkdir -p /app/static
+# Non-root user untuk security
+RUN useradd -m -u 1000 nexus && \
+    chown -R nexus:nexus /app
+USER nexus
 
-# Expose port (internal)
 EXPOSE 5000
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:5000/health || exit 1
 
-# Run with Gunicorn
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--workers", "4", "--threads", "2", "--worker-class", "sync", "--timeout", "120", "app:app"]
+# Run dengan gunicorn
+CMD ["gunicorn", "-c", "gunicorn.conf.py", "wsgi:app"]

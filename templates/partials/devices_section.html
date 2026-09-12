@@ -1,0 +1,46 @@
+<div id="devicesSection" style="display:none;">
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title"><i class="fa-solid fa-microchip"></i> Semua Perangkat</div>
+            <button class="btn btn-primary" data-action="add-device">
+                <i class="fa-solid fa-plus"></i> Tambah
+            </button>
+        </div>
+        <div class="filter-bar" id="deviceFilterBarFull">
+            <button class="filter-btn active" data-filter="all">
+                <i class="fa-solid fa-server"></i> Semua
+            </button>
+            <button class="filter-btn" data-filter="online">
+                <i class="fa-solid fa-wifi"></i> Online
+            </button>
+            <button class="filter-btn offline" data-filter="offline">
+                <i class="fa-solid fa-power-off"></i> Offline
+            </button>
+            <button class="filter-btn warning" data-filter="alert">
+                <i class="fa-solid fa-triangle-exclamation"></i> Alert
+            </button>
+        </div>
+        <div class="section-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table class="device-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>ID</th>
+                            <th>Nama</th>
+                            <th>Tipe</th>
+                            <th>WiFi</th>
+                            <th>Uptime</th>
+                            <th>Lokasi</th>
+                            <th>Terakhir</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deviceTableBodyFull">
+                        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-3);">Memuat…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
