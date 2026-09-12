@@ -1,6 +1,6 @@
 # NEXUS IoT - Universal IoT Monitoring Platform
 
-Platform monitoring IoT dengan dashboard real-time, peta interaktif, dan multi-chart analytics. Dibangun menggunakan Flask, Chart.js, dan Leaflet.js dengan fokus pada keamanan dan skalabilitas production.
+Platform monitoring IoT dengan dashboard real-time, peta interaktif, dan multi-chart analytics. Dibangun menggunakan Flask, Chart.js, dan Leaflet.js dengan fokus pada keamanan dan skalabilitas.
 
 ![Version](https://img.shields.io/badge/version-3.0.1-blue)
 ![Python](https://img.shields.io/badge/python-3.9+-green)
