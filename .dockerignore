@@ -1,31 +1,56 @@
-# .dockerignore
-__pycache__
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg
-*.egg-info
-dist
-build
-venv
-env
-.env
-*.db
-*.sqlite
-database/*.db
+# Git
 .git
 .gitignore
-README.md
-prd.md
-LICENSE
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+venv/
+env/
+.venv/
+ENV/
+build/
+dist/
+*.egg-info/
+.pytest_cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Database
+database/*.db
+database/*.db-shm
+database/*.db-wal
+
+# Logs
+logs/
 *.log
-.DS_Store
-.vscode
-.idea
+
+# Backup
+backup/
+*.bak
+
+# IDE
+.vscode/
+.idea/
 *.swp
 *.swo
-nginx/
-Makefile
+
+# Docker
+Dockerfile
+docker-compose.yml
 .dockerignore
+
+# Docs
+README.md
+LICENSE
+prd.md
+Makefile
+
+# OS
+.DS_Store
+Thumbs.db

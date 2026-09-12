@@ -25,9 +25,10 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install runtime dependencies
+# Install runtime dependencies + gosu untuk drop privilege
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    gosu \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy virtualenv dari builder
@@ -36,22 +37,27 @@ ENV PATH="/opt/venv/bin:$PATH"
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# Copy application
-COPY . .
+# Buat user non-root
+RUN useradd -m -u 1000 nexus
 
-# Buat directory yang dibutuhkan
-RUN mkdir -p database logs backup
-
-# Non-root user untuk security
-RUN useradd -m -u 1000 nexus && \
+# Buat folder yang dibutuhkan dengan ownership yang benar
+RUN mkdir -p /app/database /app/logs /app/backup && \
     chown -R nexus:nexus /app
-USER nexus
 
+# Copy entrypoint script
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+# Copy application files
+COPY --chown=nexus:nexus . .
+
+# Expose port
 EXPOSE 5000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+# Health check (60s start period supaya app sempat init)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=5 \
     CMD curl -f http://localhost:5000/health || exit 1
 
-# Run dengan gunicorn
+# Entry point (akan handle permission & drop privilege)
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["gunicorn", "-c", "gunicorn.conf.py", "wsgi:app"]
