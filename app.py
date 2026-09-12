@@ -69,6 +69,14 @@ def create_app(config_override=None):
     app.register_blueprint(views_bp)
 
     # ==========================================
+    # ✅ CSRF EXEMPT UNTUK API
+    # API pakai API key (bukan session), jadi aman di-exempt dari CSRF.
+    # CSRF hanya untuk form HTML seperti login.
+    # ==========================================
+    csrf.exempt(api_bp)
+    logger.info("✅ API blueprint exempted from CSRF")
+
+    # ==========================================
     # HEALTH CHECK
     # ==========================================
     @app.route('/health')
@@ -121,7 +129,7 @@ def create_app(config_override=None):
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     # ==========================================
-    # REQUEST LOGGING (opsional, hanya di debug)
+    # REQUEST LOGGING (hanya di debug)
     # ==========================================
     if config.DEBUG:
         @app.before_request
@@ -155,15 +163,15 @@ def create_app(config_override=None):
 
 
 # ==========================================
-# ENTRY POINT (development)
+# ENTRY POINT
 # ==========================================
-# Buat instance app untuk gunicorn: `gunicorn app:app`
+# Instance untuk gunicorn: `gunicorn wsgi:app`
 app = create_app()
 
 
 if __name__ == '__main__':
     logger.info("=" * 60)
-    logger.info(f"🚀 NEXUS IoT starting...")
+    logger.info("🚀 NEXUS IoT starting...")
     logger.info(f"   Host    : {config.HOST}")
     logger.info(f"   Port    : {config.PORT}")
     logger.info(f"   Debug   : {config.DEBUG}")
@@ -176,5 +184,5 @@ if __name__ == '__main__':
         port=config.PORT,
         debug=config.DEBUG,
         use_reloader=False,
-        threaded=True,  # ✅ Handle multiple requests
+        threaded=True,
     )
