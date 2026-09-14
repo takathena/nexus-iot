@@ -1,0 +1,91 @@
+<div id="alertsSection">
+    <!-- Stats Cards -->
+    <div class="alert-stats-grid">
+        <div class="alert-stat-card total">
+            <div class="alert-stat-icon"><i class="fa-solid fa-bell"></i></div>
+            <div class="alert-stat-info">
+                <h3>Total Aktif</h3>
+                <div class="value" id="statTotalActive">0</div>
+            </div>
+        </div>
+        <div class="alert-stat-card danger">
+            <div class="alert-stat-icon"><i class="fa-solid fa-fire"></i></div>
+            <div class="alert-stat-info">
+                <h3>Bahaya</h3>
+                <div class="value" id="statDanger">0</div>
+            </div>
+        </div>
+        <div class="alert-stat-card warning">
+            <div class="alert-stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="alert-stat-info">
+                <h3>Peringatan</h3>
+                <div class="value" id="statWarning">0</div>
+            </div>
+        </div>
+        <div class="alert-stat-card info">
+            <div class="alert-stat-icon"><i class="fa-solid fa-circle-info"></i></div>
+            <div class="alert-stat-info">
+                <h3>Info</h3>
+                <div class="value" id="statInfo">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert List Card -->
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title">
+                <i class="fa-solid fa-list"></i> Daftar Alert
+            </div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
+                <div class="alert-search">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="alertSearchInput" placeholder="Cari alert...">
+                </div>
+                <button class="btn btn-secondary" id="refreshAlertsBtn">
+                    <i class="fa-solid fa-rotate"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <div class="alert-filter-bar">
+            <div class="alert-filter-group">
+                <span class="alert-filter-label">Status:</span>
+                <button class="alert-filter-btn active" data-status="all">
+                    <i class="fa-solid fa-layer-group"></i> Semua
+                </button>
+                <button class="alert-filter-btn" data-status="active">
+                    <i class="fa-solid fa-circle-exclamation"></i> Aktif
+                </button>
+                <button class="alert-filter-btn" data-status="resolved">
+                    <i class="fa-solid fa-circle-check"></i> Selesai
+                </button>
+            </div>
+
+            <div class="alert-filter-group">
+                <span class="alert-filter-label">Severity:</span>
+                <button class="alert-filter-btn" data-severity="">
+                    Semua
+                </button>
+                <button class="alert-filter-btn sev-danger" data-severity="danger">
+                    🔴 Bahaya
+                </button>
+                <button class="alert-filter-btn sev-warning" data-severity="warning">
+                    🟠 Peringatan
+                </button>
+                <button class="alert-filter-btn sev-info" data-severity="info">
+                    🔵 Info
+                </button>
+            </div>
+        </div>
+
+        <div class="section-body" style="padding:0;">
+            <div id="alertsList">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <div>Memuat alert...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

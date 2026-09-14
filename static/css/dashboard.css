@@ -866,6 +866,11 @@
 .action-btn.view:hover { background: var(--blue); color: #fff; }
 .action-btn.delete:hover { background: var(--red); color: #fff; }
 
+.action-btn.config:hover {
+    background: var(--purple);
+    color: #fff;
+}
+
 /* ============ MODALS ============ */
 .modal {
     display: none;
@@ -1008,4 +1013,206 @@
     .sidebar { width: 60px; }
     .main-content { margin-left: 60px; }
     .search-box { display: none; }
+}
+/* ============ STATUS BADGE SEVERITY ============ */
+.status-badge.danger {
+    background: rgba(255, 69, 58, .15);
+    color: var(--red);
+    border: 1px solid rgba(255, 69, 58, .3);
+}
+
+.status-badge.warning {
+    background: rgba(255, 159, 10, .15);
+    color: var(--orange);
+    border: 1px solid rgba(255, 159, 10, .3);
+}
+
+.status-badge.info {
+    background: rgba(10, 132, 255, .15);
+    color: var(--blue);
+    border: 1px solid rgba(10, 132, 255, .3);
+}
+
+.status-badge.danger .status-dot-inline {
+    animation: pulse-dot 1s infinite;
+}
+
+.status-badge.warning .status-dot-inline {
+    animation: pulse-dot 1.5s infinite;
+}
+
+.action-btn.config:hover {
+    background: var(--purple);
+    color: #fff;
+    border-color: var(--purple);
+}
+
+/* ============ ALERT RULES BUILDER ============ */
+.alert-rules-builder {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.alert-rule-item {
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    padding: 14px;
+    transition: border-color .2s;
+}
+
+.alert-rule-item:hover {
+    border-color: rgba(10, 132, 255, .3);
+}
+
+.alert-rule-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.alert-rule-sensor-select {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+}
+
+.alert-rule-sensor-select option {
+    background: var(--bg);
+    color: var(--text);
+}
+
+[data-theme="light"] .alert-rule-sensor-select option {
+    background: #fff;
+    color: #1c1c1e;
+}
+
+.alert-rule-remove {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: rgba(255, 69, 58, .1);
+    border: 1px solid rgba(255, 69, 58, .25);
+    color: var(--red);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    transition: all .2s;
+    flex-shrink: 0;
+}
+
+.alert-rule-remove:hover {
+    background: var(--red);
+    color: #fff;
+}
+
+.alert-rule-severities {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.severity-row {
+    display: grid;
+    grid-template-columns: 90px 1fr 1fr;
+    gap: 8px;
+    align-items: center;
+    padding: 8px 10px;
+    background: var(--surface);
+    border-radius: 9px;
+    border: 1px solid var(--hairline);
+}
+
+.severity-row-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .03em;
+}
+
+.severity-row.healthy .severity-row-label { color: var(--green); }
+.severity-row.warning .severity-row-label { color: var(--orange); }
+.severity-row.danger .severity-row-label { color: var(--red); }
+
+.severity-row-label .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.severity-row.healthy .dot { background: var(--green); }
+.severity-row.warning .dot { background: var(--orange); }
+.severity-row.danger .dot { background: var(--red); }
+
+.severity-input {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: 7px;
+    padding: 6px 10px;
+    color: var(--text);
+    font-size: 12.5px;
+    font-family: var(--mono);
+    outline: none;
+    transition: border-color .2s;
+}
+
+.severity-input:focus {
+    border-color: rgba(10, 132, 255, .5);
+    background: rgba(10, 132, 255, .06);
+}
+
+.severity-input::placeholder {
+    color: var(--text-3);
+    font-family: var(--font);
+}
+
+.btn-add-rule {
+    width: 100%;
+    padding: 10px;
+    border: 1.5px dashed var(--hairline);
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text-3);
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+}
+
+.btn-add-rule:hover {
+    border-color: var(--blue);
+    color: var(--blue);
+    background: rgba(10, 132, 255, .05);
+}
+
+.alert-rule-empty {
+    text-align: center;
+    padding: 20px;
+    color: var(--text-3);
+    font-size: 12px;
+    font-style: italic;
 }

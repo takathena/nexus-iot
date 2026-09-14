@@ -1,18 +1,21 @@
 <!-- ADD DEVICE MODAL -->
 <div class="modal" id="addDeviceModal">
-    <div class="modal-content">
+    <div class="modal-content" style="max-width:560px;">
         <div class="modal-header">
             <h3>Tambah Perangkat</h3>
             <button class="modal-close">&times;</button>
         </div>
+
         <div class="form-group">
             <label>Device ID</label>
             <input type="text" id="addDeviceId" placeholder="ESP32-001">
         </div>
+
         <div class="form-group">
             <label>Nama</label>
-            <input type="text" id="addDeviceName" placeholder="Sensor Suhu">
+            <input type="text" id="addDeviceName" placeholder="Sensor Suhu Server">
         </div>
+
         <div class="form-group">
             <label>Tipe</label>
             <select id="addDeviceType">
@@ -23,13 +26,148 @@
                 <option>Other</option>
             </select>
         </div>
+
         <div class="form-group">
             <label>Lokasi</label>
             <input type="text" id="addDeviceLocation" placeholder="Ruang Server">
         </div>
+
+        <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
+        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">
+            ⚙️ Konfigurasi Monitoring
+        </p>
+
+        <div class="form-group">
+            <label>Interval Kirim Data (detik)</label>
+            <input type="number" id="addDeviceInterval" placeholder="60" value="60" min="10" max="86400">
+            <small style="font-size:10px;color:var(--text-3);margin-top:4px;display:block;">
+                Seberapa sering device kirim data. Contoh: 60 = tiap menit, 3600 = tiap jam
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label>Offline Timeout (detik) — Opsional</label>
+            <input type="number" id="addDeviceOfflineTimeout" placeholder="Auto: 3× interval" min="10" max="604800">
+            <small style="font-size:10px;color:var(--text-3);margin-top:4px;display:block;">
+                Berapa detik tanpa data sebelum dianggap offline. Kosongkan = otomatis 3× interval.
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label>Severity Saat Offline</label>
+            <select id="addDeviceOfflineSeverity">
+                <option value="danger" selected>🔴 Bahaya (perangkat rusak/mati)</option>
+                <option value="warning">🟠 Peringatan</option>
+                <option value="info">🔵 Info</option>
+            </select>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
+        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">
+            🎯 Custom Alert Thresholds
+        </p>
+
+        <div class="form-group">
+            <label style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Atur batas alert per sensor</span>
+                <span style="font-size:10px;color:var(--text-3);font-weight:500;text-transform:none;letter-spacing:0;">
+                    Kosongkan = pakai global
+                </span>
+            </label>
+
+            <div id="addAlertRulesBuilder" class="alert-rules-builder">
+                <div class="alert-rule-empty">Belum ada custom rule. Pakai global default.</div>
+            </div>
+
+            <button type="button" class="btn-add-rule" onclick="addAlertRule('add')">
+                <i class="fa-solid fa-plus"></i> Tambah Sensor
+            </button>
+        </div>
+
+        <details style="margin-top:12px;">
+            <summary style="cursor:pointer;font-size:11px;color:var(--text-3);user-select:none;padding:6px 0;">
+                <i class="fa-solid fa-code"></i> Lihat JSON (advanced)
+            </summary>
+            <textarea id="addDeviceAlertRules" rows="6"
+                placeholder='JSON preview otomatis terisi'
+                style="font-family:var(--mono);font-size:11px;resize:vertical;margin-top:8px;width:100%;
+                       background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;
+                       padding:11px 13px;color:var(--text);outline:none;"
+                readonly></textarea>
+        </details>
+
         <div class="modal-actions">
             <button class="btn btn-secondary modal-close">Batal</button>
             <button class="btn btn-success" data-action="submit-add-device">Simpan</button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT DEVICE CONFIG MODAL -->
+<div class="modal" id="editDeviceConfigModal">
+    <div class="modal-content" style="max-width:560px;">
+        <div class="modal-header">
+            <h3>Konfigurasi Monitoring</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <input type="hidden" id="editConfigDeviceId">
+
+        <div class="form-group">
+            <label>Interval Kirim Data (detik)</label>
+            <input type="number" id="editDeviceInterval" min="10" max="86400">
+        </div>
+
+        <div class="form-group">
+            <label>Offline Timeout (detik)</label>
+            <input type="number" id="editDeviceOfflineTimeout" min="10" max="604800">
+        </div>
+
+        <div class="form-group">
+            <label>Severity Saat Offline</label>
+            <select id="editDeviceOfflineSeverity">
+                <option value="danger">🔴 Bahaya</option>
+                <option value="warning">🟠 Peringatan</option>
+                <option value="info">🔵 Info</option>
+            </select>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
+        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">
+            🎯 Custom Alert Thresholds
+        </p>
+
+        <div class="form-group">
+            <label style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Atur batas alert per sensor</span>
+                <span style="font-size:10px;color:var(--text-3);font-weight:500;text-transform:none;letter-spacing:0;">
+                    Kosongkan = pakai global
+                </span>
+            </label>
+
+            <div id="editAlertRulesBuilder" class="alert-rules-builder">
+                <div class="alert-rule-empty">Belum ada custom rule. Pakai global default.</div>
+            </div>
+
+            <button type="button" class="btn-add-rule" onclick="addAlertRule('edit')">
+                <i class="fa-solid fa-plus"></i> Tambah Sensor
+            </button>
+        </div>
+
+        <details style="margin-top:12px;">
+            <summary style="cursor:pointer;font-size:11px;color:var(--text-3);user-select:none;padding:6px 0;">
+                <i class="fa-solid fa-code"></i> Lihat JSON (advanced)
+            </summary>
+            <textarea id="editDeviceAlertRules" rows="6" readonly
+                style="font-family:var(--mono);font-size:11px;resize:vertical;margin-top:8px;width:100%;
+                       background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;
+                       padding:11px 13px;color:var(--text);outline:none;"></textarea>
+        </details>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-success" data-action="save-device-config">
+                <i class="fa-solid fa-check"></i> Simpan
+            </button>
         </div>
     </div>
 </div>
@@ -59,7 +197,6 @@
                     <option value="line">Line Chart</option>
                     <option value="bar">Bar Chart</option>
                     <option value="area">Area Chart</option>
-                    <option value="scatter">Scatter Plot</option>
                 </optgroup>
                 <optgroup label="Statistik">
                     <option value="doughnut">Doughnut Chart</option>

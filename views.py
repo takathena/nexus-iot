@@ -23,3 +23,10 @@ def mobile_dashboard():
 @login_required
 def device_detail(device_id):
     return render_template('device_detail.html', device_id=device_id)
+
+
+@views_bp.route('/alerts')
+@login_required
+def alerts_page():
+    """Halaman Alert Center"""
+    return render_template('alerts.html')

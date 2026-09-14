@@ -317,6 +317,15 @@ body::before{
         <div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><div class="timeline-time">--:--:--</div><div class="timeline-text">Menunggu data…</div></div></div>
       </div>
     </div>
+
+    <div class="card">
+    <div class="card-header">
+        <div class="card-title"><i class="fa-solid fa-bell"></i> Alert Aktif</div>
+      </div>
+      <div id="activeAlertsContent">
+        <div class="loading-state"><div class="spinner"></div><div class="loading-text">Memuat…</div></div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -341,6 +350,54 @@ body::before{
       if (d > 0) return `${d}h ${h}j ${m}m`;
       if (h > 0) return `${h}j ${m}m`;
       return `${m}m`;
+    }
+
+    document.getElementById('infoContent').innerHTML = `
+    <div class="info-grid">
+        <div class="info-item"><label>ID Perangkat</label><span class="value mono">${device.device_id}</span></div>
+        <div class="info-item"><label>Tipe</label><span class="value">${device.device_type || 'Universal'}</span></div>
+        <div class="info-item"><label>Lokasi</label><span class="value">${device.location || '<span style="color:var(--text-3);">Belum diatur</span>'}</span></div>
+        <div class="info-item"><label>Status</label>${statusHtml}</div>
+        <div class="info-item"><label>WiFi SSID</label><span class="value"><i class="fa-solid fa-wifi" style="color:var(--green);margin-right:6px;font-size:12px;"></i>${wifiSsid}</span></div>
+        <div class="info-item"><label>Uptime</label><span class="value"><i class="fa-regular fa-clock" style="color:var(--blue);margin-right:6px;font-size:12px;"></i>${uptimeDisplay}</span></div>
+        <div class="info-item"><label>Terakhir Aktif</label><span class="value">${device.last_seen ? new Date(device.last_seen).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : 'Belum pernah'}</span></div>
+        <div class="info-item"><label>Koordinat</label><span class="value mono">${device.latitude && device.longitude ? `${device.latitude}, ${device.longitude}` : 'N/A'}</span></div>
+        <div class="info-item"><label>Interval Kirim</label><span class="value">${formatUptime(device.expected_interval || 60)}</span></div>
+        <div class="info-item"><label>Offline Timeout</label><span class="value">${formatUptime(device.offline_timeout || 900)}</span></div>
+        <div class="info-item"><label>Severity Offline</label><span class="value"><span class="status-badge ${device.offline_alert_severity || 'danger'}">${device.offline_alert_severity || 'danger'}</span></span></div>
+    </div>
+`;
+
+    // Render active alerts
+    if (device.active_alerts && device.active_alerts.length > 0) {
+        let alertHtml = '<div style="display:flex;flex-direction:column;gap:10px;">';
+        const severityIcon = { danger: 'fa-fire', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+        const severityColor = { danger: 'var(--red)', warning: 'var(--orange)', info: 'var(--blue)' };
+        device.active_alerts.forEach(a => {
+            const color = severityColor[a.severity] || 'var(--blue)';
+            const icon = severityIcon[a.severity] || 'fa-bell';
+            alertHtml += `
+                <div style="background:${color}15;border:1px solid ${color}40;border-left:3px solid ${color};border-radius:11px;padding:12px 14px;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                        <i class="fa-solid ${icon}" style="color:${color};font-size:12px;"></i>
+                        <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${color};">${a.severity}</span>
+                        <span style="font-size:10px;color:var(--text-3);font-family:var(--mono);">${a.alert_type}</span>
+                    </div>
+                    <div style="font-size:12.5px;color:var(--text-2);font-weight:500;">${a.message}</div>
+                    <div style="font-size:10px;color:var(--text-3);margin-top:4px;font-family:var(--mono);">${new Date(a.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}</div>
+                </div>
+            `;
+        });
+        alertHtml += '</div>';
+        document.getElementById('activeAlertsContent').innerHTML = alertHtml;
+    } else {
+        document.getElementById('activeAlertsContent').innerHTML = `
+            <div class="empty-state" style="padding:30px;">
+                <i class="fa-solid fa-circle-check" style="color:var(--green);"></i>
+                <h3 style="color:var(--green);">Semua Normal</h3>
+                <p>Tidak ada alert aktif untuk perangkat ini</p>
+            </div>
+        `;
     }
 
     // Load theme dari localStorage (tema diatur di dashboard/mobile)

@@ -47,3 +47,59 @@ def parse_datetime(value):
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=WIB)
     return dt
+
+
+def format_duration(seconds):
+    """Format detik ke string human-readable: 1h 30m 15s"""
+    if not seconds or seconds < 0:
+        return '0s'
+    seconds = int(seconds)
+    d = seconds // 86400
+    h = (seconds % 86400) // 3600
+    m = (seconds % 3600) // 60
+    s = seconds % 60
+
+    parts = []
+    if d > 0:
+        parts.append(f'{d}h')
+    if h > 0:
+        parts.append(f'{h}j')
+    if m > 0:
+        parts.append(f'{m}m')
+    if s > 0 and d == 0:
+        parts.append(f'{s}s')
+
+    return ' '.join(parts) if parts else '0s'
+
+
+def validate_alert_rules(rules):
+    """
+    Validasi struktur alert_rules.
+    Return: (is_valid, error_message)
+    """
+    if not isinstance(rules, dict):
+        return False, "alert_rules harus berupa object"
+
+    valid_severities = ['healthy', 'info', 'warning', 'danger']
+
+    for sensor_key, rule in rules.items():
+        if not isinstance(rule, dict):
+            return False, f"Rule untuk '{sensor_key}' harus berupa object"
+
+        for severity, range_dict in rule.items():
+            if severity not in valid_severities:
+                return False, (
+                    f"Severity '{severity}' tidak valid. "
+                    f"Pilih: {', '.join(valid_severities)}"
+                )
+            if not isinstance(range_dict, dict):
+                return False, f"'{sensor_key}.{severity}' harus berupa object"
+            if 'min' not in range_dict or 'max' not in range_dict:
+                return False, f"'{sensor_key}.{severity}' wajib punya 'min' dan 'max'"
+            try:
+                float(range_dict['min'])
+                float(range_dict['max'])
+            except (TypeError, ValueError):
+                return False, f"'{sensor_key}.{severity}' min/max harus angka"
+
+    return True, None
