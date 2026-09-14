@@ -10,30 +10,46 @@ from datetime import datetime, timedelta
 from config import get_config
 from database import get_db_context, get_wib_time
 from utils import parse_datetime
+from alerts import create_offline_alert, clear_offline_alert
 
 logger = logging.getLogger('nexus')
 
 shutdown_event = threading.Event()
 
 
+# ==========================================
+# STATUS CHECKER (per-device timeout)
+# ==========================================
 def check_device_status():
-    """Loop cek status online/offline device"""
+    """Loop cek status online/offline dengan timeout per device"""
     config = get_config()
-    logger.info(f"Status checker started (interval={config.CHECK_INTERVAL}s, timeout={config.OFFLINE_TIMEOUT}s)")
+    logger.info(
+        f"Status checker started "
+        f"(interval={config.CHECK_INTERVAL}s, "
+        f"default_timeout={config.OFFLINE_TIMEOUT}s)"
+    )
 
     while not shutdown_event.is_set():
         try:
             current_time = get_wib_time()
             with get_db_context() as conn:
-                devices = conn.execute(
-                    'SELECT device_id, last_seen, status FROM devices'
-                ).fetchall()
+                devices = conn.execute('''
+                    SELECT device_id, last_seen, status,
+                           offline_timeout, offline_alert_severity,
+                           expected_interval
+                    FROM devices
+                ''').fetchall()
 
                 for device in devices:
                     device_id = device['device_id']
                     last_seen = device['last_seen']
                     current_status = device['status']
 
+                    # Fallback ke global config
+                    timeout = device['offline_timeout'] or config.OFFLINE_TIMEOUT
+                    severity = device['offline_alert_severity'] or config.DEFAULT_OFFLINE_SEVERITY
+
+                    # Belum pernah kirim data
                     if not last_seen:
                         if current_status != 'offline':
                             conn.execute(
@@ -48,12 +64,39 @@ def check_device_status():
 
                     time_diff = (current_time - last_seen_dt).total_seconds()
 
-                    if time_diff > config.OFFLINE_TIMEOUT and current_status != 'offline':
+                    # Offline?
+                    if time_diff > timeout and current_status != 'offline':
                         conn.execute(
                             'UPDATE devices SET status = ? WHERE device_id = ?',
                             ('offline', device_id)
                         )
-                        logger.info(f"Device {device_id} marked OFFLINE (last seen {int(time_diff)}s ago)")
+                        logger.info(
+                            f"Device {device_id} OFFLINE "
+                            f"(last seen {int(time_diff)}s ago, "
+                            f"timeout={timeout}s)"
+                        )
+                        try:
+                            create_offline_alert(device_id, severity)
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to create offline alert: {e}",
+                                exc_info=True
+                            )
+
+                    # Kembali online? (safety net)
+                    elif time_diff <= timeout and current_status == 'offline':
+                        conn.execute(
+                            'UPDATE devices SET status = ? WHERE device_id = ?',
+                            ('online', device_id)
+                        )
+                        logger.info(f"Device {device_id} back online")
+                        try:
+                            clear_offline_alert(device_id)
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to clear offline alert: {e}",
+                                exc_info=True
+                            )
 
                 conn.commit()
 
@@ -65,11 +108,15 @@ def check_device_status():
     logger.info("Status checker stopped")
 
 
+# ==========================================
+# DATA CLEANUP
+# ==========================================
 def cleanup_old_data():
-    """Hapus data sensor yang lebih lama dari retention policy"""
+    """Hapus data sensor lama sesuai retention policy"""
     config = get_config()
     logger.info(f"Data cleanup started (retention={config.DATA_RETENTION_DAYS} days)")
 
+    # Tunggu 5 menit sebelum cleanup pertama
     shutdown_event.wait(300)
 
     while not shutdown_event.is_set():
@@ -90,11 +137,14 @@ def cleanup_old_data():
         except Exception as e:
             logger.error(f"Cleanup error: {e}", exc_info=True)
 
-        shutdown_event.wait(86400)
+        shutdown_event.wait(86400)  # tiap 24 jam
 
     logger.info("Data cleanup stopped")
 
 
+# ==========================================
+# DATABASE BACKUP
+# ==========================================
 def backup_database():
     """Backup database dengan SQLite backup API"""
     config = get_config()
@@ -102,8 +152,13 @@ def backup_database():
         logger.info("Backup disabled")
         return
 
-    logger.info(f"Backup started (interval={config.BACKUP_INTERVAL_HOURS}h, retention={config.BACKUP_RETENTION_DAYS}d)")
+    logger.info(
+        f"Backup started "
+        f"(interval={config.BACKUP_INTERVAL_HOURS}h, "
+        f"retention={config.BACKUP_RETENTION_DAYS}d)"
+    )
 
+    # Tunggu 10 menit sebelum backup pertama
     shutdown_event.wait(600)
 
     while not shutdown_event.is_set():
@@ -125,6 +180,7 @@ def backup_database():
             size_mb = os.path.getsize(backup_path) / (1024 * 1024)
             logger.info(f"Backup created: {backup_path} ({size_mb:.2f} MB)")
 
+            # Hapus backup lama
             cutoff_ts = datetime.now().timestamp() - (config.BACKUP_RETENTION_DAYS * 86400)
             for filename in os.listdir(config.BACKUP_DIR):
                 filepath = os.path.join(config.BACKUP_DIR, filename)
@@ -140,6 +196,9 @@ def backup_database():
     logger.info("Backup task stopped")
 
 
+# ==========================================
+# LIFECYCLE
+# ==========================================
 def start_background_tasks():
     """Start semua background thread"""
     threads = []

@@ -130,9 +130,10 @@
         };
         $('pageTitle').textContent = titles[section] || 'Dashboard';
 
-        $$('.sidebar-nav .nav-item').forEach((item, i) => {
-            const sections = ['dashboard', 'map', 'graph', 'devices'];
-            item.classList.toggle('active', sections[i] === section);
+        // Only toggle active for main sections, skip alert center
+        $$('.sidebar-nav .nav-item[data-section]').forEach((item) => {
+            const itemSection = item.getAttribute('data-section');
+            item.classList.toggle('active', itemSection === section);
         });
 
         if (section === 'map' && !state.mapFull) {
@@ -205,7 +206,6 @@
 
     function loadMarkers(map) {
         if (!map) return;
-        // Hapus marker lama
         map.eachLayer(layer => {
             if (layer instanceof L.CircleMarker) map.removeLayer(layer);
         });
@@ -213,7 +213,8 @@
         state.devices.forEach(d => {
             if (d.latitude && d.longitude) {
                 const color = d.status === 'online' ? '#30d158'
-                    : d.status === 'alert' ? '#ff9f0a'
+                    : d.has_alert && d.top_alert_severity === 'danger' ? '#ff453a'
+                    : d.has_alert && d.top_alert_severity === 'warning' ? '#ff9f0a'
                     : '#ff453a';
                 L.circleMarker([d.latitude, d.longitude], {
                     radius: 8,
@@ -308,9 +309,9 @@
 
     function filterDevicesByStatus(devices, filter) {
         switch (filter) {
-            case 'online': return devices.filter(d => d.status === 'online');
+            case 'online': return devices.filter(d => d.status === 'online' && !d.has_alert);
             case 'offline': return devices.filter(d => d.status === 'offline');
-            case 'alert': return devices.filter(d => getDeviceAlertStatus(d));
+            case 'alert': return devices.filter(d => d.has_alert);
             default: return devices;
         }
     }
@@ -326,9 +327,9 @@
     }
 
     function updateFilterCounts() {
-        const onlineCount = state.devices.filter(d => d.status === 'online').length;
+        const onlineCount = state.devices.filter(d => d.status === 'online' && !d.has_alert).length;
         const offlineCount = state.devices.filter(d => d.status === 'offline').length;
-        const alertCount = state.devices.filter(d => getDeviceAlertStatus(d)).length;
+        const alertCount = state.devices.filter(d => d.has_alert).length;
 
         const setText = (id, val) => {
             const el = $(id);
@@ -357,13 +358,31 @@
             const lastSeen = formatTime(d.last_seen);
             const uptime = formatUptime(d.latest_uptime_seconds || 0);
             const wifi = escapeHtml(d.latest_wifi_ssid || '-');
-            const statusClass = getDeviceAlertStatus(d) ? 'alert' : (d.status || 'offline');
+
+            // Status badge priority: alert severity > device status
+            let statusClass = d.status || 'offline';
+            let statusLabel = d.status || 'offline';
+
+            if (d.has_alert && d.top_alert_severity) {
+                statusClass = d.top_alert_severity;
+                statusLabel = d.top_alert_severity === 'danger' ? 'BAHAYA'
+                            : d.top_alert_severity === 'warning' ? 'PERINGATAN'
+                            : d.top_alert_severity;
+            }
+
+            // Interval info
+            const intervalInfo = d.expected_interval
+                ? `<span style="font-size:10px;color:var(--text-3);margin-left:6px;" title="Interval kirim data">⏱ ${formatUptime(d.expected_interval)}</span>`
+                : '';
 
             return `
                 <tr>
-                    <td><span class="status-badge ${statusClass}"><span class="status-dot-inline"></span>${statusClass}</span></td>
+                    <td><span class="status-badge ${statusClass}"><span class="status-dot-inline"></span>${statusLabel}</span></td>
                     <td><span class="device-id">${escapeHtml(d.device_id)}</span></td>
-                    <td><span class="device-name">${escapeHtml(d.device_name)}</span></td>
+                    <td>
+                        <span class="device-name">${escapeHtml(d.device_name)}</span>
+                        ${intervalInfo}
+                    </td>
                     ${full ? `<td>${escapeHtml(d.device_type || '-')}</td>` : ''}
                     <td>${wifi}</td>
                     <td>${uptime}</td>
@@ -371,10 +390,13 @@
                     <td>${lastSeen}</td>
                     <td>
                         <div class="device-actions">
-                            <button class="action-btn view" data-action="view" data-device-id="${escapeHtml(d.device_id)}">
+                            <button class="action-btn view" data-action="view" data-device-id="${escapeHtml(d.device_id)}" title="Detail">
                                 <i class="fa-solid fa-eye"></i>
                             </button>
-                            <button class="action-btn delete" data-action="delete" data-device-id="${escapeHtml(d.device_id)}">
+                            <button class="action-btn config" data-action="config" data-device-id="${escapeHtml(d.device_id)}" title="Konfigurasi Alert & Offline">
+                                <i class="fa-solid fa-sliders"></i>
+                            </button>
+                            <button class="action-btn delete" data-action="delete" data-device-id="${escapeHtml(d.device_id)}" title="Hapus">
                                 <i class="fa-solid fa-trash"></i>
                             </button>
                         </div>
@@ -383,9 +405,12 @@
             `;
         }).join('');
 
-        // Attach event listeners
+        // Attach listeners
         tbody.querySelectorAll('[data-action="view"]').forEach(btn => {
             btn.addEventListener('click', () => viewDevice(btn.dataset.deviceId));
+        });
+        tbody.querySelectorAll('[data-action="config"]').forEach(btn => {
+            btn.addEventListener('click', () => openEditDeviceConfig(btn.dataset.deviceId));
         });
         tbody.querySelectorAll('[data-action="delete"]').forEach(btn => {
             btn.addEventListener('click', () => openDeleteModal(btn.dataset.deviceId));
@@ -438,7 +463,12 @@
         $('totalDevices').textContent = summary.total_devices;
         $('onlineDevices').textContent = summary.online_devices;
         $('offlineDevices').textContent = summary.offline_devices;
-        $('deviceBadge').textContent = summary.total_devices;
+
+        const deviceBadgeEl = $('deviceBadge');
+        if (deviceBadgeEl) deviceBadgeEl.textContent = summary.total_devices;
+
+        const alertBadgeEl = $('alertBadge');
+        if (alertBadgeEl) alertBadgeEl.textContent = summary.active_alerts || 0;
 
         const alertsEl = $('activeAlerts');
         if (alertsEl) alertsEl.textContent = summary.active_alerts || 0;
@@ -464,7 +494,17 @@
     }
 
     function openAddDeviceModal() {
-        $('addDeviceModal').classList.add('active');
+        // Reset builder
+        if (window.populateAlertRules) window.populateAlertRules('add', null);
+        // Reset form fields
+        if ($('addDeviceId')) $('addDeviceId').value = '';
+        if ($('addDeviceName')) $('addDeviceName').value = '';
+        if ($('addDeviceLocation')) $('addDeviceLocation').value = '';
+        if ($('addDeviceInterval')) $('addDeviceInterval').value = '60';
+        if ($('addDeviceOfflineTimeout')) $('addDeviceOfflineTimeout').value = '';
+        if ($('addDeviceOfflineSeverity')) $('addDeviceOfflineSeverity').value = 'danger';
+
+        openModal('addDeviceModal');
     }
 
     async function addDevice() {
@@ -476,21 +516,44 @@
             return;
         }
 
-        const result = await API.addDevice({
+        // Collect alert rules dari builder
+        const alertRules = window.collectAlertRules ? window.collectAlertRules('add') : null;
+
+        const payload = {
             device_id: deviceId,
             device_name: deviceName,
             device_type: $('addDeviceType').value,
-            location: $('addDeviceLocation').value.trim()
-        });
+            location: $('addDeviceLocation').value.trim(),
+            expected_interval: parseInt($('addDeviceInterval')?.value) || 60,
+            offline_alert_severity: $('addDeviceOfflineSeverity')?.value || 'danger',
+        };
+
+        const offlineTimeout = $('addDeviceOfflineTimeout')?.value;
+        if (offlineTimeout) {
+            payload.offline_timeout = parseInt(offlineTimeout);
+        }
+
+        if (alertRules) {
+            payload.alert_rules = alertRules;
+        }
+
+        const result = await API.addDevice(payload);
 
         if (result.success) {
             closeModal('addDeviceModal');
             $('apiKeyDisplay').textContent = result.data.device.api_key;
             openModal('apiKeyModal');
-            // Reset form
+
+            // Reset
             $('addDeviceId').value = '';
             $('addDeviceName').value = '';
             $('addDeviceLocation').value = '';
+            if ($('addDeviceAlertRules')) $('addDeviceAlertRules').value = '';
+            if ($('addDeviceOfflineTimeout')) $('addDeviceOfflineTimeout').value = '';
+            if ($('addDeviceInterval')) $('addDeviceInterval').value = '60';
+            if ($('addDeviceOfflineSeverity')) $('addDeviceOfflineSeverity').value = 'danger';
+            if (window.populateAlertRules) window.populateAlertRules('add', null);
+
             loadDashboard();
         } else {
             const errMsg = typeof result.error === 'object'
@@ -524,6 +587,58 @@
             loadDashboard();
         } else {
             showToast(result.error || 'Gagal menghapus perangkat', 'error');
+        }
+    }
+
+    // ==========================================
+    // EDIT DEVICE CONFIG
+    // ==========================================
+    async function openEditDeviceConfig(deviceId) {
+        const result = await API.getDevice(deviceId);
+        if (!result.success) {
+            showToast('Gagal memuat konfigurasi device', 'error');
+            return;
+        }
+
+        const device = result.data.device;
+
+        $('editConfigDeviceId').value = deviceId;
+        $('editDeviceInterval').value = device.expected_interval || 60;
+        $('editDeviceOfflineTimeout').value = device.offline_timeout || 900;
+        $('editDeviceOfflineSeverity').value = device.offline_alert_severity || 'danger';
+
+        // Populate alert rules builder
+        if (window.populateAlertRules) {
+            window.populateAlertRules('edit', device.alert_rules);
+        }
+
+        openModal('editDeviceConfigModal');
+    }
+
+    async function saveDeviceConfig() {
+        const deviceId = $('editConfigDeviceId').value;
+        if (!deviceId) return;
+
+        const alertRules = window.collectAlertRules ? window.collectAlertRules('edit') : null;
+
+        const payload = {
+            expected_interval: parseInt($('editDeviceInterval').value) || 60,
+            offline_timeout: parseInt($('editDeviceOfflineTimeout').value) || 900,
+            offline_alert_severity: $('editDeviceOfflineSeverity').value,
+            alert_rules: alertRules,
+        };
+
+        const result = await API.updateDevice(deviceId, payload);
+
+        if (result.success) {
+            closeModal('editDeviceConfigModal');
+            showToast('Konfigurasi berhasil disimpan', 'success');
+            loadDashboard();
+        } else {
+            const errMsg = typeof result.error === 'object'
+                ? Object.values(result.error).flat().join(', ')
+                : result.error;
+            showToast(errMsg || 'Gagal menyimpan konfigurasi', 'error');
         }
     }
 
@@ -653,13 +768,11 @@
             chart.chartType = chartType;
             chart.showData = showData;
 
-            // Destroy old chart
             if (chart.chartInstance) {
                 chart.chartInstance.destroy();
                 chart.chartInstance = null;
             }
 
-            // Update header
             const card = document.getElementById(editId);
             if (card) {
                 const dataLabels = Object.entries(showData)
@@ -747,7 +860,6 @@
 
         grid.appendChild(card);
 
-        // Event listeners
         card.querySelector('.chart-edit-btn').addEventListener('click', e => {
             e.stopPropagation();
             e.preventDefault();
@@ -935,7 +1047,6 @@
         const ctx = canvas.getContext('2d');
         const colors = getChartColors();
 
-        // Destroy existing
         if (config.chartInstance) {
             try { config.chartInstance.destroy(); } catch (e) {}
             config.chartInstance = null;
@@ -1176,12 +1287,32 @@
         const logo = document.querySelector('.logo-ring');
         if (logo) logo.addEventListener('click', toggleSidebar);
 
-        // Navigation
-        const navItems = document.querySelectorAll('.sidebar-nav .nav-item');
+        // Navigation (main sections only, skip alert center)
+        const navItems = document.querySelectorAll('.sidebar-nav .nav-item[data-section]');
         const sections = ['dashboard', 'map', 'graph', 'devices'];
-        navItems.forEach((item, i) => {
-            item.addEventListener('click', () => showSection(sections[i]));
+        navItems.forEach((item) => {
+            const sec = item.getAttribute('data-section');
+            const idx = sections.indexOf(sec);
+            if (idx !== -1) {
+                item.addEventListener('click', () => showSection(sec));
+            }
         });
+
+        // Alert Center nav
+        const alertNav = $('alertCenterNav');
+        if (alertNav) {
+            alertNav.addEventListener('click', () => {
+                window.location.href = '/alerts';
+            });
+        }
+
+        // Logout
+        const logoutBtn = $('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                window.location.href = '/logout';
+            });
+        }
 
         // Theme toggle
         const themeBtn = $('themeToggleBtn');
@@ -1192,10 +1323,6 @@
                 setTimeout(refreshAllCharts, 100);
             });
         }
-
-        // Logout
-        const logoutBtn = document.querySelector('.sidebar-footer .nav-item');
-        if (logoutBtn) logoutBtn.addEventListener('click', () => window.location.href = '/logout');
 
         // Search
         const searchInput = $('searchInput');
@@ -1274,6 +1401,11 @@
             btn.addEventListener('click', addDevice);
         });
 
+        // Save device config
+        document.querySelectorAll('[data-action="save-device-config"]').forEach(btn => {
+            btn.addEventListener('click', saveDeviceConfig);
+        });
+
         // Copy API key
         document.querySelectorAll('[data-action="copy-api-key"]').forEach(btn => {
             btn.addEventListener('click', copyApiKey);
@@ -1289,7 +1421,7 @@
             btn.addEventListener('click', saveChart);
         });
 
-        // Theme change listener — refresh charts
+        // Theme change listener
         ThemeManager.onChange(() => setTimeout(refreshAllCharts, 100));
     }
 
@@ -1301,19 +1433,14 @@
     }
 
     async function init() {
-        // Bind events first
         bindEvents();
-
-        // Init UI
         updateThemeUI(ThemeManager.get());
         loadGlobalTimeRange();
         updateDateTime();
         setInterval(updateDateTime, 1000);
 
-        // Init maps
         initMapPreview();
 
-        // Load data
         await loadDashboard();
         state.dashboardInterval = setInterval(loadDashboard, 30000);
         startAutoRefresh();
@@ -1322,7 +1449,6 @@
         console.log('[Dashboard] Ready');
     }
 
-    // Start when DOM ready
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
     } else {

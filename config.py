@@ -20,6 +20,7 @@ class Config:
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
     WORKERS = int(os.getenv('WORKERS', 2))
     THREADS = int(os.getenv('THREADS', 4))
+    TESTING = False
 
     # ==========================================
     # SECURITY
@@ -57,10 +58,12 @@ class Config:
     BACKUP_DIR = os.getenv('BACKUP_DIR', os.path.join(BASE_DIR, 'backup'))
 
     # ==========================================
-    # DEVICE MONITORING
+    # DEVICE MONITORING (default global)
     # ==========================================
-    OFFLINE_TIMEOUT = int(os.getenv('OFFLINE_TIMEOUT', 900))
-    CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 60))
+    OFFLINE_TIMEOUT = int(os.getenv('OFFLINE_TIMEOUT', 900))         # 15 menit
+    CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 60))            # 1 menit
+    DEFAULT_EXPECTED_INTERVAL = int(os.getenv('DEFAULT_EXPECTED_INTERVAL', 60))
+    DEFAULT_OFFLINE_SEVERITY = os.getenv('DEFAULT_OFFLINE_SEVERITY', 'danger')
 
     # ==========================================
     # CORS
@@ -87,23 +90,33 @@ class Config:
     LOG_BACKUP_COUNT = int(os.getenv('LOG_BACKUP_COUNT', 5))
 
     # ==========================================
-    # ALERTS
+    # ALERTS - GLOBAL DEFAULTS (fallback per device)
+    # Format: {sensor_key: {severity: {min, max}}}
     # ==========================================
     ALERT_RULES = {
         'temperature': {
-            'min': float(os.getenv('ALERT_TEMP_MIN', 0)),
-            'max': float(os.getenv('ALERT_TEMP_MAX', 40)),
-            'message': 'Suhu di luar batas normal',
+            'healthy': {
+                'min': float(os.getenv('ALERT_TEMP_HEALTHY_MIN', 6)),
+                'max': float(os.getenv('ALERT_TEMP_HEALTHY_MAX', 28)),
+            },
+            'warning': {
+                'min': float(os.getenv('ALERT_TEMP_WARNING_MIN', 0)),
+                'max': float(os.getenv('ALERT_TEMP_WARNING_MAX', 32)),
+            },
+            'danger': {
+                'min': float(os.getenv('ALERT_TEMP_DANGER_MIN', -10)),
+                'max': float(os.getenv('ALERT_TEMP_DANGER_MAX', 40)),
+            },
         },
         'humidity': {
-            'min': float(os.getenv('ALERT_HUMIDITY_MIN', 20)),
-            'max': float(os.getenv('ALERT_HUMIDITY_MAX', 90)),
-            'message': 'Kelembaban di luar batas normal',
+            'healthy': {'min': 20, 'max': 90},
+            'warning': {'min': 10, 'max': 95},
+            'danger':  {'min': 0,  'max': 100},
         },
         'gas_level': {
-            'min': 0,
-            'max': float(os.getenv('ALERT_GAS_MAX', 70)),
-            'message': 'Level gas berbahaya',
+            'healthy': {'min': 0, 'max': 70},
+            'warning': {'min': 0, 'max': 85},
+            'danger':  {'min': 0, 'max': 100},
         },
     }
 
@@ -136,8 +149,8 @@ class Config:
         if not (1 <= cls.PORT <= 65535):
             errors.append(f"PORT harus antara 1-65535, dapat: {cls.PORT}")
 
-        if cls.OFFLINE_TIMEOUT < 60:
-            errors.append("OFFLINE_TIMEOUT minimal 60 detik")
+        if cls.OFFLINE_TIMEOUT < 10:
+            errors.append("OFFLINE_TIMEOUT minimal 10 detik")
         if cls.CHECK_INTERVAL < 10:
             errors.append("CHECK_INTERVAL minimal 10 detik")
 

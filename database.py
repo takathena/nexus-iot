@@ -1,6 +1,7 @@
 """
 NEXUS IoT - Database Layer
 Thread-safe SQLite dengan WAL mode.
+Schema version 3: dynamic alerting + per-device offline timeout.
 """
 import os
 import sqlite3
@@ -80,7 +81,7 @@ def get_db_context():
 # ==========================================
 # SCHEMA VERSIONING
 # ==========================================
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def init_db():
@@ -109,6 +110,11 @@ def init_db():
             _migrate_v2(cursor)
             cursor.execute('INSERT INTO schema_version (version) VALUES (2)')
             print("[DB] Applied migration v2")
+
+        if current_version < 3:
+            _migrate_v3(cursor)
+            cursor.execute('INSERT INTO schema_version (version) VALUES (3)')
+            print("[DB] Applied migration v3")
 
         conn.commit()
         print(f"[DB] Database initialized! (version {SCHEMA_VERSION})")
@@ -162,17 +168,14 @@ def _migrate_v1(cursor):
         CREATE INDEX IF NOT EXISTS idx_sensor_data_device_timestamp
         ON sensor_data (device_id, timestamp)
     ''')
-
     cursor.execute('''
         CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp
         ON sensor_data (timestamp)
     ''')
-
     cursor.execute('''
         CREATE INDEX IF NOT EXISTS idx_devices_status
         ON devices (status)
     ''')
-
     cursor.execute('''
         CREATE INDEX IF NOT EXISTS idx_alerts_device_active
         ON alerts (device_id, is_active)
@@ -180,7 +183,7 @@ def _migrate_v1(cursor):
 
 
 def _migrate_v2(cursor):
-    """Tambah kolom untuk tracking"""
+    """Tambah kolom tracking"""
     cols = [row[1] for row in cursor.execute('PRAGMA table_info(devices)').fetchall()]
 
     if 'last_ip' not in cols:
@@ -188,3 +191,88 @@ def _migrate_v2(cursor):
 
     if 'firmware_version' not in cols:
         cursor.execute('ALTER TABLE devices ADD COLUMN firmware_version TEXT DEFAULT ""')
+
+
+def _migrate_v3(cursor):
+    """
+    Migration v3: Dynamic alerting & per-device offline timeout
+
+    devices:
+      - offline_timeout         : detik, kapan device dianggap offline
+      - expected_interval       : detik, interval kirim data yang diharapkan
+      - alert_rules             : JSON threshold per device (NULL = global)
+      - offline_alert_severity  : severity saat offline (info/warning/danger)
+
+    alerts:
+      - severity                : info/warning/danger/healthy
+      - value                   : nilai sensor saat alert
+      - updated_at              : kapan terakhir diupdate
+
+    alert_history (baru):
+      - log semua perubahan alert
+    """
+    # --- devices ---
+    cols = [row[1] for row in cursor.execute('PRAGMA table_info(devices)').fetchall()]
+
+    if 'offline_timeout' not in cols:
+        cursor.execute(
+            'ALTER TABLE devices ADD COLUMN offline_timeout INTEGER DEFAULT 900'
+        )
+
+    if 'expected_interval' not in cols:
+        cursor.execute(
+            'ALTER TABLE devices ADD COLUMN expected_interval INTEGER DEFAULT 60'
+        )
+
+    if 'alert_rules' not in cols:
+        cursor.execute(
+            'ALTER TABLE devices ADD COLUMN alert_rules TEXT DEFAULT NULL'
+        )
+
+    if 'offline_alert_severity' not in cols:
+        cursor.execute(
+            "ALTER TABLE devices ADD COLUMN offline_alert_severity TEXT DEFAULT 'danger'"
+        )
+
+    # --- alerts ---
+    alert_cols = [row[1] for row in cursor.execute('PRAGMA table_info(alerts)').fetchall()]
+
+    if 'severity' not in alert_cols:
+        cursor.execute(
+            "ALTER TABLE alerts ADD COLUMN severity TEXT DEFAULT 'warning'"
+        )
+
+    if 'value' not in alert_cols:
+        cursor.execute(
+            'ALTER TABLE alerts ADD COLUMN value REAL DEFAULT NULL'
+        )
+
+    if 'updated_at' not in alert_cols:
+        cursor.execute(
+            'ALTER TABLE alerts ADD COLUMN updated_at DATETIME DEFAULT NULL'
+        )
+
+    # --- alert_history ---
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS alert_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            device_id TEXT NOT NULL,
+            alert_type TEXT NOT NULL,
+            severity TEXT NOT NULL,
+            message TEXT NOT NULL,
+            value REAL,
+            action TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (device_id) REFERENCES devices (device_id)
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_alert_history_device
+        ON alert_history (device_id, created_at)
+    ''')
+
+    cursor.execute('''
+        CREATE INDEX IF NOT EXISTS idx_alerts_severity
+        ON alerts (severity, is_active)
+    ''')
