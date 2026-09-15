@@ -1,25 +1,15 @@
 /* ==========================================
    NEXUS IoT - API Helper
-   Semua request ke server harus pakai apiFetch()
    ========================================== */
 
 (function() {
     'use strict';
 
-    // Ambil CSRF token dari meta tag
     const metaTag = document.querySelector('meta[name="csrf-token"]');
     const CSRF_TOKEN = metaTag ? metaTag.content : '';
 
-    if (!CSRF_TOKEN) {
-        console.warn('[API] CSRF token tidak ditemukan. Form POST akan gagal.');
-    }
+    if (!CSRF_TOKEN) console.warn('[API] CSRF token tidak ditemukan.');
 
-    /**
-     * Fetch wrapper dengan CSRF token & credentials otomatis
-     * @param {string} url - Endpoint URL
-     * @param {object} options - Fetch options
-     * @returns {Promise<Response>}
-     */
     async function apiFetch(url, options = {}) {
         const method = (options.method || 'GET').toUpperCase();
         const headers = {
@@ -28,31 +18,21 @@
             ...(options.headers || {})
         };
 
-        // Tambahkan CSRF token untuk method yang mengubah data
         if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
             headers['X-CSRFToken'] = CSRF_TOKEN;
         }
 
-        const response = await fetch(url, {
+        return fetch(url, {
             ...options,
             method,
             headers,
             credentials: 'same-origin'
         });
-
-        return response;
     }
 
-    /**
-     * API call yang otomatis parse JSON dan handle error
-     * @param {string} url
-     * @param {object} options
-     * @returns {Promise<{success: boolean, data?: any, error?: string, status: number}>}
-     */
     async function apiCall(url, options = {}) {
         try {
             const response = await apiFetch(url, options);
-
             let data;
             const contentType = response.headers.get('content-type');
             if (contentType && contentType.includes('application/json')) {
@@ -70,75 +50,62 @@
                 };
             }
 
-            return {
-                success: true,
-                status: response.status,
-                data
-            };
+            return { success: true, status: response.status, data };
         } catch (err) {
             console.error('[API] Request failed:', err);
-            return {
-                success: false,
-                status: 0,
-                error: err.message || 'Network error'
-            };
+            return { success: false, status: 0, error: err.message || 'Network error' };
         }
     }
 
-    // ==========================================
-    // HIGH-LEVEL API METHODS
-    // ==========================================
     const API = {
         // Devices
         getDevices: (params = {}) => {
             const qs = new URLSearchParams(params).toString();
             return apiCall(`/api/v1/devices${qs ? '?' + qs : ''}`);
         },
-
         getDevice: (deviceId) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}`),
-
-        addDevice: (data) => apiCall('/api/v1/devices', {
-            method: 'POST',
-            body: JSON.stringify(data)
-        }),
-
-        updateDevice: (deviceId, data) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}`, {
-            method: 'PUT',
-            body: JSON.stringify(data)
-        }),
-
-        deleteDevice: (deviceId) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}`, {
-            method: 'DELETE'
-        }),
-
-        regenerateKey: (deviceId) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/regenerate-key`, {
-            method: 'POST'
-        }),
-
+        addDevice: (data) => apiCall('/api/v1/devices', { method: 'POST', body: JSON.stringify(data) }),
+        updateDevice: (deviceId, data) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}`, { method: 'PUT', body: JSON.stringify(data) }),
+        deleteDevice: (deviceId) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}`, { method: 'DELETE' }),
+        regenerateKey: (deviceId) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/regenerate-key`, { method: 'POST' }),
         getDeviceHistory: (deviceId, params = {}) => {
             const qs = new URLSearchParams(params).toString();
             return apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/history${qs ? '?' + qs : ''}`);
         },
+        getDeviceAlertRules: (deviceId) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/alert-rules`),
+        updateDeviceAlertRules: (deviceId, rules) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/alert-rules`, { method: 'PUT', body: JSON.stringify(rules) }),
 
         // Dashboard
         getDashboard: () => apiCall('/api/v1/dashboard'),
 
         // Alerts
         getAlerts: () => apiCall('/api/v1/alerts'),
-
-        acknowledgeAlert: (alertId) => apiCall(`/api/v1/alerts/${alertId}/acknowledge`, {
-            method: 'POST'
-        }),
+        getAlertsAll: (params = {}) => {
+            const qs = new URLSearchParams(params).toString();
+            return apiCall(`/api/v1/alerts/all${qs ? '?' + qs : ''}`);
+        },
+        getAlertsStats: () => apiCall('/api/v1/alerts/stats'),
+        acknowledgeAlert: (alertId) => apiCall(`/api/v1/alerts/${alertId}/acknowledge`, { method: 'POST' }),
+        bulkAcknowledge: (ids) => apiCall('/api/v1/alerts/bulk-acknowledge', { method: 'POST', body: JSON.stringify({ ids }) }),
 
         // Health
         health: () => apiCall('/health'),
+        getSystemInfo: () => apiCall('/api/v1/system/info'),
 
-        // Expose raw helpers
+        // Attendance
+        getAttendance: () => apiCall('/api/v1/attendance'),
+        getAttendanceStats: () => apiCall('/api/v1/attendance/stats'),
+        getAttendanceToday: () => apiCall('/api/v1/attendance/today'),
+        getUnregisteredCards: () => apiCall('/api/v1/attendance/unregistered'),
+        getCardholders: () => apiCall('/api/v1/cardholders'),
+        getLastUnknownTap: () => apiCall('/api/v1/attendance/last-unknown'),
+        addCardholder: (data) => apiCall('/api/v1/cardholders', { method: 'POST', body: JSON.stringify(data) }),
+        deleteCardholder: (uid) => apiCall(`/api/v1/cardholders/${encodeURIComponent(uid)}`, { method: 'DELETE' }),
+
         fetch: apiFetch,
         call: apiCall
     };
 
-    // Expose ke global
     window.API = API;
     window.apiFetch = apiFetch;
     window.apiCall = apiCall;

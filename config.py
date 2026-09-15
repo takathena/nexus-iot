@@ -1,6 +1,5 @@
 """
 NEXUS IoT - Configuration Management
-Semua konfigurasi dibaca dari environment variable.
 """
 import os
 from datetime import timedelta
@@ -20,6 +19,7 @@ class Config:
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
     WORKERS = int(os.getenv('WORKERS', 2))
     THREADS = int(os.getenv('THREADS', 4))
+    TESTING = False
 
     # ==========================================
     # SECURITY
@@ -28,12 +28,8 @@ class Config:
     SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
-    PERMANENT_SESSION_LIFETIME = timedelta(
-        hours=int(os.getenv('SESSION_LIFETIME_HOURS', 24))
-    )
+    PERMANENT_SESSION_LIFETIME = timedelta(hours=int(os.getenv('SESSION_LIFETIME_HOURS', 24)))
     SESSION_REFRESH_EACH_REQUEST = True
-
-    # CSRF
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None
 
@@ -50,7 +46,6 @@ class Config:
     DB_PATH = os.getenv('DB_PATH', os.path.join(BASE_DIR, 'database', 'iot.db'))
     DATA_RETENTION_DAYS = int(os.getenv('DATA_RETENTION_DAYS', 30))
 
-    # Backup
     BACKUP_ENABLED = os.getenv('BACKUP_ENABLED', 'True').lower() == 'true'
     BACKUP_INTERVAL_HOURS = int(os.getenv('BACKUP_INTERVAL_HOURS', 24))
     BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', 7))
@@ -61,6 +56,8 @@ class Config:
     # ==========================================
     OFFLINE_TIMEOUT = int(os.getenv('OFFLINE_TIMEOUT', 900))
     CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 60))
+    DEFAULT_EXPECTED_INTERVAL = int(os.getenv('DEFAULT_EXPECTED_INTERVAL', 60))
+    DEFAULT_OFFLINE_SEVERITY = os.getenv('DEFAULT_OFFLINE_SEVERITY', 'danger')
 
     # ==========================================
     # CORS
@@ -87,23 +84,32 @@ class Config:
     LOG_BACKUP_COUNT = int(os.getenv('LOG_BACKUP_COUNT', 5))
 
     # ==========================================
-    # ALERTS
+    # ALERTS - GLOBAL DEFAULTS
     # ==========================================
     ALERT_RULES = {
         'temperature': {
-            'min': float(os.getenv('ALERT_TEMP_MIN', 0)),
-            'max': float(os.getenv('ALERT_TEMP_MAX', 40)),
-            'message': 'Suhu di luar batas normal',
+            'healthy': {
+                'min': float(os.getenv('ALERT_TEMP_HEALTHY_MIN', 6)),
+                'max': float(os.getenv('ALERT_TEMP_HEALTHY_MAX', 28)),
+            },
+            'warning': {
+                'min': float(os.getenv('ALERT_TEMP_WARNING_MIN', 0)),
+                'max': float(os.getenv('ALERT_TEMP_WARNING_MAX', 32)),
+            },
+            'danger': {
+                'min': float(os.getenv('ALERT_TEMP_DANGER_MIN', -10)),
+                'max': float(os.getenv('ALERT_TEMP_DANGER_MAX', 40)),
+            },
         },
         'humidity': {
-            'min': float(os.getenv('ALERT_HUMIDITY_MIN', 20)),
-            'max': float(os.getenv('ALERT_HUMIDITY_MAX', 90)),
-            'message': 'Kelembaban di luar batas normal',
+            'healthy': {'min': 20, 'max': 90},
+            'warning': {'min': 10, 'max': 95},
+            'danger':  {'min': 0,  'max': 100},
         },
         'gas_level': {
-            'min': 0,
-            'max': float(os.getenv('ALERT_GAS_MAX', 70)),
-            'message': 'Level gas berbahaya',
+            'healthy': {'min': 0, 'max': 70},
+            'warning': {'min': 0, 'max': 85},
+            'danger':  {'min': 0, 'max': 100},
         },
     }
 
@@ -115,7 +121,6 @@ class Config:
 
     @classmethod
     def validate(cls):
-        """Validasi config wajib"""
         errors = []
 
         if not cls.SECRET_KEY:
@@ -136,8 +141,8 @@ class Config:
         if not (1 <= cls.PORT <= 65535):
             errors.append(f"PORT harus antara 1-65535, dapat: {cls.PORT}")
 
-        if cls.OFFLINE_TIMEOUT < 60:
-            errors.append("OFFLINE_TIMEOUT minimal 60 detik")
+        if cls.OFFLINE_TIMEOUT < 10:
+            errors.append("OFFLINE_TIMEOUT minimal 10 detik")
         if cls.CHECK_INTERVAL < 10:
             errors.append("CHECK_INTERVAL minimal 10 detik")
 
@@ -171,9 +176,7 @@ class TestingConfig(Config):
 
 
 def get_config():
-    """Ambil config berdasarkan FLASK_ENV"""
     env = os.getenv('FLASK_ENV', 'production').lower()
-
     if env == 'development':
         return DevelopmentConfig
     elif env == 'testing':

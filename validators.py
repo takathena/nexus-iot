@@ -1,5 +1,5 @@
 """
-NEXUS IoT - Input Validation dengan Marshmallow
+NEXUS IoT - Input Validation
 """
 from marshmallow import Schema, fields, validate, ValidationError
 
@@ -9,19 +9,23 @@ class DeviceCreateSchema(Schema):
         required=True,
         validate=[
             validate.Length(min=1, max=64),
-            validate.Regexp(
-                r'^[a-zA-Z0-9_\-]+$',
-                error='Device ID hanya boleh huruf, angka, dash, dan underscore'
-            )
+            validate.Regexp(r'^[a-zA-Z0-9_\-]+$',
+                            error='Device ID hanya boleh huruf, angka, dash, dan underscore')
         ]
     )
     device_name = fields.Str(required=True, validate=validate.Length(min=1, max=128))
-    device_type = fields.Str(
-        load_default='ESP32',
-        validate=validate.Length(max=32)
-    )
+    device_type = fields.Str(load_default='ESP32', validate=validate.Length(max=32))
     location = fields.Str(load_default='', validate=validate.Length(max=255))
     description = fields.Str(load_default='', validate=validate.Length(max=1000))
+
+    expected_interval = fields.Int(load_default=60, validate=validate.Range(min=10, max=86400))
+    offline_timeout = fields.Int(load_default=None, allow_none=True,
+                                 validate=validate.Range(min=10, max=604800))
+    offline_alert_severity = fields.Str(
+        load_default='danger',
+        validate=validate.OneOf(['info', 'warning', 'danger'])
+    )
+    alert_rules = fields.Dict(load_default=None, allow_none=True)
 
 
 class DeviceUpdateSchema(Schema):
@@ -31,6 +35,11 @@ class DeviceUpdateSchema(Schema):
     description = fields.Str(validate=validate.Length(max=1000))
     latitude = fields.Float(validate=validate.Range(min=-90, max=90))
     longitude = fields.Float(validate=validate.Range(min=-180, max=180))
+
+    expected_interval = fields.Int(validate=validate.Range(min=10, max=86400))
+    offline_timeout = fields.Int(validate=validate.Range(min=10, max=604800))
+    offline_alert_severity = fields.Str(validate=validate.OneOf(['info', 'warning', 'danger']))
+    alert_rules = fields.Dict(allow_none=True)
 
 
 class SensorDataSchema(Schema):

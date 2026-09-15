@@ -7,20 +7,14 @@
     <meta name="theme-color" content="#000000">
     <title>{% block title %}NEXUS IoT{% endblock %}</title>
 
-    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
-    <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-
-    <!-- Shared CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
 
     {% block extra_css %}{% endblock %}
 
-    <!-- Load theme immediately to prevent flash -->
     <script>
         (function() {
             const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
@@ -31,7 +25,6 @@
 <body>
     {% block content %}{% endblock %}
 
-    <!-- Shared JS -->
     <script src="{{ url_for('static', filename='js/api.js') }}"></script>
     <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
     <script src="{{ url_for('static', filename='js/toast.js') }}"></script>

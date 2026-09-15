@@ -1,0 +1,61 @@
+<div id="attendanceSection" style="display:none;">
+    <!-- Stat cards untuk absensi -->
+    <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:20px;">
+        <div class="stat-card clickable" data-stat-type="hadir" style="cursor:pointer;">
+            <div class="stat-top">
+                <div class="stat-icon present"><i class="fa-solid fa-user-check"></i></div>
+                <i class="fa-solid fa-chevron-right" style="color:var(--text-3);font-size:12px;"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Hadir Hari Ini</h3>
+                <div class="value" id="statHadirHariIni">0</div>
+            </div>
+        </div>
+        <div class="stat-card clickable" data-stat-type="total" style="cursor:pointer;">
+            <div class="stat-top">
+                <div class="stat-icon total"><i class="fa-solid fa-id-card"></i></div>
+                <i class="fa-solid fa-chevron-right" style="color:var(--text-3);font-size:12px;"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Total Kartu Aktif</h3>
+                <div class="value" id="statTotalKartu">0</div>
+            </div>
+        </div>
+        <div class="stat-card clickable" data-stat-type="belum-terdaftar" style="cursor:pointer;">
+            <div class="stat-top">
+                <div class="stat-icon alerts"><i class="fa-solid fa-circle-question"></i></div>
+                <i class="fa-solid fa-chevron-right" style="color:var(--text-3);font-size:12px;"></i>
+            </div>
+            <div class="stat-info">
+                <h3>Kartu Belum Terdaftar</h3>
+                <div class="value" id="statBelumTerdaftar">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-card">
+        <div class="section-header">
+            <div class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Absensi</div>
+            <button class="btn btn-primary" data-action="open-cardholder-modal">
+                <i class="fa-solid fa-plus"></i> Daftarkan Kartu
+            </button>
+        </div>
+        <div class="section-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table class="device-table">
+                    <thead>
+                        <tr>
+                            <th>Nama</th>
+                            <th>UID</th>
+                            <th>Perangkat</th>
+                            <th>Waktu</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody">
+                        <tr><td colspan="4" style="text-align:center;padding:40px;color:var(--text-3);">Memuat…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>

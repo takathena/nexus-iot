@@ -1,5 +1,5 @@
 """
-NEXUS IoT - Web Views (HTML Routes)
+NEXUS IoT - Web Views
 """
 from flask import Blueprint, render_template
 from auth import login_required
@@ -23,3 +23,9 @@ def mobile_dashboard():
 @login_required
 def device_detail(device_id):
     return render_template('device_detail.html', device_id=device_id)
+
+
+@views_bp.route('/alerts')
+@login_required
+def alerts_page():
+    return render_template('alerts.html')
