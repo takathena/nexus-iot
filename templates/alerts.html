@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Alert Center — NEXUS{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo-ring"><i class="fa-solid fa-satellite-dish"></i></div>
+        <span class="title">NEXUS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Menu Utama</div>
+        <a class="nav-item" href="/#dashboard" data-section="dashboard">
+            <span class="icon"><i class="fa-solid fa-chart-pie"></i></span>
+            <span class="label">Dashboard</span>
+        </a>
+        <a class="nav-item" href="/#map" data-section="map">
+            <span class="icon"><i class="fa-solid fa-map"></i></span>
+            <span class="label">Peta Lokasi</span>
+        </a>
+        <a class="nav-item" href="/#graph" data-section="graph">
+            <span class="icon"><i class="fa-solid fa-chart-line"></i></span>
+            <span class="label">Analitik</span>
+        </a>
+        <a class="nav-item" href="/#attendance" data-section="attendance">
+            <span class="icon"><i class="fa-solid fa-id-card"></i></span>
+            <span class="label">Absensi</span>
+        </a>
+        <div class="nav-section">Manajemen</div>
+        <a class="nav-item" href="/#devices" data-section="devices">
+            <span class="icon"><i class="fa-solid fa-microchip"></i></span>
+            <span class="label">Perangkat</span>
+        </a>
+        <a class="nav-item active" href="/alerts" data-section="alerts">
+            <span class="icon"><i class="fa-solid fa-bell"></i></span>
+            <span class="label">Alert Center</span>
+            <span class="badge" id="alertBadge">0</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <button class="theme-toggle-btn" id="themeToggleBtn">
+            <span class="icon"><i class="fa-solid fa-moon" id="themeIcon"></i></span>
+            <span class="label" id="themeLabel">Tema Gelap</span>
+        </button>
+        <div class="nav-item" id="logoutBtn">
+            <span class="icon"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
+            <span class="label">Logout</span>
+        </div>
+    </div>
+</div>
+
+<div class="main-content" id="mainContent">
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="page-indicator"></div>
+            <h1 class="topbar-title">Alert Center</h1>
+        </div>
+        <div class="topbar-right">
+            <div class="datetime-display">
+                <div class="date" id="currentDate"></div>
+                <div class="time" id="currentTime"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-area">
+        {% include 'partials/alerts_section.html' %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
+{% endblock %}

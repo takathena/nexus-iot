@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+
+{% block title %}NEXUS — Command Center{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+{% endblock %}
+
+{% block content %}
+<script>
+    if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(navigator.userAgent) || window.innerWidth <= 768) {
+        window.location.href = '/mobile';
+    }
+</script>
+
+<!-- ✅ ANTI-FLASH: Set section SEBELUM DOM ready, biar tidak ada flash dashboard -->
+<script>
+    (function() {
+        var hash = (window.location.hash || '').replace('#', '').trim();
+        var valid = ['dashboard', 'map', 'graph', 'attendance', 'devices'];
+
+        if (!valid.includes(hash)) {
+            try {
+                var saved = sessionStorage.getItem('nexus-last-section');
+                if (saved && valid.includes(saved)) {
+                    hash = saved;
+                } else {
+                    hash = 'dashboard';
+                }
+            } catch (e) {
+                hash = 'dashboard';
+            }
+        }
+
+        // Set hash di URL biar konsisten
+        if (window.location.hash !== '#' + hash) {
+            try { history.replaceState(null, '', '#' + hash); } catch (e) {}
+        }
+
+        // Set display:none untuk semua section dulu (biar bersih)
+        // Set display:block untuk section yang benar
+        var sections = ['dashboard', 'map', 'graph', 'attendance', 'devices'];
+        var applySection = function() {
+            sections.forEach(function(s) {
+                var el = document.getElementById(s + 'Section');
+                if (el) el.style.display = (s === hash) ? 'block' : 'none';
+            });
+
+            // Update page title
+            var titles = {
+                dashboard: 'Dashboard',
+                map: 'Peta Interaktif',
+                graph: 'Analitik Sensor',
+                devices: 'Manajemen Perangkat',
+                attendance: 'Absensi'
+            };
+            var titleEl = document.getElementById('pageTitle');
+            if (titleEl) titleEl.textContent = titles[hash] || 'Dashboard';
+
+            // Update sidebar active
+            var navItems = document.querySelectorAll('.sidebar-nav .nav-item[data-section]');
+            navItems.forEach(function(item) {
+                var sec = item.getAttribute('data-section');
+                item.classList.toggle('active', sec === hash);
+            });
+        };
+
+        // Coba langsung (DOM mungkin sudah ada karena script di tengah body)
+        applySection();
+
+        // Juga saat DOM ready, kalau elemen belum ada saat script jalan
+        document.addEventListener('DOMContentLoaded', applySection);
+    })();
+</script>
+
+<svg width="0" height="0" style="position:absolute">
+    <defs>
+        <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#30d158"/>
+            <stop offset="100%" stop-color="#64d2ff"/>
+        </linearGradient>
+    </defs>
+</svg>
+
+<div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo-ring"><i class="fa-solid fa-satellite-dish"></i></div>
+        <span class="title">NEXUS</span>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">Menu Utama</div>
+        <a class="nav-item" href="#dashboard" data-section="dashboard">
+            <span class="icon"><i class="fa-solid fa-chart-pie"></i></span>
+            <span class="label">Dashboard</span>
+        </a>
+        <a class="nav-item" href="#map" data-section="map">
+            <span class="icon"><i class="fa-solid fa-map"></i></span>
+            <span class="label">Peta Lokasi</span>
+        </a>
+        <a class="nav-item" href="#graph" data-section="graph">
+            <span class="icon"><i class="fa-solid fa-chart-line"></i></span>
+            <span class="label">Analitik</span>
+        </a>
+        <a class="nav-item" href="#attendance" data-section="attendance">
+            <span class="icon"><i class="fa-solid fa-id-card"></i></span>
+            <span class="label">Absensi</span>
+        </a>
+        <div class="nav-section">Manajemen</div>
+        <a class="nav-item" href="#devices" data-section="devices">
+            <span class="icon"><i class="fa-solid fa-microchip"></i></span>
+            <span class="label">Perangkat</span>
+            <span class="badge" id="deviceBadge">0</span>
+        </a>
+        <a class="nav-item" href="/alerts" data-section="alerts">
+            <span class="icon"><i class="fa-solid fa-bell"></i></span>
+            <span class="label">Alert Center</span>
+            <span class="badge" id="alertBadge">0</span>
+        </a>
+    </nav>
+    <div class="sidebar-footer">
+        <button class="theme-toggle-btn" id="themeToggleBtn">
+            <span class="icon"><i class="fa-solid fa-moon" id="themeIcon"></i></span>
+            <span class="label" id="themeLabel">Tema Gelap</span>
+        </button>
+        <div class="nav-item" id="logoutBtn">
+            <span class="icon"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
+            <span class="label">Logout</span>
+        </div>
+    </div>
+</div>
+
+<div class="main-content" id="mainContent">
+    <div class="topbar">
+        <div class="topbar-left">
+            <div class="page-indicator"></div>
+            <h1 class="topbar-title" id="pageTitle">Dashboard</h1>
+        </div>
+        <div class="topbar-right">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput" placeholder="Cari perangkat...">
+            </div>
+            <div class="datetime-display">
+                <div class="date" id="currentDate"></div>
+                <div class="time" id="currentTime"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="content-area">
+        {% include 'partials/dashboard_section.html' %}
+        {% include 'partials/map_section.html' %}
+        {% include 'partials/graph_section.html' %}
+        {% include 'partials/devices_section.html' %}
+        {% include 'partials/attendance_section.html' %}
+    </div>
+</div>
+
+{% include 'partials/modals.html' %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.27/dist/interact.min.js"></script>
+<script src="{{ url_for('static', filename='js/alert_rules_builder.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
