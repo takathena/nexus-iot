@@ -1,10 +1,15 @@
 /* ==========================================
-   NEXUS IoT - Dashboard Logic (v6 FINAL)
+   NEXUS IoT - Dashboard Logic (v11 FINAL)
+   Single Dashboard + Analytics Tabs + Widget + Map
+   Fix: section visibility, multi-edge resize, color contrast
    ========================================== */
 
 (function() {
     'use strict';
 
+    // ==========================================
+    // 1. KONSTANTA & STATE
+    // ==========================================
     const state = {
         devices: [],
         attendance: [],
@@ -26,35 +31,43 @@
         attendanceInterval: null,
         attendanceLastId: 0,
         deviceSearchTerm: '',
+        analyticsTabs: [],
+        currentTabId: null,
     };
 
     const CHART_FONT = "'Inter', -apple-system, sans-serif";
-    const CHART_COLORS = ['#ff453a', '#bf5af2', '#30d158', '#ff9f0a', '#0a84ff', '#ff375f', '#64d2ff', '#a3e635'];
+    const CHART_COLORS = [
+        '#c97a7a', '#7a9dc4', '#5fb587', '#d99a56',
+        '#a88cc4', '#6ab8b8', '#b8a85a', '#8cb069',
+    ];
 
     const DATA_KEYS = {
-        temperature: { label: 'Suhu', unit: '°C', color: '#ff453a' },
-        humidity: { label: 'Kelembaban', unit: '%', color: '#bf5af2' },
-        gas_level: { label: 'Gas', unit: '%', color: '#ff9f0a' },
-        smoke: { label: 'Asap', unit: 'ppm', color: '#ff6482' },
-        motion: { label: 'Gerakan', unit: '', color: '#40c4ff' },
-        rfid: { label: 'RFID', unit: '', color: '#a3e635' },
-        moisture: { label: 'K. Tanah', unit: '%', color: '#64d2ff' },
-        lux: { label: 'Cahaya', unit: 'lux', color: '#ffd60a' },
-        co2: { label: 'CO2', unit: 'ppm', color: '#30d158' },
+        temperature: { label: 'Suhu', unit: '°C', color: '#c97a7a' },
+        humidity: { label: 'Kelembaban', unit: '%', color: '#7a9dc4' },
+        gas_level: { label: 'Gas', unit: '%', color: '#d99a56' },
+        smoke: { label: 'Asap', unit: 'ppm', color: '#a88cc4' },
+        motion: { label: 'Gerakan', unit: '', color: '#6ab8b8' },
+        rfid: { label: 'RFID', unit: '', color: '#8cb069' },
+        moisture: { label: 'K. Tanah', unit: '%', color: '#6aa8c4' },
+        lux: { label: 'Cahaya', unit: 'lux', color: '#b8a85a' },
+        co2: { label: 'CO2', unit: 'ppm', color: '#5fb587' },
     };
 
     const STORAGE_KEYS = {
         THEME: 'nexus-theme',
-        CHARTS: 'nexus-dynamic-charts',
         GLOBAL_TIME: 'nexus-global-time',
         LAST_SECTION: 'nexus-last-section',
         BACK_URL: 'nexus_back_url',
     };
 
-    const DASHBOARD_SECTIONS = ['dashboard', 'map', 'graph', 'attendance', 'devices'];
+    const DASHBOARD_SECTIONS = ['dashboard', 'map', 'graph', 'attendance', 'devices', 'alerts'];
+    const ALL_SECTIONS = DASHBOARD_SECTIONS;
 
-    function $(id) { return document.getElementById(id); }
-    function $$(sel) { return document.querySelectorAll(sel); }
+    // ==========================================
+    // 2. UTILITIES
+    // ==========================================
+    const $ = (id) => document.getElementById(id);
+    const $$ = (sel) => document.querySelectorAll(sel);
 
     function escapeHtml(str) {
         const div = document.createElement('div');
@@ -97,7 +110,9 @@
         const d = parseDate(iso);
         if (!d) return '-';
         try {
-            return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' });
+            return d.toLocaleTimeString('id-ID', {
+                hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
+            });
         } catch (e) { return '-'; }
     }
 
@@ -122,35 +137,37 @@
     function getChartColors() {
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
         return {
-            gridColor: isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.08)',
-            labelColor: isLight ? 'rgba(60,60,67,0.60)' : 'rgba(235,235,245,0.45)',
-            legendColor: isLight ? 'rgba(60,60,67,0.70)' : 'rgba(235,235,245,0.6)',
-            tooltipBg: isLight ? 'rgba(255,255,255,0.95)' : 'rgba(28,28,30,0.95)',
-            tooltipBorder: isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)',
-            tooltipTitleColor: isLight ? '#1c1c1e' : '#f5f5f7',
-            tooltipBodyColor: isLight ? 'rgba(60,60,67,0.75)' : 'rgba(235,235,245,0.72)',
-            pointBorderColor: isLight ? '#fff' : '#000',
+            gridColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)',
+            labelColor: isLight ? 'rgba(74,84,98,0.75)' : 'rgba(168,176,188,0.7)',
+            legendColor: isLight ? 'rgba(74,84,98,0.9)' : 'rgba(168,176,188,0.9)',
+            tooltipBg: isLight ? 'rgba(255,255,255,0.98)' : 'rgba(28,32,39,0.98)',
+            tooltipBorder: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)',
+            tooltipTitleColor: isLight ? '#1a1d23' : '#e8ebef',
+            tooltipBodyColor: isLight ? 'rgba(74,84,98,0.9)' : 'rgba(168,176,188,0.9)',
+            pointBorderColor: isLight ? '#fff' : '#1c2027',
         };
     }
 
-    function toggleSidebar() {
-        const sidebar = $('sidebar');
-        const main = $('mainContent');
-        if (sidebar) sidebar.classList.toggle('collapsed');
-        if (main) main.classList.toggle('expanded');
-        setTimeout(() => {
-            if (state.mapPreview) state.mapPreview.invalidateSize();
-            if (state.mapFull) state.mapFull.invalidateSize();
-        }, 380);
+    function showToast(message, type) {
+        if (window.showToast) window.showToast(message, type);
+    }
+
+    function openModal(id) { const el = $(id); if (el) el.classList.add('active'); }
+    function closeModal(id) { const el = $(id); if (el) el.classList.remove('active'); }
+
+    function registerMapInstance(map) {
+        if (!window.__nexusMaps) window.__nexusMaps = [];
+        if (!window.__nexusMaps.includes(map)) {
+            window.__nexusMaps.push(map);
+        }
     }
 
     // ==========================================
-    // NAVIGATION
+    // 3. NAVIGATION
     // ==========================================
     function getSectionFromHash() {
         const hash = (window.location.hash || '').replace('#', '').trim();
-        if (DASHBOARD_SECTIONS.includes(hash)) return hash;
-        return 'dashboard';
+        return DASHBOARD_SECTIONS.includes(hash) ? hash : 'dashboard';
     }
 
     function updateHash(section, replace = false) {
@@ -164,15 +181,29 @@
         }
     }
 
+    // ✅ FIX: set display untuk SEMUA section secara eksplisit (block/none).
+    // Tidak ada section yang "nyangkut" dari sebelumnya.
     function showSection(section, skipHistory = false) {
         if (!DASHBOARD_SECTIONS.includes(section)) section = 'dashboard';
 
         state.currentSection = section;
 
-        ['dashboard', 'map', 'graph', 'attendance', 'devices'].forEach(s => {
+        // Set display eksplisit untuk semua section
+        ALL_SECTIONS.forEach(s => {
             const el = $(s + 'Section');
-            if (el) el.style.display = s === section ? 'block' : 'none';
+            if (!el) return;
+            if (s === section) {
+                el.style.display = 'block';
+                el.removeAttribute('hidden');
+            } else {
+                el.style.display = 'none';
+                el.setAttribute('hidden', '');
+            }
         });
+
+        // Cleanup: buang sisa style#nexus-section-style dari versi lama
+        const staleStyle = document.getElementById('nexus-section-style');
+        if (staleStyle) staleStyle.remove();
 
         const titles = {
             dashboard: 'Dashboard',
@@ -180,6 +211,7 @@
             graph: 'Analitik Sensor',
             devices: 'Manajemen Perangkat',
             attendance: 'Absensi',
+            alerts: 'Alert Center',
         };
         const titleEl = $('pageTitle');
         if (titleEl) titleEl.textContent = titles[section] || 'Dashboard';
@@ -191,7 +223,7 @@
 
         const searchBox = document.querySelector('.search-box');
         const searchInput = $('searchInput');
-        const noSearchSections = ['map', 'graph'];
+        const noSearchSections = ['map', 'graph', 'alerts'];
         if (searchBox) searchBox.style.display = noSearchSections.includes(section) ? 'none' : '';
         if (searchInput) {
             searchInput.value = state.deviceSearchTerm || '';
@@ -200,25 +232,39 @@
                 : 'Cari perangkat...';
         }
 
-        if (section === 'attendance') {
-            loadAttendance();
-            startAttendancePolling();
-        } else {
+        // Stop polling section yang tidak aktif
+        if (section !== 'attendance') {
             stopAttendancePolling();
         }
 
-        if (section === 'map' && !state.mapFull) {
-            setTimeout(initFullMap, 100);
-            setTimeout(populateMapDeviceSelect, 150);
+        if (section === 'attendance') {
+            loadAttendance();
+            startAttendancePolling();
         }
-        if (section === 'map' && state.mapFull) {
-            setTimeout(() => state.mapFull.invalidateSize(), 100);
+
+        if (section === 'map') {
+            setTimeout(() => {
+                if (!state.mapFull) initFullMap();
+                loadMarkers(state.mapFull, true);
+                renderMapDeviceList();
+                if (state.mapFull) state.mapFull.invalidateSize();
+            }, 100);
         }
         if (section === 'dashboard') {
-            setTimeout(() => { if (state.mapPreview) state.mapPreview.invalidateSize(); }, 100);
+            setTimeout(() => {
+                if (state.mapPreview) state.mapPreview.invalidateSize();
+            }, 100);
         }
         if (section === 'graph') {
-            setTimeout(refreshAllCharts, 100);
+            setTimeout(() => {
+                loadAnalyticsTabs();
+                refreshAllCharts();
+            }, 100);
+        }
+        if (section === 'alerts') {
+            if (window.NexusAlerts && typeof window.NexusAlerts.load === 'function') {
+                window.NexusAlerts.load();
+            }
         }
 
         try { sessionStorage.setItem(STORAGE_KEYS.LAST_SECTION, section); } catch (e) {}
@@ -239,7 +285,7 @@
     }
 
     // ==========================================
-    // ATTENDANCE (LENGKAP)
+    // 4. ATTENDANCE
     // ==========================================
     async function loadAttendanceStats() {
         const result = await API.getAttendanceStats();
@@ -312,13 +358,11 @@
 
     function filterAttendance() { renderAttendanceFiltered(0); }
 
-    // ✅ FUNGSI INI YANG HILANG — SEKARANG DITAMBAHKAN
     function startAttendancePolling() {
         stopAttendancePolling();
         state.attendanceInterval = setInterval(loadAttendance, 4000);
     }
 
-    // ✅ FUNGSI INI YANG HILANG — SEKARANG DITAMBAHKAN
     function stopAttendancePolling() {
         if (state.attendanceInterval) {
             clearInterval(state.attendanceInterval);
@@ -327,8 +371,10 @@
     }
 
     function openCardholderModal() {
-        $('cardholderUid').value = '';
-        $('cardholderNama').value = '';
+        const uidEl = $('cardholderUid');
+        const namaEl = $('cardholderNama');
+        if (uidEl) uidEl.value = '';
+        if (namaEl) namaEl.value = '';
         openModal('cardholderModal');
     }
 
@@ -336,12 +382,15 @@
         const result = await API.getLastUnknownTap();
         if (!result.success) { showToast('Gagal mengambil tap terakhir', 'error'); return; }
         if (!result.data.uid) { showToast('Belum ada kartu asing yang ke-tap', 'error'); return; }
-        $('cardholderUid').value = result.data.uid;
+        const uidEl = $('cardholderUid');
+        if (uidEl) uidEl.value = result.data.uid;
     }
 
     async function submitCardholder() {
-        const uid = $('cardholderUid').value.trim();
-        const nama = $('cardholderNama').value.trim();
+        const uidEl = $('cardholderUid');
+        const namaEl = $('cardholderNama');
+        const uid = uidEl ? uidEl.value.trim() : '';
+        const nama = namaEl ? namaEl.value.trim() : '';
         if (!uid || !nama) { showToast('UID dan Nama wajib diisi!', 'error'); return; }
         const result = await API.addCardholder({ uid, nama });
         if (result.success) {
@@ -357,12 +406,13 @@
         const titleEl = $('statDetailTitle');
         const thead = $('statDetailThead');
         const tbody = $('statDetailBody');
+        if (!tbody) return;
         tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:30px;color:var(--text-3);">Memuat...</td></tr>`;
         openModal('statDetailModal');
 
         if (type === 'hadir') {
-            titleEl.textContent = 'Hadir Hari Ini';
-            thead.innerHTML = `<tr><th>Nama</th><th>UID</th><th style="text-align:right;">Tap Pertama</th></tr>`;
+            if (titleEl) titleEl.textContent = 'Hadir Hari Ini';
+            if (thead) thead.innerHTML = `<tr><th>Nama</th><th>UID</th><th style="text-align:right;">Tap Pertama</th></tr>`;
             const result = await API.getAttendanceToday();
             const rows = result.success ? (result.data.hadir || []) : [];
             if (rows.length === 0) {
@@ -373,8 +423,8 @@
                 <tr><td>${escapeHtml(r.nama)}</td><td><span class="device-id">${escapeHtml(r.uid)}</span></td><td style="text-align:right;">${formatDateTimeSplit(r.pertama_tap).time}</td></tr>
             `).join('');
         } else if (type === 'total') {
-            titleEl.textContent = 'Total Kartu Aktif';
-            thead.innerHTML = `<tr><th>Nama</th><th>UID</th><th>Terdaftar Sejak</th><th style="text-align:right;">Aksi</th></tr>`;
+            if (titleEl) titleEl.textContent = 'Total Kartu Aktif';
+            if (thead) thead.innerHTML = `<tr><th>Nama</th><th>UID</th><th>Terdaftar Sejak</th><th style="text-align:right;">Aksi</th></tr>`;
             const result = await API.getCardholders();
             const rows = result.success ? (result.data.cardholders || []) : [];
             if (rows.length === 0) {
@@ -392,8 +442,8 @@
                 btn.addEventListener('click', () => openDeleteCardholderModal(btn.dataset.uid, btn.dataset.nama));
             });
         } else if (type === 'belum-terdaftar') {
-            titleEl.textContent = 'Kartu Belum Terdaftar';
-            thead.innerHTML = `<tr><th>UID</th><th>Tap Terakhir</th><th style="text-align:right;">Aksi</th></tr>`;
+            if (titleEl) titleEl.textContent = 'Kartu Belum Terdaftar';
+            if (thead) thead.innerHTML = `<tr><th>UID</th><th>Tap Terakhir</th><th style="text-align:right;">Aksi</th></tr>`;
             const result = await API.getUnregisteredCards();
             const rows = result.success ? (result.data.kartu || []) : [];
             if (rows.length === 0) {
@@ -412,8 +462,10 @@
             tbody.querySelectorAll('[data-action="daftarkan-from-detail"]').forEach(btn => {
                 btn.addEventListener('click', () => {
                     closeModal('statDetailModal');
-                    $('cardholderUid').value = btn.dataset.uid;
-                    $('cardholderNama').value = '';
+                    const uidEl = $('cardholderUid');
+                    const namaEl = $('cardholderNama');
+                    if (uidEl) uidEl.value = btn.dataset.uid;
+                    if (namaEl) namaEl.value = '';
                     openModal('cardholderModal');
                 });
             });
@@ -421,7 +473,7 @@
     }
 
     // ==========================================
-    // MAPS
+    // 5. MAPS
     // ==========================================
     function initMapPreview() {
         if (state.mapPreview) return;
@@ -432,6 +484,7 @@
         }).setView([-2.5489, 118.0149], 5);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
             .addTo(state.mapPreview);
+        registerMapInstance(state.mapPreview);
     }
 
     function initFullMap() {
@@ -465,6 +518,8 @@
                 info.textContent = `Klik peta untuk memilih lokasi untuk: ${state.selectedMapDeviceId}`;
             }
         });
+
+        registerMapInstance(state.mapFull);
     }
 
     function loadMarkers(map, useCluster = false) {
@@ -479,12 +534,12 @@
         state.devices.forEach(d => {
             if (!d.latitude || !d.longitude) return;
 
-            let color = '#ff453a';
-            if (d.status === 'online' && !d.has_alert) color = '#30d158';
+            let color = '#c97a7a';
+            if (d.status === 'online' && !d.has_alert) color = '#5fb587';
             if (d.has_alert) {
-                if (d.top_alert_severity === 'danger') color = '#ff453a';
-                else if (d.top_alert_severity === 'warning') color = '#ff9f0a';
-                else if (d.top_alert_severity === 'info') color = '#0a84ff';
+                if (d.top_alert_severity === 'danger') color = '#c97a7a';
+                else if (d.top_alert_severity === 'warning') color = '#d99a56';
+                else if (d.top_alert_severity === 'info') color = '#7a9dc4';
             }
 
             const popup = `
@@ -507,6 +562,77 @@
                 marker.addTo(map);
             }
         });
+    }
+
+    function renderMapDeviceList() {
+        const container = $('mapDeviceList');
+        if (!container) return;
+
+        if (state.devices.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-3);font-size:12px;">Belum ada device</div>';
+            return;
+        }
+
+        container.innerHTML = state.devices.map(d => {
+            let color = '#6c7580';
+            if (d.status === 'online' && !d.has_alert) color = '#5fb587';
+            if (d.has_alert) {
+                if (d.top_alert_severity === 'danger') color = '#c97a7a';
+                else if (d.top_alert_severity === 'warning') color = '#d99a56';
+                else if (d.top_alert_severity === 'info') color = '#7a9dc4';
+            }
+
+            let statusLabel = d.status || 'offline';
+            if (d.has_alert && d.top_alert_severity) statusLabel = d.top_alert_severity.toUpperCase();
+
+            return `
+                <button class="map-device-item" data-device-id="${escapeHtml(d.device_id)}">
+                    <span class="device-dot" style="background:${color};"></span>
+                    <div class="device-info">
+                        <div class="device-name">${escapeHtml(d.device_name)}</div>
+                        <div class="device-id">${escapeHtml(d.device_id)}</div>
+                    </div>
+                    <span class="device-status" style="background:${color}20;color:${color};">${escapeHtml(statusLabel)}</span>
+                </button>
+            `;
+        }).join('');
+
+        container.querySelectorAll('.map-device-item').forEach(item => {
+            item.addEventListener('click', () => {
+                zoomToDeviceOnMap(item.dataset.deviceId);
+            });
+        });
+    }
+
+    function zoomToDeviceOnMap(deviceId) {
+        const device = state.devices.find(d => d.device_id === deviceId);
+        if (!device) return;
+
+        if (!state.mapFull) {
+            initFullMap();
+            setTimeout(() => zoomToDeviceOnMap(deviceId), 300);
+            return;
+        }
+
+        if (device.latitude && device.longitude) {
+            state.mapFull.flyTo([device.latitude, device.longitude], 15, {
+                duration: 1.2,
+            });
+
+            setTimeout(() => {
+                state.mapFull.eachLayer(layer => {
+                    if (layer instanceof L.CircleMarker) {
+                        const latlng = layer.getLatLng();
+                        if (Math.abs(latlng.lat - device.latitude) < 0.0001 &&
+                            Math.abs(latlng.lng - device.longitude) < 0.0001) {
+                            layer.openPopup();
+                        }
+                    }
+                });
+            }, 1300);
+        } else {
+            showToast(`${device.device_name} belum punya lokasi`, 'warning');
+        }
     }
 
     function populateMapDeviceSelect() {
@@ -572,7 +698,7 @@
     }
 
     // ==========================================
-    // DEVICE FILTER
+    // 6. DEVICES (Table + Filter)
     // ==========================================
     function setDeviceFilter(filter) {
         state.deviceFilter = filter;
@@ -650,7 +776,7 @@
                 : '';
 
             const alertCount = d.total_active_alerts > 1
-                ? `<span style="font-size:10px;background:rgba(255,69,58,.2);color:var(--red);padding:2px 6px;border-radius:8px;margin-left:6px;">${d.total_active_alerts} alert</span>`
+                ? `<span style="font-size:10px;background:var(--accent-crit-bg);color:var(--accent-crit);padding:2px 6px;border-radius:8px;margin-left:6px;">${d.total_active_alerts} alert</span>`
                 : '';
 
             return `
@@ -758,8 +884,7 @@
         updateFilterCounts();
         renderFilteredDevices();
         renderFilteredDevicesFull();
-
-        if (state.charts.length === 0) loadChartsFromStorage();
+        renderMapDeviceList();
     }
 
     function viewDevice(id) {
@@ -796,8 +921,10 @@
     }
 
     async function addDevice() {
-        const deviceId = $('addDeviceId').value.trim();
-        const deviceName = $('addDeviceName').value.trim();
+        const idEl = $('addDeviceId');
+        const nameEl = $('addDeviceName');
+        const deviceId = idEl ? idEl.value.trim() : '';
+        const deviceName = nameEl ? nameEl.value.trim() : '';
         if (!deviceId || !deviceName) { showToast('ID dan Nama wajib diisi!', 'error'); return; }
 
         const alertRules = window.collectAlertRules ? window.collectAlertRules('add') : null;
@@ -805,13 +932,13 @@
         const payload = {
             device_id: deviceId,
             device_name: deviceName,
-            device_type: $('addDeviceType').value,
-            location: $('addDeviceLocation').value.trim(),
-            expected_interval: parseInt($('addDeviceInterval')?.value) || 60,
-            offline_alert_severity: $('addDeviceOfflineSeverity')?.value || 'danger',
+            device_type: ($('addDeviceType') || {}).value,
+            location: (($('addDeviceLocation') || {}).value || '').trim(),
+            expected_interval: parseInt(($('addDeviceInterval') || {}).value) || 60,
+            offline_alert_severity: ($('addDeviceOfflineSeverity') || {}).value || 'danger',
         };
 
-        const offlineTimeout = $('addDeviceOfflineTimeout')?.value;
+        const offlineTimeout = ($('addDeviceOfflineTimeout') || {}).value;
         if (offlineTimeout) payload.offline_timeout = parseInt(offlineTimeout);
         if (alertRules) payload.alert_rules = alertRules;
 
@@ -823,12 +950,16 @@
             if (display) display.textContent = result.data.device.api_key;
             openModal('apiKeyModal');
 
-            $('addDeviceId').value = '';
-            $('addDeviceName').value = '';
-            $('addDeviceLocation').value = '';
-            if ($('addDeviceInterval')) $('addDeviceInterval').value = '60';
-            if ($('addDeviceOfflineTimeout')) $('addDeviceOfflineTimeout').value = '';
-            if ($('addDeviceOfflineSeverity')) $('addDeviceOfflineSeverity').value = 'danger';
+            if (idEl) idEl.value = '';
+            if (nameEl) nameEl.value = '';
+            const locEl = $('addDeviceLocation');
+            if (locEl) locEl.value = '';
+            const intEl = $('addDeviceInterval');
+            if (intEl) intEl.value = '60';
+            const toEl = $('addDeviceOfflineTimeout');
+            if (toEl) toEl.value = '';
+            const sevEl = $('addDeviceOfflineSeverity');
+            if (sevEl) sevEl.value = 'danger';
             if (window.populateAlertRules) window.populateAlertRules('add', null);
 
             loadDashboard();
@@ -841,7 +972,9 @@
     }
 
     function copyApiKey() {
-        const text = $('apiKeyDisplay').textContent;
+        const display = $('apiKeyDisplay');
+        if (!display) return;
+        const text = display.textContent;
         navigator.clipboard.writeText(text)
             .then(() => showToast('API Key disalin!', 'success'))
             .catch(() => showToast('Gagal menyalin', 'error'));
@@ -852,25 +985,26 @@
         if (!result.success) { showToast('Gagal memuat konfigurasi device', 'error'); return; }
 
         const device = result.data.device;
-        $('editConfigDeviceId').value = deviceId;
-        $('editDeviceInterval').value = device.expected_interval || 60;
-        $('editDeviceOfflineTimeout').value = device.offline_timeout || 900;
-        $('editDeviceOfflineSeverity').value = device.offline_alert_severity || 'danger';
+        const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
+        setVal('editConfigDeviceId', deviceId);
+        setVal('editDeviceInterval', device.expected_interval || 60);
+        setVal('editDeviceOfflineTimeout', device.offline_timeout || 900);
+        setVal('editDeviceOfflineSeverity', device.offline_alert_severity || 'danger');
 
         if (window.populateAlertRules) window.populateAlertRules('edit', device.alert_rules);
         openModal('editDeviceConfigModal');
     }
 
     async function saveDeviceConfig() {
-        const deviceId = $('editConfigDeviceId').value;
+        const deviceId = ($('editConfigDeviceId') || {}).value;
         if (!deviceId) return;
 
         const alertRules = window.collectAlertRules ? window.collectAlertRules('edit') : null;
 
         const payload = {
-            expected_interval: parseInt($('editDeviceInterval').value) || 60,
-            offline_timeout: parseInt($('editDeviceOfflineTimeout').value) || 900,
-            offline_alert_severity: $('editDeviceOfflineSeverity').value,
+            expected_interval: parseInt(($('editDeviceInterval') || {}).value) || 60,
+            offline_timeout: parseInt(($('editDeviceOfflineTimeout') || {}).value) || 900,
+            offline_alert_severity: ($('editDeviceOfflineSeverity') || {}).value,
             alert_rules: alertRules,
         };
 
@@ -888,28 +1022,34 @@
     }
 
     function openDeleteModal(id) {
-        $('deleteType').value = 'device';
-        $('deleteDeviceId').value = id;
-        $('deleteModalTitle').textContent = 'Hapus Perangkat';
-        $('deleteModalText').textContent = `Ketik nama device "${id}" untuk konfirmasi:`;
+        const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
+        setVal('deleteType', 'device');
+        setVal('deleteDeviceId', id);
+        const titleEl = $('deleteModalTitle');
+        const textEl = $('deleteModalText');
+        if (titleEl) titleEl.textContent = 'Hapus Perangkat';
+        if (textEl) textEl.textContent = `Ketik nama device "${id}" untuk konfirmasi:`;
         const confirmInput = $('deleteConfirmInput');
         if (confirmInput) confirmInput.value = '';
         openModal('deleteModal');
     }
 
     function openDeleteCardholderModal(uid, nama) {
-        $('deleteType').value = 'cardholder';
-        $('deleteDeviceId').value = uid;
-        $('deleteModalTitle').textContent = 'Hapus Kartu';
-        $('deleteModalText').textContent = `Kartu "${nama}" (${uid}) akan dihapus. Riwayat tap lamanya tetap tersimpan.`;
+        const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
+        setVal('deleteType', 'cardholder');
+        setVal('deleteDeviceId', uid);
+        const titleEl = $('deleteModalTitle');
+        const textEl = $('deleteModalText');
+        if (titleEl) titleEl.textContent = 'Hapus Kartu';
+        if (textEl) textEl.textContent = `Kartu "${nama}" (${uid}) akan dihapus. Riwayat tap lamanya tetap tersimpan.`;
         const confirmInput = $('deleteConfirmInput');
         if (confirmInput) confirmInput.value = '';
         openModal('deleteModal');
     }
 
     async function confirmDelete() {
-        const id = $('deleteDeviceId').value;
-        const type = $('deleteType').value;
+        const id = ($('deleteDeviceId') || {}).value;
+        const type = ($('deleteType') || {}).value;
         if (!id) return;
 
         if (type === 'device') {
@@ -940,43 +1080,255 @@
     }
 
     // ==========================================
-    // CHARTS
+    // 7. ANALYTICS TABS
     // ==========================================
-    function saveChartsToStorage() {
-        const toSave = state.charts.map(chart => {
-            const el = document.getElementById(chart.id);
-            return {
-                id: chart.id, title: chart.title, deviceId: chart.deviceId,
-                chartType: chart.chartType, showData: chart.showData,
-                width: el?.style.width || '100%',
-                height: el?.style.height || '350px',
-                x: el?.getAttribute('data-x') || '0',
-                y: el?.getAttribute('data-y') || '0',
-            };
-        });
-        localStorage.setItem(STORAGE_KEYS.CHARTS, JSON.stringify(toSave));
+    async function loadAnalyticsTabs() {
+        const store = window.DashboardStore;
+        if (!store) return;
+        await store.loadDashboards();
+
+        const defaultDash = store.state.dashboards.find(d => d.is_default) || store.state.dashboards[0];
+        if (!defaultDash) return;
+
+        await store.loadDashboard(defaultDash.id);
+
+        const res = await API.call(`/api/v1/dashboards/${defaultDash.id}/analytics-tabs`);
+        state.analyticsTabs = res.success ? (res.data.tabs || []) : [];
+
+        if (state.currentTabId === null && state.analyticsTabs.length > 0) {
+            state.currentTabId = state.analyticsTabs[0].id;
+        }
+
+        renderAnalyticsTabs();
     }
 
-    function loadChartsFromStorage() {
-        const saved = localStorage.getItem(STORAGE_KEYS.CHARTS);
-        if (!saved) return;
+    function renderAnalyticsTabs() {
+        const trigger = $('tabDropdownTrigger');
+        const label = $('tabDropdownLabel');
+        const menu = $('tabDropdownMenu');
 
-        try {
-            const list = JSON.parse(saved);
-            list.forEach(data => {
-                const config = {
-                    id: data.id, title: data.title, deviceId: data.deviceId,
-                    deviceName: state.devices.find(d => d.device_id === data.deviceId)?.device_name || data.deviceId,
-                    chartType: data.chartType, showData: data.showData,
-                    chartInstance: null, isLoading: false,
-                };
-                state.charts.push(config);
-                renderChartCard(config, data.width, data.height, data.x, data.y);
-                loadDynamicChartData(config);
-                initializeDragResize(data.id);
-                state.chartIdCounter = Math.max(state.chartIdCounter, parseInt(String(data.id).split('_')[1]) || 0);
+        if (!trigger || !label || !menu) return;
+
+        const currentTab = state.analyticsTabs.find(t => t.id === state.currentTabId);
+        label.textContent = currentTab ? currentTab.name : 'Pilih Tab';
+
+        let html = '';
+
+        state.analyticsTabs.forEach(tab => {
+            html += `
+                <div class="tab-dropdown-item ${state.currentTabId === tab.id ? 'active' : ''}"
+                     data-tab-id="${tab.id}">
+                    <i class="fa-solid ${escapeHtml(tab.icon || 'fa-chart-line')}"></i>
+                    <span>${escapeHtml(tab.name)}</span>
+                    <div class="tab-actions">
+                        <button class="tab-action-btn" data-action="rename-tab" data-tab-id="${tab.id}" title="Rename">
+                            <i class="fa-solid fa-pen"></i>
+                        </button>
+                        <button class="tab-action-btn" data-action="delete-tab" data-tab-id="${tab.id}" title="Hapus">
+                            <i class="fa-solid fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+
+        html += `
+            <div class="tab-dropdown-divider"></div>
+            <div class="tab-dropdown-add" data-action="new-tab">
+                <i class="fa-solid fa-plus"></i>
+                <span>Tambah Tab Analitik</span>
+            </div>
+        `;
+
+        menu.innerHTML = html;
+
+        menu.querySelectorAll('[data-tab-id]').forEach(item => {
+            const tabId = parseInt(item.dataset.tabId);
+            item.addEventListener('click', (e) => {
+                if (e.target.closest('[data-action]')) return;
+                switchAnalyticsTab(tabId);
+                menu.classList.remove('active');
             });
-        } catch (e) { console.error('[Charts] Load failed:', e); }
+        });
+
+        menu.querySelectorAll('[data-action="rename-tab"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const tabId = parseInt(btn.dataset.tabId);
+                const tab = state.analyticsTabs.find(t => t.id === tabId);
+                if (tab) openAnalyticsTabModal('edit', tab.id, tab.name);
+                menu.classList.remove('active');
+            });
+        });
+
+        menu.querySelectorAll('[data-action="delete-tab"]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const tabId = parseInt(btn.dataset.tabId);
+                const tab = state.analyticsTabs.find(t => t.id === tabId);
+                if (tab) openAnalyticsTabModal('edit', tab.id, tab.name);
+                menu.classList.remove('active');
+            });
+        });
+
+        const addBtn = menu.querySelector('[data-action="new-tab"]');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => {
+                openAnalyticsTabModal('new');
+                menu.classList.remove('active');
+            });
+        }
+    }
+
+    async function switchAnalyticsTab(tabId) {
+        state.currentTabId = tabId;
+        renderAnalyticsTabs();
+        await loadTabCharts(tabId);
+    }
+
+    function openAnalyticsTabModal(mode, tabId, currentName) {
+        const titleEl = $('analyticsTabModalTitle');
+        const modeEl = $('analyticsTabMode');
+        const idEl = $('analyticsTabId');
+        const nameEl = $('analyticsTabName');
+        const delBtn = $('analyticsTabDeleteBtn');
+
+        if (titleEl) titleEl.textContent = mode === 'edit' ? 'Edit Tab Analitik' : 'Tambah Tab Analitik';
+        if (modeEl) modeEl.value = mode;
+        if (idEl) idEl.value = tabId || '';
+        if (nameEl) nameEl.value = currentName || '';
+        if (delBtn) delBtn.style.display = mode === 'edit' ? 'inline-flex' : 'none';
+
+        openModal('analyticsTabModal');
+    }
+
+    async function saveAnalyticsTab() {
+        const mode = ($('analyticsTabMode') || {}).value;
+        const tabId = ($('analyticsTabId') || {}).value;
+        const nameEl = $('analyticsTabName');
+        const name = nameEl ? nameEl.value.trim() : '';
+        if (!name) { showToast('Nama tab wajib diisi', 'error'); return; }
+
+        const store = window.DashboardStore;
+        const dashboardId = store.state.currentDashboardId;
+
+        if (mode === 'edit' && tabId) {
+            const res = await API.call(`/api/v1/analytics-tabs/${tabId}`, {
+                method: 'PUT',
+                body: JSON.stringify({ name }),
+            });
+            if (res.success) {
+                closeModal('analyticsTabModal');
+                showToast('Tab berhasil diupdate', 'success');
+                await loadAnalyticsTabs();
+            } else {
+                showToast(res.error || 'Gagal update tab', 'error');
+            }
+        } else {
+            const res = await API.call(`/api/v1/dashboards/${dashboardId}/analytics-tabs`, {
+                method: 'POST',
+                body: JSON.stringify({ name, icon: 'fa-chart-line' }),
+            });
+            if (res.success) {
+                closeModal('analyticsTabModal');
+                showToast('Tab berhasil dibuat', 'success');
+                await loadAnalyticsTabs();
+                switchAnalyticsTab(res.data.id);
+            } else {
+                showToast(res.error || 'Gagal membuat tab', 'error');
+            }
+        }
+    }
+
+    async function deleteAnalyticsTab() {
+        const tabId = ($('analyticsTabId') || {}).value;
+        if (!tabId) return;
+        if (!confirm('Hapus tab ini beserta semua diagram di dalamnya?')) return;
+
+        const res = await API.call(`/api/v1/analytics-tabs/${tabId}`, { method: 'DELETE' });
+
+        if (res.success) {
+            closeModal('analyticsTabModal');
+            showToast('Tab dihapus', 'success');
+            if (state.currentTabId === parseInt(tabId)) {
+                state.currentTabId = null;
+            }
+            await loadAnalyticsTabs();
+            if (state.analyticsTabs.length > 0) {
+                switchAnalyticsTab(state.analyticsTabs[0].id);
+            } else {
+                state.charts = [];
+                const grid = $('chartsGrid');
+                if (grid) grid.innerHTML = '';
+            }
+        } else {
+            showToast(res.error || 'Gagal hapus tab', 'error');
+        }
+    }
+
+    // ==========================================
+    // 8. CHARTS (Widget CRUD + Drag/Resize)
+    // ==========================================
+    async function loadTabCharts(tabId) {
+        if (!tabId) return;
+        const store = window.DashboardStore;
+        const dashboardId = store.state.currentDashboardId;
+        if (!dashboardId) return;
+
+        const res = await API.call(`/api/v1/dashboards/${dashboardId}/analytics-tabs/${tabId}/widgets`);
+        const widgets = res.success ? (res.data.widgets || []) : [];
+
+        state.charts.forEach(c => {
+            if (c.chartInstance) {
+                try { c.chartInstance.destroy(); } catch (e) {}
+            }
+            const el = document.getElementById(c.id);
+            if (el) {
+                try { interact(el).unset(); } catch (e) {}
+                el.remove();
+            }
+        });
+        state.charts = [];
+
+        const grid = $('chartsGrid');
+        if (grid) grid.innerHTML = '';
+
+        if (widgets.length === 0) {
+            if (grid) {
+                grid.innerHTML = `
+                    <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
+                        <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i>
+                        <p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p>
+                        <p style="font-size:12px;margin-top:4px;">Klik "Tambah Diagram" untuk membuat visualisasi baru</p>
+                    </div>`;
+            }
+            return;
+        }
+
+        widgets.forEach((w) => {
+            const config = {
+                id: `chart_${w.id}`,
+                widgetId: w.id,
+                analyticsTabId: w.analytics_tab_id,
+                title: w.title,
+                deviceId: w.device_id,
+                deviceName: state.devices.find(d => d.device_id === w.device_id)?.device_name || w.device_id,
+                chartType: store.mapWidgetTypeToChartType(w.widget_type),
+                showData: (w.config && w.config.show_data) || {},
+                gridX: w.grid_x || 0,
+                gridY: w.grid_y || 0,
+                gridW: w.grid_w || 2,
+                gridH: w.grid_h || 2,
+                chartInstance: null,
+                isLoading: false,
+            };
+            state.charts.push(config);
+            state.chartIdCounter = Math.max(state.chartIdCounter, w.id);
+
+            renderChartCard(config);
+            loadDynamicChartData(config);
+            initializeDragResize(config.id);
+        });
     }
 
     function generateDataCheckboxes(selectedData = {}) {
@@ -992,15 +1344,26 @@
     }
 
     function openAddChartModal() {
-        $('chartModalTitle').textContent = 'Tambah Diagram';
-        $('editChartId').value = '';
-        $('chartTitle').value = '';
+        if (!state.currentTabId) {
+            showToast('Buat tab analitik dulu', 'warning');
+            return;
+        }
+
+        const titleEl = $('chartModalTitle');
+        const editEl = $('editChartId');
+        const chartTitleEl = $('chartTitle');
+        if (titleEl) titleEl.textContent = 'Tambah Diagram';
+        if (editEl) editEl.value = '';
+        if (chartTitleEl) chartTitleEl.value = '';
 
         const select = $('chartDeviceSelect');
-        select.innerHTML = '<option value="">Pilih Perangkat...</option>' +
-            state.devices.map(d => `<option value="${escapeHtml(d.device_id)}">${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`).join('');
+        if (select) {
+            select.innerHTML = '<option value="">Pilih Perangkat...</option>' +
+                state.devices.map(d => `<option value="${escapeHtml(d.device_id)}">${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`).join('');
+        }
 
-        $('chartTypeSelect').value = 'line';
+        const typeEl = $('chartTypeSelect');
+        if (typeEl) typeEl.value = 'line';
         generateDataCheckboxes({ temperature: true });
         openModal('chartModal');
     }
@@ -1009,26 +1372,32 @@
         const chart = state.charts.find(c => c.id === chartId);
         if (!chart) return;
 
-        $('chartModalTitle').textContent = 'Edit Diagram';
-        $('editChartId').value = chartId;
-        $('chartTitle').value = chart.title;
+        const titleEl = $('chartModalTitle');
+        const editEl = $('editChartId');
+        const chartTitleEl = $('chartTitle');
+        if (titleEl) titleEl.textContent = 'Edit Diagram';
+        if (editEl) editEl.value = chartId;
+        if (chartTitleEl) chartTitleEl.value = chart.title;
 
         const select = $('chartDeviceSelect');
-        select.innerHTML = '<option value="">Pilih Perangkat...</option>' +
-            state.devices.map(d =>
-                `<option value="${escapeHtml(d.device_id)}" ${d.device_id === chart.deviceId ? 'selected' : ''}>${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`
-            ).join('');
+        if (select) {
+            select.innerHTML = '<option value="">Pilih Perangkat...</option>' +
+                state.devices.map(d =>
+                    `<option value="${escapeHtml(d.device_id)}" ${d.device_id === chart.deviceId ? 'selected' : ''}>${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`
+                ).join('');
+        }
 
-        $('chartTypeSelect').value = chart.chartType;
+        const typeEl = $('chartTypeSelect');
+        if (typeEl) typeEl.value = chart.chartType;
         generateDataCheckboxes(chart.showData);
         openModal('chartModal');
     }
 
-    function saveChart() {
-        const editId = $('editChartId').value;
-        const title = $('chartTitle').value.trim() || 'Diagram';
-        const deviceId = $('chartDeviceSelect').value;
-        const chartType = $('chartTypeSelect').value;
+    async function saveChart() {
+        const editId = ($('editChartId') || {}).value;
+        const title = (($('chartTitle') || {}).value || '').trim() || 'Diagram';
+        const deviceId = ($('chartDeviceSelect') || {}).value;
+        const chartType = ($('chartTypeSelect') || {}).value;
 
         const showData = {};
         $$('.chart-data-checkbox').forEach(cb => { showData[cb.dataset.key] = cb.checked; });
@@ -1036,9 +1405,23 @@
         if (!deviceId) { showToast('Pilih perangkat terlebih dahulu!', 'error'); return; }
         if (!Object.values(showData).some(v => v)) { showToast('Pilih minimal satu jenis data!', 'error'); return; }
 
+        const store = window.DashboardStore;
+        const dashboardId = store.state.currentDashboardId;
+        const widgetType = store.mapChartTypeToWidgetType(chartType);
+
         if (editId) {
             const chart = state.charts.find(c => c.id === editId);
             if (!chart) return;
+
+            await API.call(`/api/v1/widgets/${chart.widgetId}`, {
+                method: 'PUT',
+                body: JSON.stringify({
+                    title, device_id: deviceId,
+                    widget_type: widgetType,
+                    config: { show_data: showData },
+                }),
+            });
+
             chart.title = title;
             chart.deviceId = deviceId;
             chart.deviceName = state.devices.find(d => d.device_id === deviceId)?.device_name || deviceId;
@@ -1059,24 +1442,32 @@
             loadDynamicChartData(chart);
             showToast('Diagram berhasil diperbarui', 'success');
         } else {
-            const chartId = `chart_${++state.chartIdCounter}`;
-            const config = {
-                id: chartId, title, deviceId,
-                deviceName: state.devices.find(d => d.device_id === deviceId)?.device_name || deviceId,
-                chartType, showData, chartInstance: null, isLoading: false,
-            };
-            state.charts.push(config);
-            renderChartCard(config);
-            loadDynamicChartData(config);
-            initializeDragResize(chartId);
+            const res = await API.call(`/api/v1/dashboards/${dashboardId}/widgets`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    widget_type: widgetType,
+                    title: title,
+                    device_id: deviceId,
+                    config: { show_data: showData },
+                    grid_x: 0, grid_y: 0, grid_w: 2, grid_h: 2,
+                    analytics_tab_id: state.currentTabId,
+                }),
+            });
+
+            if (!res.success) {
+                showToast(res.error || 'Gagal menyimpan diagram', 'error');
+                return;
+            }
+
+            await loadAnalyticsTabs();
+            await loadTabCharts(state.currentTabId);
             showToast('Diagram berhasil ditambahkan', 'success');
         }
 
-        saveChartsToStorage();
         closeModal('chartModal');
     }
 
-    function renderChartCard(config, width = '100%', height = '350px', x = '0', y = '0') {
+    function renderChartCard(config) {
         const grid = $('chartsGrid');
         if (!grid) return;
         const emptyState = grid.querySelector('.empty-charts');
@@ -1085,15 +1476,13 @@
         const card = document.createElement('div');
         card.className = 'chart-card';
         card.id = config.id;
-        card.style.width = width;
-        card.style.height = height;
-        card.setAttribute('data-x', x);
-        card.setAttribute('data-y', y);
-        if (x !== '0' || y !== '0') card.style.transform = `translate(${x}px, ${y}px)`;
+        card.style.width = `${config.gridW * 50}%`;
+        card.style.height = `${config.gridH * 175}px`;
 
         const dataLabels = Object.entries(config.showData).filter(([_, v]) => v)
             .map(([k]) => DATA_KEYS[k]?.label || k).join(', ');
 
+        // ✅ FIX: multi-edge resize handles (edge + corner)
         card.innerHTML = `
             <div class="chart-card-header">
                 <div class="chart-card-title">
@@ -1107,9 +1496,12 @@
                 </div>
             </div>
             <div class="chart-card-body">
-                <div class="chart-canvas-container"><canvas id="${config.id}_canvas"></canvas></div>
+                <div class="chart-canvas-container" style="position:relative;width:100%;height:100%;">
+                    <canvas id="${config.id}_canvas" style="width:100%!important;height:100%!important;display:block;"></canvas>
+                </div>
             </div>
-            <div class="chart-resize-handle"></div>
+            <div class="chart-resize-handle corner-se"></div>
+            <div class="chart-resize-handle edge-bottom"></div>
         `;
 
         grid.appendChild(card);
@@ -1131,6 +1523,14 @@
             e.stopPropagation(); e.preventDefault();
             removeChart(config.id);
         });
+
+        const resizeObserver = new ResizeObserver(() => {
+            const chart = state.charts.find(c => c.id === config.id);
+            if (chart?.chartInstance) {
+                try { chart.chartInstance.resize(); } catch (e) {}
+            }
+        });
+        resizeObserver.observe(card);
     }
 
     function downloadChartImage(chartId) {
@@ -1153,15 +1553,19 @@
         }
     }
 
+    // ✅ FIX: resize dari SEMUA sisi + edge-bottom (tengah bawah) bisa resize ke bawah.
     function initializeDragResize(chartId) {
         const el = document.getElementById(chartId);
         if (!el || typeof interact === 'undefined') return;
 
         interact(el)
             .draggable({
-                allowFrom: '.chart-card-header', ignoreFrom: '.chart-actions',
+                allowFrom: '.chart-card-header',
+                ignoreFrom: '.chart-actions, .chart-resize-handle',
                 inertia: true,
-                modifiers: [interact.modifiers.restrictRect({ restriction: '#chartsGrid', endOnly: false })],
+                modifiers: [
+                    interact.modifiers.restrictRect({ restriction: '#chartsGrid', endOnly: false })
+                ],
                 autoScroll: true,
                 listeners: {
                     start() { el.classList.add('dragging'); },
@@ -1173,20 +1577,37 @@
                         target.setAttribute('data-x', x);
                         target.setAttribute('data-y', y);
                     },
-                    end() { el.classList.remove('dragging'); saveChartsToStorage(); },
+                    end() {
+                        el.classList.remove('dragging');
+                        saveCurrentLayoutFromDOM();
+                    },
                 },
             })
             .resizable({
-                edges: { right: true, bottom: true, left: false, top: false },
+                edges: {
+                    top:    true,
+                    left:   true,
+                    bottom: true,
+                    right:  true,
+                },
                 inertia: true,
-                modifiers: [interact.modifiers.restrictSize({ min: { width: 280, height: 200 } })],
+                modifiers: [
+                    interact.modifiers.restrictSize({ min: { width: 280, height: 200 } }),
+                    interact.modifiers.restrictEdges({ outer: '#chartsGrid' }),
+                ],
                 listeners: {
                     start() { el.classList.add('resizing'); },
                     move(event) {
-                        Object.assign(el.style, {
-                            width: `${event.rect.width}px`,
-                            height: `${event.rect.height}px`,
-                        });
+                        const target = event.target;
+                        target.style.width = `${event.rect.width}px`;
+                        target.style.height = `${event.rect.height}px`;
+
+                        const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.deltaRect.left;
+                        const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.deltaRect.top;
+                        target.style.transform = `translate(${x}px, ${y}px)`;
+                        target.setAttribute('data-x', x);
+                        target.setAttribute('data-y', y);
+
                         const chart = state.charts.find(c => c.id === chartId);
                         if (chart?.chartInstance) chart.chartInstance.resize();
                     },
@@ -1194,43 +1615,56 @@
                         el.classList.remove('resizing');
                         const chart = state.charts.find(c => c.id === chartId);
                         if (chart?.chartInstance) chart.chartInstance.resize();
-                        saveChartsToStorage();
+                        saveCurrentLayoutFromDOM();
                     },
                 },
             });
     }
 
-    function initializeChartsGridResize() {
-        const wrapper = document.querySelector('.charts-grid-wrapper');
-        const grid = $('chartsGrid');
-        if (!wrapper || !grid || typeof interact === 'undefined') return;
+    function saveCurrentLayoutFromDOM() {
+        const store = window.DashboardStore;
+        if (!store) return;
 
-        interact(wrapper).resizable({
-            edges: { right: false, bottom: true, left: false, top: false },
-            inertia: false,
-            modifiers: [interact.modifiers.restrictSize({ min: { width: 0, height: 400 } })],
-            listeners: {
-                move(event) {
-                    grid.style.height = `${event.rect.height}px`;
-                    grid.style.width = '100%';
-                    grid.style.minWidth = '100%';
-                    grid.style.maxWidth = '100%';
-                },
-                end() {
-                    state.charts.forEach(c => { if (c.chartInstance) c.chartInstance.resize(); });
-                },
-            },
+        const grid = $('chartsGrid');
+        if (!grid) return;
+
+        const gridWidth = grid.clientWidth;
+        const colWidth = gridWidth / 4;
+
+        state.charts.forEach(chart => {
+            const el = document.getElementById(chart.id);
+            if (!el) return;
+
+            const x = parseFloat(el.getAttribute('data-x')) || 0;
+            const y = parseFloat(el.getAttribute('data-y')) || 0;
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+
+            const gridX = Math.max(0, Math.round(x / colWidth));
+            const gridY = Math.max(0, Math.round(y / 175));
+            const gridW = Math.max(1, Math.round(w / colWidth));
+            const gridH = Math.max(1, Math.round(h / 175));
+
+            store.updateWidgetPositionLocal(chart.widgetId, gridX, gridY, gridW, gridH);
         });
+
+        store.scheduleLayoutSave();
     }
 
-    function removeChart(chartId) {
+    async function removeChart(chartId) {
         const idx = state.charts.findIndex(c => c.id === chartId);
-        if (idx !== -1) {
-            if (state.charts[idx].chartInstance) {
-                try { state.charts[idx].chartInstance.destroy(); } catch (e) {}
-            }
-            state.charts.splice(idx, 1);
+        if (idx === -1) return;
+
+        const chart = state.charts[idx];
+        if (!confirm(`Hapus diagram "${chart.title}"?`)) return;
+
+        await API.call(`/api/v1/widgets/${chart.widgetId}`, { method: 'DELETE' });
+
+        if (chart.chartInstance) {
+            try { chart.chartInstance.destroy(); } catch (e) {}
         }
+        state.charts.splice(idx, 1);
+
         const card = document.getElementById(chartId);
         if (card) {
             try { interact(card).unset(); } catch (e) {}
@@ -1241,16 +1675,19 @@
             const grid = $('chartsGrid');
             if (grid) grid.innerHTML = `
                 <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
-                    <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;"></i>
-                    <p style="font-size:14px;font-weight:600;">Belum ada diagram</p>
-                    <p style="font-size:12px;margin-top:4px;">Klik "Tambah Diagram" untuk membuat visualisasi baru</p>
+                    <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i>
+                    <p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p>
                 </div>`;
         }
-        saveChartsToStorage();
+
+        await loadAnalyticsTabs();
         showToast('Diagram dihapus', 'success');
     }
 
-    function resetChartLayout() {
+    async function resetChartLayout() {
+        if (!confirm('Reset layout semua diagram ke posisi awal?')) return;
+
+        const store = window.DashboardStore;
         state.charts.forEach(chart => {
             const el = document.getElementById(chart.id);
             if (el) {
@@ -1261,8 +1698,10 @@
                 el.style.height = '350px';
                 if (chart.chartInstance) chart.chartInstance.resize();
             }
+            store.updateWidgetPositionLocal(chart.widgetId, 0, 0, 4, 2);
         });
-        saveChartsToStorage();
+
+        await store.saveLayoutNow();
         showToast('Layout diagram direset', 'success');
     }
 
@@ -1407,7 +1846,7 @@
                 responsive: true, maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 indexAxis: config.chartType === 'horizontalBar' ? 'y' : 'x',
-                animation: { duration: 750, easing: 'easeOutQuart' },
+                animation: { duration: 400, easing: 'easeOutQuart' },
                 plugins: {
                     legend: {
                         labels: {
@@ -1464,33 +1903,84 @@
         }, 15000);
     }
 
-    function openModal(id) { const el = $(id); if (el) el.classList.add('active'); }
-    function closeModal(id) { const el = $(id); if (el) el.classList.remove('active'); }
-
+    // ==========================================
+    // 9. TIME RANGE DROPDOWN
+    // ==========================================
     function setGlobalTimeRange(minutes) {
         state.globalTimeMinutes = minutes;
-        $$('.time-range-btn').forEach(btn =>
-            btn.classList.toggle('active', parseInt(btn.dataset.minutes) === minutes)
-        );
         localStorage.setItem(STORAGE_KEYS.GLOBAL_TIME, minutes);
+
+        $$('.time-range-item').forEach(item =>
+            item.classList.toggle('active', parseInt(item.dataset.minutes) === minutes)
+        );
+
+        const labelEl = $('timeRangeLabel');
+        if (labelEl) labelEl.textContent = formatTimeRange(minutes);
+
         refreshAllCharts();
-        showToast(`Rentang waktu: ${formatTimeRange(minutes)}`, 'success');
     }
 
     function loadGlobalTimeRange() {
         const saved = localStorage.getItem(STORAGE_KEYS.GLOBAL_TIME);
         if (saved) {
             state.globalTimeMinutes = parseInt(saved);
-            $$('.time-range-btn').forEach(btn =>
-                btn.classList.toggle('active', parseInt(btn.dataset.minutes) === state.globalTimeMinutes)
-            );
         }
+
+        $$('.time-range-item').forEach(item =>
+            item.classList.toggle('active', parseInt(item.dataset.minutes) === state.globalTimeMinutes)
+        );
+
+        const labelEl = $('timeRangeLabel');
+        if (labelEl) labelEl.textContent = formatTimeRange(state.globalTimeMinutes);
     }
 
-    function showToast(message, type) {
-        if (window.showToast) window.showToast(message, type);
+    function bindTimeRangeDropdown() {
+        const trigger = $('timeRangeTrigger');
+        const menu = $('timeRangeMenu');
+        if (!trigger || !menu) return;
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menu.classList.toggle('active');
+        });
+
+        menu.querySelectorAll('.time-range-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const minutes = parseInt(item.dataset.minutes);
+                setGlobalTimeRange(minutes);
+                menu.classList.remove('active');
+            });
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!menu.classList.contains('active')) return;
+            if (!menu.contains(e.target) && !trigger.contains(e.target)) {
+                menu.classList.remove('active');
+            }
+        });
     }
 
+    function bindTabDropdown() {
+        const trigger = $('tabDropdownTrigger');
+        const menu = $('tabDropdownMenu');
+        if (!trigger || !menu) return;
+
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            menu.classList.toggle('active');
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!menu.classList.contains('active')) return;
+            if (!menu.contains(e.target) && !trigger.contains(e.target)) {
+                menu.classList.remove('active');
+            }
+        });
+    }
+
+    // ==========================================
+    // 10. EVENT BINDING
+    // ==========================================
     function bindSidebarNav() {
         document.querySelectorAll('.sidebar-nav .nav-item').forEach((item) => {
             item.addEventListener('click', (e) => {
@@ -1502,10 +1992,7 @@
                     if (DASHBOARD_SECTIONS.includes(targetSection)) {
                         showSection(targetSection);
                     }
-                    return;
                 }
-
-                return;
             });
         });
     }
@@ -1520,84 +2007,7 @@
         }
     }
 
-    function bindEvents() {
-        const logo = document.querySelector('.logo-ring');
-        if (logo) logo.addEventListener('click', toggleSidebar);
-
-        bindSidebarNav();
-        bindLogout();
-
-        const themeBtn = $('themeToggleBtn');
-        if (themeBtn) {
-            themeBtn.addEventListener('click', () => {
-                // ✅ P0 FIX: ThemeManager hanya global via window
-                const newTheme = window.ThemeManager.toggle();
-                updateThemeUI(newTheme);
-                setTimeout(refreshAllCharts, 100);
-            });
-        }
-
-        document.querySelectorAll('[data-action="open-cardholder-modal"]').forEach(btn =>
-            btn.addEventListener('click', openCardholderModal)
-        );
-        document.querySelectorAll('[data-action="capture-last-tap"]').forEach(btn =>
-            btn.addEventListener('click', captureLastTap)
-        );
-        document.querySelectorAll('[data-action="submit-cardholder"]').forEach(btn =>
-            btn.addEventListener('click', submitCardholder)
-        );
-        document.querySelectorAll('.stat-card.clickable').forEach(card => {
-            card.addEventListener('click', () => openStatDetailModal(card.dataset.statType));
-        });
-
-        const searchInput = $('searchInput');
-        if (searchInput) {
-            searchInput.addEventListener('input', () => {
-                state.deviceSearchTerm = searchInput.value;
-                if (state.currentSection === 'attendance') filterAttendance();
-                else filterDevices();
-            });
-        }
-
-        document.querySelectorAll('[data-action="add-device"]').forEach(btn =>
-            btn.addEventListener('click', openAddDeviceModal)
-        );
-        document.querySelectorAll('[data-action="add-chart"]').forEach(btn =>
-            btn.addEventListener('click', openAddChartModal)
-        );
-        document.querySelectorAll('[data-action="refresh-charts"]').forEach(btn =>
-            btn.addEventListener('click', refreshAllCharts)
-        );
-        document.querySelectorAll('[data-action="reset-layout"]').forEach(btn =>
-            btn.addEventListener('click', resetChartLayout)
-        );
-
-        const saveBtn = $('saveLocationBtn');
-        if (saveBtn) saveBtn.addEventListener('click', saveLocation);
-
-        const mapSelect = $('mapDeviceSelect');
-        if (mapSelect) {
-            mapSelect.addEventListener('change', function() {
-                state.selectedMapDeviceId = this.value;
-                updateMapDeviceInfo();
-                if (state.marker) { state.marker.remove(); state.marker = null; }
-                state.selectedLat = null;
-                state.selectedLng = null;
-                if (saveBtn) saveBtn.style.display = 'none';
-            });
-        }
-
-        document.querySelectorAll('.time-range-btn').forEach(btn => {
-            btn.addEventListener('click', () => setGlobalTimeRange(parseInt(btn.dataset.minutes)));
-        });
-
-        document.querySelectorAll('#deviceFilterBar .filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => setDeviceFilter(btn.dataset.filter));
-        });
-        document.querySelectorAll('#deviceFilterBarFull .filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => setDeviceFilterFull(btn.dataset.filter));
-        });
-
+    function bindModals() {
         document.querySelectorAll('.modal-close').forEach(btn => {
             btn.addEventListener('click', () => {
                 const modal = btn.closest('.modal');
@@ -1610,29 +2020,97 @@
                 if (e.target === modal) modal.classList.remove('active');
             });
         });
+    }
 
-        document.querySelectorAll('[data-action="submit-add-device"]').forEach(btn =>
-            btn.addEventListener('click', addDevice)
-        );
-        document.querySelectorAll('[data-action="save-device-config"]').forEach(btn =>
-            btn.addEventListener('click', saveDeviceConfig)
-        );
-        document.querySelectorAll('[data-action="copy-api-key"]').forEach(btn =>
-            btn.addEventListener('click', copyApiKey)
-        );
-        document.querySelectorAll('[data-action="confirm-delete"]').forEach(btn =>
-            btn.addEventListener('click', confirmDelete)
-        );
-        document.querySelectorAll('[data-action="save-chart"]').forEach(btn =>
-            btn.addEventListener('click', saveChart)
-        );
+    function bindActionButtons() {
+        const actionMap = {
+            'open-cardholder-modal': openCardholderModal,
+            'capture-last-tap': captureLastTap,
+            'submit-cardholder': submitCardholder,
+            'add-device': openAddDeviceModal,
+            'add-chart': openAddChartModal,
+            'refresh-charts': refreshAllCharts,
+            'reset-layout': resetChartLayout,
+            'submit-add-device': addDevice,
+            'save-device-config': saveDeviceConfig,
+            'copy-api-key': copyApiKey,
+            'confirm-delete': confirmDelete,
+            'save-chart': saveChart,
+            'save-analytics-tab': saveAnalyticsTab,
+            'delete-analytics-tab': deleteAnalyticsTab,
+        };
 
+        Object.entries(actionMap).forEach(([action, handler]) => {
+            document.querySelectorAll(`[data-action="${action}"]`).forEach(btn => {
+                btn.addEventListener('click', handler);
+            });
+        });
+
+        const delTabBtn = $('analyticsTabDeleteBtn');
+        if (delTabBtn) delTabBtn.addEventListener('click', deleteAnalyticsTab);
+
+        document.querySelectorAll('.stat-card.clickable').forEach(card => {
+            card.addEventListener('click', () => openStatDetailModal(card.dataset.statType));
+        });
+    }
+
+    function bindFilters() {
+        const searchInput = $('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', () => {
+                state.deviceSearchTerm = searchInput.value;
+                if (state.currentSection === 'attendance') filterAttendance();
+                else filterDevices();
+            });
+        }
+
+        document.querySelectorAll('#deviceFilterBar .filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => setDeviceFilter(btn.dataset.filter));
+        });
+        document.querySelectorAll('#deviceFilterBarFull .filter-btn').forEach(btn => {
+            btn.addEventListener('click', () => setDeviceFilterFull(btn.dataset.filter));
+        });
+    }
+
+    function bindMapControls() {
+        const saveBtn = $('saveLocationBtn');
+        if (saveBtn) saveBtn.addEventListener('click', saveLocation);
+
+        const resetMapBtn = $('resetMapViewBtn');
+        if (resetMapBtn) {
+            resetMapBtn.addEventListener('click', () => {
+                if (state.mapFull) {
+                    state.mapFull.flyTo([-2.5489, 118.0149], 5, { duration: 1 });
+                }
+            });
+        }
+
+        const mapSelect = $('mapDeviceSelect');
+        if (mapSelect) {
+            mapSelect.addEventListener('change', function() {
+                state.selectedMapDeviceId = this.value;
+                updateMapDeviceInfo();
+                if (state.marker) { state.marker.remove(); state.marker = null; }
+                state.selectedLat = null;
+                state.selectedLng = null;
+                if (saveBtn) saveBtn.style.display = 'none';
+            });
+        }
+    }
+
+    function bindKeyboard() {
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+                const trMenu = $('timeRangeMenu');
+                if (trMenu) trMenu.classList.remove('active');
+                const tabMenu = $('tabDropdownMenu');
+                if (tabMenu) tabMenu.classList.remove('active');
             }
         });
+    }
 
+    function bindNavigation() {
         window.addEventListener('popstate', () => {
             const section = getSectionFromHash();
             showSection(section, true);
@@ -1643,6 +2121,38 @@
             if (state.currentSection !== section) {
                 showSection(section, true);
             }
+        });
+    }
+
+    function bindEvents() {
+        bindSidebarNav();
+        bindLogout();
+        bindModals();
+        bindActionButtons();
+        bindFilters();
+        bindMapControls();
+        bindTimeRangeDropdown();
+        bindTabDropdown();
+        bindKeyboard();
+        bindNavigation();
+
+        const themeBtn = $('themeToggleBtn');
+        if (themeBtn) {
+            themeBtn.addEventListener('click', () => {
+                const newTheme = window.ThemeManager.toggle();
+                updateThemeUI(newTheme);
+                setTimeout(refreshAllCharts, 100);
+            });
+        }
+
+        window.addEventListener('sidebar-toggle', () => {
+            setTimeout(() => {
+                if (window.__nexusMaps) {
+                    window.__nexusMaps.forEach(m => {
+                        try { m.invalidateSize(); } catch (e) {}
+                    });
+                }
+            }, 400);
         });
 
         window.ThemeManager.onChange(() => setTimeout(refreshAllCharts, 100));
@@ -1655,14 +2165,16 @@
         if (label) label.textContent = theme === 'light' ? 'Tema Terang' : 'Tema Gelap';
     }
 
-        async function init() {
+    // ==========================================
+    // 11. INIT
+    // ==========================================
+    async function init() {
         bindEvents();
         updateThemeUI(window.ThemeManager.get());
         loadGlobalTimeRange();
         updateDateTime();
         setInterval(updateDateTime, 1000);
 
-        // ✅ FIX: Tentukan section SEBELUM apapun — biar tidak flash dashboard dulu
         let initialSection = getSectionFromHash();
 
         if (!window.location.hash) {
@@ -1675,41 +2187,24 @@
             } catch (e) {}
         }
 
-        // ✅ FIX: Set visibility section PALING AWAL — sebelum apapun dirender
-        // Ini bikin dashboard langsung "hilang" dan section yang benar tampil
-        ['dashboard', 'map', 'graph', 'attendance', 'devices'].forEach(s => {
-            const el = $(s + 'Section');
-            if (el) el.style.display = s === initialSection ? 'block' : 'none';
-        });
-
-        // Update sidebar active state juga sebelum render
-        $$('.sidebar-nav .nav-item[data-section]').forEach((item) => {
-            const sec = item.getAttribute('data-section');
-            item.classList.toggle('active', sec === initialSection);
-        });
-
-        // Update page title juga
-        const titles = {
-            dashboard: 'Dashboard',
-            map: 'Peta Interaktif',
-            graph: 'Analitik Sensor',
-            devices: 'Manajemen Perangkat',
-            attendance: 'Absensi',
-        };
-        const titleEl = $('pageTitle');
-        if (titleEl) titleEl.textContent = titles[initialSection] || 'Dashboard';
-
         state.currentSection = initialSection;
 
         initMapPreview();
 
-        // ✅ Sekarang baru load data (setelah section visible)
         await loadDashboard();
+
+        if (initialSection === 'graph') {
+            await loadAnalyticsTabs();
+            if (state.currentTabId) await loadTabCharts(state.currentTabId);
+        } else {
+            await loadAnalyticsTabs();
+        }
+
+        // ✅ FIX: gunakan showSection() untuk set visibility awal
         showSection(initialSection, true);
 
         state.dashboardInterval = setInterval(loadDashboard, 30000);
         startAutoRefresh();
-        initializeChartsGridResize();
 
         console.log('[Dashboard] Ready, section:', initialSection);
     }

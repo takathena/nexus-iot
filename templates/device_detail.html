@@ -8,98 +8,256 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-:root{
-  --bg:#000;
-  --surface: rgba(28,28,30,.55);
-  --surface-2: rgba(255,255,255,.045);
-  --hairline: rgba(255,255,255,.09);
-  --hairline-soft: rgba(255,255,255,.06);
-  --text:#f5f5f7;
-  --text-2: rgba(235,235,245,.62);
-  --text-3: rgba(235,235,245,.34);
-  --blue:#0a84ff;
-  --green:#30d158;
-  --red:#ff453a;
-  --orange:#ff9f0a;
-  --purple:#bf5af2;
-  --teal:#64d2ff;
-  --font: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', sans-serif;
-  --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
-  --ease: cubic-bezier(.16,1,.3,1);
+:root {
+  --bg: #09090b;
+  --surface: #131316;
+  --surface-2: #1c1c1f;
+  --hairline: #27272a;
+  --hairline-soft: #1c1c1f;
+  --text: #fafafa;
+  --text-2: #a1a1aa;
+  --text-3: #52525b;
+  --primary: #fafafa;
+  --primary-fg: #09090b;
+  --accent-ok: #22c55e;
+  --accent-warn: #f97316;
+  --accent-crit: #ef4444;
+  --accent-info: #3b82f6;
+  --accent-ok-bg: rgba(34, 197, 94, 0.12);
+  --accent-warn-bg: rgba(249, 115, 22, 0.12);
+  --accent-crit-bg: rgba(239, 68, 68, 0.12);
+  --accent-info-bg: rgba(59, 130, 246, 0.12);
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
 }
 [data-theme="light"] {
-  --bg: #f0f0f5;
-  --surface: rgba(255,255,255,.7);
-  --surface-2: rgba(0,0,0,.05);
-  --hairline: rgba(0,0,0,.10);
-  --hairline-soft: rgba(0,0,0,.07);
-  --text: #1c1c1e;
-  --text-2: rgba(60,60,67,.6);
-  --text-3: rgba(60,60,67,.35);
-  --blue: #007aff; --green: #34c759; --red: #ff3b30; --orange: #ff9500;
+  --bg: #fafafa;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --hairline: #e4e4e7;
+  --hairline-soft: #f0f0f2;
+  --text: #09090b;
+  --text-2: #52525b;
+  --text-3: #a1a1aa;
+  --primary: #09090b;
+  --primary-fg: #ffffff;
 }
-[data-theme="light"] body { background: #f0f0f5; }
-[data-theme="light"] .card { background: var(--surface); border: 1px solid var(--hairline); }
-[data-theme="light"] .back-btn { background: var(--surface-2); border: 1px solid var(--hairline); color: var(--text-2); }
-[data-theme="light"] .sensor-card { background: var(--surface-2); border: 1px solid var(--hairline-soft); }
-*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
-body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;position:relative;}
-body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;background:radial-gradient(45% 32% at 82% 0%, rgba(191,90,242,.09), transparent 60%),radial-gradient(45% 35% at 5% 12%, rgba(10,132,255,.08), transparent 60%);}
-.hero{position:relative;padding:28px 26px 56px;border-bottom:1px solid var(--hairline-soft);z-index:1;}
-.hero-content{max-width:1080px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;}
-.hero-left{display:flex;align-items:center;gap:15px;}
-.device-avatar{width:52px;height:52px;border-radius:15px;background:linear-gradient(155deg,#2c2c2e,#0f0f10);border:1px solid var(--hairline);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--blue);flex-shrink:0;}
-[data-theme="light"] .device-avatar{background:linear-gradient(155deg,#e5e5ea,#d1d1d6);}
-.hero-title h1{font-size:22px;font-weight:800;margin-bottom:6px;color:var(--text);}
-.hero-meta{display:flex;gap:15px;font-size:12px;color:var(--text-3);font-weight:600;flex-wrap:wrap;}
-.hero-meta span{display:flex;align-items:center;gap:6px;}
-.hero-actions{display:flex;gap:10px;flex-wrap:wrap;}
-.back-btn{display:inline-flex;align-items:center;gap:8px;padding:10px 18px;background:var(--surface-2);border:1px solid var(--hairline);border-radius:12px;color:var(--text-2);text-decoration:none;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s var(--ease);}
-.back-btn:hover{background:var(--surface);color:var(--text);border-color:rgba(10,132,255,.3);}
-.back-btn.primary{background:var(--blue);color:#fff;border-color:var(--blue);}
-.back-btn.primary:hover{background:var(--blue-hover, #2b95ff);}
-.back-btn.danger{color:#ff8078;border-color:rgba(255,69,58,.3);}
-.back-btn.danger:hover{background:rgba(255,69,58,.1);}
-.container{max-width:1080px;margin:-30px auto 40px;padding:0 22px;position:relative;z-index:3;display:grid;gap:18px;}
-.card{background:var(--surface);backdrop-filter:blur(24px) saturate(160%);border:1px solid var(--hairline);border-radius:22px;padding:24px;animation:rise .5s var(--ease) backwards;}
-@keyframes rise{from{opacity:0;transform:translateY(12px);}to{opacity:1;transform:translateY(0);}}
-.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;flex-wrap:wrap;gap:10px;}
-.card-title{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:9px;color:var(--text);}
-.card-title i{color:var(--blue);}
-.live-indicator{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;background:rgba(48,209,88,.1);border:1px solid rgba(48,209,88,.22);border-radius:20px;font-size:10px;font-weight:800;color:#4ade80;text-transform:uppercase;}
-.live-dot{width:6px;height:6px;border-radius:50%;background:#4ade80;animation:pulse 2s infinite;}
-@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
-.info-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px;}
-.info-item label{display:block;font-size:10px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
-.info-item .value{font-size:14px;font-weight:600;color:var(--text);}
-.info-item .value.mono{font-family:var(--mono);font-size:12.5px;}
-.status-badge{display:inline-flex;align-items:center;gap:6px;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:700;text-transform:capitalize;}
-.status-badge.online{background:rgba(48,209,88,.12);color:#4ade80;}
-.status-badge.offline{background:rgba(255,69,58,.12);color:#ff8078;}
-.status-badge.danger{background:rgba(255,69,58,.15);color:var(--red);border:1px solid rgba(255,69,58,.3);}
-.status-badge.warning{background:rgba(255,159,10,.15);color:var(--orange);border:1px solid rgba(255,159,10,.3);}
-.status-badge.info{background:rgba(10,132,255,.15);color:var(--blue);border:1px solid rgba(10,132,255,.3);}
-.status-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
-.status-badge.online .status-dot{animation:pulse 2s infinite;}
-.sensor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;}
-.sensor-card{background:var(--surface-2);border:1px solid var(--hairline-soft);border-radius:16px;padding:18px;}
-.sensor-icon{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:14px;margin-bottom:12px;}
-.sensor-name{font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:5px;}
-.sensor-value{font-size:26px;font-weight:800;font-family:var(--mono);line-height:1.1;color:var(--text);}
-.sensor-unit{font-size:11px;color:var(--text-3);font-weight:600;margin-top:2px;margin-bottom:12px;}
-.sensor-gauge{height:4px;border-radius:3px;background:rgba(255,255,255,.06);overflow:hidden;}
-.sensor-gauge-fill{height:100%;border-radius:3px;transition:width 1s var(--ease);}
-.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;gap:14px;}
-.spinner{width:26px;height:26px;border:2.5px solid var(--hairline);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;}
-@keyframes spin{to{transform:rotate(360deg);}}
-.loading-text{font-size:12.5px;color:var(--text-3);font-weight:600;}
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:50px 20px;text-align:center;gap:8px;}
-.empty-state i{font-size:30px;color:var(--text-3);margin-bottom:6px;}
-.empty-state h3{font-size:15px;font-weight:700;color:var(--text);}
-.empty-state p{font-size:12.5px;color:var(--text-3);}
-::-webkit-scrollbar{width:6px;}
-::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px;}
-@media (max-width:600px){.hero{padding:22px 18px 50px;}.container{margin:-26px auto 30px;padding:0 14px;}.card{padding:18px;border-radius:18px;}.hero-actions{width:100%;}.back-btn{flex:1;justify-content:center;}}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+.hero {
+  padding: 28px 26px 56px;
+  border-bottom: 1px solid var(--hairline-soft);
+}
+.hero-content {
+  max-width: 1080px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.hero-left { display: flex; align-items: center; gap: 15px; }
+.device-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--text);
+  flex-shrink: 0;
+}
+.hero-title h1 { font-size: 22px; font-weight: 800; margin-bottom: 6px; color: var(--text); }
+.hero-meta { display: flex; gap: 15px; font-size: 12px; color: var(--text-3); font-weight: 600; flex-wrap: wrap; }
+.hero-meta span { display: flex; align-items: center; gap: 6px; }
+.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: 12px;
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+  font-family: inherit;
+}
+.back-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--text-3); }
+.back-btn.primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+.back-btn.primary:hover { background: var(--text-2); }
+.back-btn.danger { color: var(--accent-crit); border-color: rgba(239, 68, 68, 0.3); }
+.back-btn.danger:hover { background: var(--accent-crit-bg); }
+.container {
+  max-width: 1080px;
+  margin: -30px auto 40px;
+  padding: 0 22px;
+  position: relative;
+  z-index: 3;
+  display: grid;
+  gap: 18px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  animation: rise 0.3s var(--ease) backwards;
+}
+@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.card-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--text);
+}
+.card-title i { color: var(--text-2); }
+.live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  background: var(--accent-ok-bg);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--accent-ok);
+  text-transform: uppercase;
+}
+.live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-ok);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
+.info-item label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.info-item .value { font-size: 14px; font-weight: 600; color: var(--text); }
+.info-item .value.mono { font-family: var(--mono); font-size: 12.5px; }
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: capitalize;
+}
+.status-badge.online { background: var(--accent-ok-bg); color: var(--accent-ok); }
+.status-badge.offline { background: var(--accent-crit-bg); color: var(--accent-crit); }
+.status-badge.danger { background: var(--accent-crit-bg); color: var(--accent-crit); border: 1px solid rgba(239, 68, 68, 0.3); }
+.status-badge.warning { background: var(--accent-warn-bg); color: var(--accent-warn); border: 1px solid rgba(249, 115, 22, 0.3); }
+.status-badge.info { background: var(--accent-info-bg); color: var(--accent-info); border: 1px solid rgba(59, 130, 246, 0.3); }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status-badge.online .status-dot { animation: pulse 2s infinite; }
+.sensor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
+.sensor-card {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+}
+.sensor-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  margin-bottom: 12px;
+}
+.sensor-name {
+  font-size: 11px;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.sensor-value { font-size: 26px; font-weight: 800; font-family: var(--mono); line-height: 1.1; color: var(--text); }
+.sensor-unit { font-size: 11px; color: var(--text-3); font-weight: 600; margin-top: 2px; margin-bottom: 12px; }
+.sensor-gauge { height: 4px; border-radius: 3px; background: var(--hairline); overflow: hidden; }
+.sensor-gauge-fill { height: 100%; border-radius: 3px; transition: width 0.6s var(--ease); }
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+  gap: 14px;
+}
+.spinner {
+  width: 26px;
+  height: 26px;
+  border: 2.5px solid var(--hairline);
+  border-top-color: var(--text);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-size: 12.5px; color: var(--text-3); font-weight: 600; }
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 20px;
+  text-align: center;
+  gap: 8px;
+}
+.empty-state i { font-size: 30px; color: var(--text-3); margin-bottom: 6px; }
+.empty-state h3 { font-size: 15px; font-weight: 700; color: var(--text); }
+.empty-state p { font-size: 12.5px; color: var(--text-3); }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 3px; }
+@media (max-width: 600px) {
+  .hero { padding: 22px 18px 50px; }
+  .container { margin: -26px auto 30px; padding: 0 14px; }
+  .card { padding: 18px; border-radius: 18px; }
+  .hero-actions { width: 100%; }
+  .back-btn { flex: 1; justify-content: center; }
+}
 </style>
 </head>
 <body>
@@ -117,13 +275,13 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
       </div>
       <div class="hero-actions">
         <button class="back-btn" id="btnRegenerateKey" title="Regenerate API Key">
-            <i class="fa-solid fa-key"></i> Regenerate
+          <i class="fa-solid fa-key"></i> Regenerate
         </button>
         <button class="back-btn" id="btnExport" title="Export Data">
-            <i class="fa-solid fa-download"></i> Export
+          <i class="fa-solid fa-download"></i> Export
         </button>
-        <button class="back-btn" id="btnBack" title="Kembali ke halaman sebelumnya">
-            <i class="fa-solid fa-arrow-left"></i> <span id="backLabel">Kembali</span>
+        <button class="back-btn" id="btnBack" title="Kembali">
+          <i class="fa-solid fa-arrow-left"></i> <span id="backLabel">Kembali</span>
         </button>
       </div>
     </div>
@@ -160,17 +318,28 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
     const deviceId = '{{ device_id }}';
     const CSRF_TOKEN = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
 
-    const sensorIcons = { 'temperature': 'fa-temperature-half', 'humidity': 'fa-droplet', 'moisture': 'fa-water', 'lux': 'fa-sun', 'co2': 'fa-cloud', 'voc': 'fa-wind', 'gas_level': 'fa-fire', 'air_quality': 'fa-lungs' };
-    const sensorColors = { 'temperature': '#ff453a', 'humidity': '#bf5af2', 'moisture': '#64d2ff', 'lux': '#ff9f0a', 'co2': '#30d158', 'voc': '#ff375f', 'gas_level': '#ff9f0a', 'air_quality': '#0a84ff' };
+    // Token warna sensor (konsisten dengan dashboard.js)
+    const SENSOR_META = {
+      temperature: { icon: 'fa-temperature-half', color: '#ef4444', unit: '°C', range: [0, 50] },
+      humidity: { icon: 'fa-droplet', color: '#3b82f6', unit: '%', range: [0, 100] },
+      moisture: { icon: 'fa-water', color: '#0ea5e9', unit: '%', range: [0, 100] },
+      lux: { icon: 'fa-sun', color: '#eab308', unit: 'lux', range: [0, 1000] },
+      co2: { icon: 'fa-cloud', color: '#22c55e', unit: 'ppm', range: [0, 2000] },
+      voc: { icon: 'fa-wind', color: '#a855f7', unit: 'ppb', range: [0, 500] },
+      gas_level: { icon: 'fa-fire', color: '#f97316', unit: 'ppm', range: [0, 100] },
+      air_quality: { icon: 'fa-lungs', color: '#3b82f6', unit: 'AQI', range: [0, 500] },
+      smoke: { icon: 'fa-smog', color: '#a855f7', unit: 'ppm', range: [0, 1000] },
+      motion: { icon: 'fa-person-running', color: '#06b6d4', unit: '', range: [0, 1] },
+    };
 
-    function getSensorIcon(key) { return sensorIcons[key] || 'fa-microchip'; }
-    function getSensorColor(key) { return sensorColors[key] || 'rgba(235,235,245,.6)'; }
+    function getSensorMeta(key) {
+      return SENSOR_META[key] || { icon: 'fa-microchip', color: '#a1a1aa', unit: '', range: [0, 100] };
+    }
 
     function getGaugePercent(key, value) {
-      const ranges = { 'temperature': { min: 0, max: 50 }, 'humidity': { min: 0, max: 100 }, 'moisture': { min: 0, max: 100 }, 'lux': { min: 0, max: 1000 }, 'co2': { min: 0, max: 2000 }, 'gas_level': { min: 0, max: 100 } };
-      const range = ranges[key];
-      if (!range) return 50;
-      return Math.min(100, Math.max(0, ((value - range.min) / (range.max - range.min)) * 100));
+      const meta = getSensorMeta(key);
+      const [min, max] = meta.range;
+      return Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
     }
 
     function formatUptime(seconds) {
@@ -191,12 +360,13 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
       return div.innerHTML;
     }
 
-    function loadTheme() {
+    // Theme
+    (function() {
       const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
       document.documentElement.setAttribute('data-theme', savedTheme);
-    }
-    loadTheme();
+    })();
 
+    // Back navigation
     function setupBackNavigation() {
       const btnBack = document.getElementById('btnBack');
       const backLabel = document.getElementById('backLabel');
@@ -215,19 +385,12 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
         backUrl = referrer.replace(currentOrigin, '');
       }
 
-      if (backUrl.includes('/alerts') || backUrl.includes('#alerts')) {
-        backLabelText = 'Ke Alert';
-      } else if (backUrl.includes('#devices')) {
-        backLabelText = 'Ke Perangkat';
-      } else if (backUrl.includes('#attendance')) {
-        backLabelText = 'Ke Absensi';
-      } else if (backUrl.includes('#map')) {
-        backLabelText = 'Ke Peta';
-      } else if (backUrl.includes('#graph')) {
-        backLabelText = 'Ke Analitik';
-      } else if (backUrl === '/#dashboard' || backUrl === '/') {
-        backLabelText = 'Ke Dashboard';
-      }
+      if (backUrl.includes('/alerts') || backUrl.includes('#alerts')) backLabelText = 'Ke Alert';
+      else if (backUrl.includes('#devices')) backLabelText = 'Ke Perangkat';
+      else if (backUrl.includes('#attendance')) backLabelText = 'Ke Absensi';
+      else if (backUrl.includes('#map')) backLabelText = 'Ke Peta';
+      else if (backUrl.includes('#graph')) backLabelText = 'Ke Analitik';
+      else if (backUrl === '/#dashboard' || backUrl === '/') backLabelText = 'Ke Dashboard';
 
       backLabel.textContent = backLabelText;
       btnBack.addEventListener('click', () => {
@@ -235,45 +398,19 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
         window.location.href = backUrl;
       });
     }
-
     setupBackNavigation();
 
+    // Regenerate key
     document.getElementById('btnRegenerateKey').addEventListener('click', async () => {
-      if (!confirm(`Regenerate API key untuk "${deviceId}"?\n\nKey lama tidak akan berfungsi lagi.\nUpdate firmware device dengan key baru.`)) return;
-
+      if (!confirm(`Regenerate API key untuk "${deviceId}"?\n\nKey lama tidak akan berfungsi lagi.`)) return;
       try {
         const res = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}/regenerate-key`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': CSRF_TOKEN,
-          },
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
         });
         const data = await res.json();
         if (data.success) {
-          const newKey = data.api_key;
-          const modal = document.createElement('div');
-          modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-          modal.innerHTML = `
-            <div style="background:var(--surface);border:1px solid var(--hairline);border-radius:20px;padding:26px;max-width:480px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,.5);">
-              <h3 style="margin-bottom:12px;font-size:18px;font-weight:800;">API Key Baru</h3>
-              <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;">Simpan key ini - hanya muncul sekali:</p>
-              <div style="background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;padding:13px;font-family:var(--mono);font-size:11.5px;color:#64d2ff;word-break:break-all;margin-bottom:16px;" id="newKeyText">${escapeHtml(newKey)}</div>
-              <div style="display:flex;gap:8px;">
-                <button id="copyNewKey" style="flex:1;padding:11px;border-radius:11px;border:none;background:var(--blue);color:#fff;font-weight:600;cursor:pointer;font-family:inherit;">Copy</button>
-                <button id="closeNewKey" style="flex:1;padding:11px;border-radius:11px;border:1px solid var(--hairline);background:var(--surface-2);color:var(--text-2);font-weight:600;cursor:pointer;font-family:inherit;">Tutup</button>
-              </div>
-            </div>
-          `;
-          document.body.appendChild(modal);
-
-          modal.querySelector('#copyNewKey').addEventListener('click', () => {
-            navigator.clipboard.writeText(newKey).then(() => {
-              modal.querySelector('#copyNewKey').textContent = 'Tersalin!';
-              setTimeout(() => modal.querySelector('#copyNewKey').textContent = 'Copy', 1500);
-            });
-          });
-          modal.querySelector('#closeNewKey').addEventListener('click', () => modal.remove());
+          showNewKeyModal(data.api_key);
         } else {
           alert('Gagal: ' + (data.error || 'Unknown error'));
         }
@@ -282,10 +419,37 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
       }
     });
 
+    function showNewKeyModal(newKey) {
+      const modal = document.createElement('div');
+      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
+      modal.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--hairline);border-radius:20px;padding:26px;max-width:480px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,.5);">
+          <h3 style="margin-bottom:12px;font-size:18px;font-weight:800;">API Key Baru</h3>
+          <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;">Simpan key ini - hanya muncul sekali:</p>
+          <div style="background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;padding:13px;font-family:var(--mono);font-size:11.5px;color:var(--text);word-break:break-all;margin-bottom:16px;">${escapeHtml(newKey)}</div>
+          <div style="display:flex;gap:8px;">
+            <button id="copyNewKey" class="back-btn primary" style="flex:1;justify-content:center;">Copy</button>
+            <button id="closeNewKey" class="back-btn" style="flex:1;justify-content:center;">Tutup</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      modal.querySelector('#copyNewKey').addEventListener('click', () => {
+        navigator.clipboard.writeText(newKey).then(() => {
+          modal.querySelector('#copyNewKey').textContent = 'Tersalin!';
+          setTimeout(() => modal.querySelector('#copyNewKey').textContent = 'Copy', 1500);
+        });
+      });
+      modal.querySelector('#closeNewKey').addEventListener('click', () => modal.remove());
+    }
+
+    // Export
     document.getElementById('btnExport').addEventListener('click', () => {
       window.location.href = `/api/v1/devices/${encodeURIComponent(deviceId)}/export?format=csv&hours=24`;
     });
 
+    // Active alerts
     function renderActiveAlerts(alerts) {
       const container = document.getElementById('activeAlertsContent');
       if (!container) return;
@@ -293,8 +457,8 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
       if (!alerts || alerts.length === 0) {
         container.innerHTML = `
           <div class="empty-state" style="padding:30px;">
-            <i class="fa-solid fa-circle-check" style="color:var(--green);"></i>
-            <h3 style="color:var(--green);">Semua Normal</h3>
+            <i class="fa-solid fa-circle-check" style="color:var(--accent-ok);"></i>
+            <h3 style="color:var(--accent-ok);">Semua Normal</h3>
             <p>Tidak ada alert aktif untuk perangkat ini</p>
           </div>
         `;
@@ -302,17 +466,17 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
       }
 
       const severityIcon = { danger: 'fa-fire', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
-      const severityColor = { danger: 'var(--red)', warning: 'var(--orange)', info: 'var(--blue)' };
+      const severityColorVar = { danger: '--accent-crit', warning: '--accent-warn', info: '--accent-info' };
 
       let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
       alerts.forEach(a => {
-        const color = severityColor[a.severity] || 'var(--blue)';
+        const varName = severityColorVar[a.severity] || '--accent-info';
         const icon = severityIcon[a.severity] || 'fa-bell';
         html += `
-          <div style="background:${color}15;border:1px solid ${color}40;border-left:3px solid ${color};border-radius:11px;padding:12px 14px;">
+          <div style="background:var(${varName}-bg);border:1px solid var(${varName});border-left:3px solid var(${varName});border-radius:11px;padding:12px 14px;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-              <i class="fa-solid ${icon}" style="color:${color};font-size:12px;"></i>
-              <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:${color};">${escapeHtml(a.severity)}</span>
+              <i class="fa-solid ${icon}" style="color:var(${varName});font-size:12px;"></i>
+              <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(${varName});">${escapeHtml(a.severity)}</span>
               <span style="font-size:10px;color:var(--text-3);font-family:var(--mono);">${escapeHtml(a.alert_type)}</span>
             </div>
             <div style="font-size:12.5px;color:var(--text-2);font-weight:500;">${escapeHtml(a.message)}</div>
@@ -324,6 +488,7 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
       container.innerHTML = html;
     }
 
+    // Load device detail
     async function loadDeviceDetail() {
       try {
         const response = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}`);
@@ -370,20 +535,28 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:0;bac
 
         if (device.latest_data && device.latest_data.data) {
           const sensorData = device.latest_data.data;
-          const units = { 'temperature': '°C', 'humidity': '%', 'moisture': '%', 'lux': 'lux', 'co2': 'ppm', 'voc': 'ppb', 'gas_level': 'ppm', 'air_quality': 'AQI' };
           let sensorHtml = '<div class="sensor-grid">';
           for (const [key, value] of Object.entries(sensorData)) {
             if (key === 'uid') continue;
-            const unit = units[key] || '';
+            const meta = getSensorMeta(key);
             const displayName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            const icon = getSensorIcon(key);
-            const color = getSensorColor(key);
             const gaugePercent = getGaugePercent(key, value);
-            sensorHtml += `<div class="sensor-card"><div class="sensor-icon" style="background:${color}1f;color:${color};"><i class="fa-solid ${icon}"></i></div><div class="sensor-name">${escapeHtml(displayName)}</div><div class="sensor-value" style="color:${color};">${escapeHtml(String(value))}</div><div class="sensor-unit">${escapeHtml(unit)}</div><div class="sensor-gauge"><div class="sensor-gauge-fill" style="width:${gaugePercent}%;background:linear-gradient(90deg, ${color}90, ${color});"></div></div></div>`;
+            sensorHtml += `
+              <div class="sensor-card">
+                <div class="sensor-icon" style="background:${meta.color}1f;color:${meta.color};">
+                  <i class="fa-solid ${meta.icon}"></i>
+                </div>
+                <div class="sensor-name">${escapeHtml(displayName)}</div>
+                <div class="sensor-value" style="color:${meta.color};">${escapeHtml(String(value))}</div>
+                <div class="sensor-unit">${escapeHtml(meta.unit)}</div>
+                <div class="sensor-gauge">
+                  <div class="sensor-gauge-fill" style="width:${gaugePercent}%;background:${meta.color};"></div>
+                </div>
+              </div>`;
           }
           sensorHtml += '</div>';
           document.getElementById('sensorContent').innerHTML = sensorHtml;
-          document.getElementById('sensorMeta').innerHTML = escapeHtml(`${device.latest_data.sensor_type || 'Unknown'} • ${device.latest_data.timestamp}`);
+          document.getElementById('sensorMeta').textContent = `${device.latest_data.sensor_type || 'Unknown'} • ${device.latest_data.timestamp}`;
         } else {
           document.getElementById('sensorContent').innerHTML = `<div class="empty-state"><i class="fa-solid fa-satellite-dish"></i><h3>Belum Ada Data</h3><p>Perangkat belum mengirimkan data sensor</p></div>`;
         }

@@ -7,6 +7,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -16,80 +17,59 @@
     }
 </script>
 
-<!-- ✅ ANTI-FLASH: Set section SEBELUM DOM ready, biar tidak ada flash dashboard -->
+<style>
+    #dashboardSection,
+    #mapSection,
+    #graphSection,
+    #attendanceSection,
+    #devicesSection,
+    #alertsSection {
+        display: none;
+    }
+</style>
+
 <script>
     (function() {
         var hash = (window.location.hash || '').replace('#', '').trim();
-        var valid = ['dashboard', 'map', 'graph', 'attendance', 'devices'];
+        var valid = ['dashboard', 'map', 'graph', 'attendance', 'devices', 'alerts'];
 
         if (!valid.includes(hash)) {
             try {
                 var saved = sessionStorage.getItem('nexus-last-section');
-                if (saved && valid.includes(saved)) {
-                    hash = saved;
-                } else {
-                    hash = 'dashboard';
-                }
+                hash = (saved && valid.includes(saved)) ? saved : 'dashboard';
             } catch (e) {
                 hash = 'dashboard';
             }
         }
 
-        // Set hash di URL biar konsisten
         if (window.location.hash !== '#' + hash) {
             try { history.replaceState(null, '', '#' + hash); } catch (e) {}
         }
 
-        // Set display:none untuk semua section dulu (biar bersih)
-        // Set display:block untuk section yang benar
-        var sections = ['dashboard', 'map', 'graph', 'attendance', 'devices'];
-        var applySection = function() {
-            sections.forEach(function(s) {
-                var el = document.getElementById(s + 'Section');
-                if (el) el.style.display = (s === hash) ? 'block' : 'none';
-            });
-
-            // Update page title
-            var titles = {
-                dashboard: 'Dashboard',
-                map: 'Peta Interaktif',
-                graph: 'Analitik Sensor',
-                devices: 'Manajemen Perangkat',
-                attendance: 'Absensi'
-            };
-            var titleEl = document.getElementById('pageTitle');
-            if (titleEl) titleEl.textContent = titles[hash] || 'Dashboard';
-
-            // Update sidebar active
-            var navItems = document.querySelectorAll('.sidebar-nav .nav-item[data-section]');
-            navItems.forEach(function(item) {
-                var sec = item.getAttribute('data-section');
-                item.classList.toggle('active', sec === hash);
-            });
-        };
-
-        // Coba langsung (DOM mungkin sudah ada karena script di tengah body)
-        applySection();
-
-        // Juga saat DOM ready, kalau elemen belum ada saat script jalan
-        document.addEventListener('DOMContentLoaded', applySection);
+        window.__NEXUS_INITIAL_SECTION = hash;
     })();
 </script>
 
 <svg width="0" height="0" style="position:absolute">
     <defs>
         <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#30d158"/>
-            <stop offset="100%" stop-color="#64d2ff"/>
+            <stop offset="0%" stop-color="#e8eaed"/>
+            <stop offset="100%" stop-color="#a0a7b2"/>
         </linearGradient>
     </defs>
 </svg>
 
+<!-- Backdrop: aktif hanya saat sidebar overlay terbuka di mobile -->
+<div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <div class="logo-ring"><i class="fa-solid fa-satellite-dish"></i></div>
+        <button class="logo-ring" id="sidebarToggleBtn" title="Toggle Sidebar" aria-label="Toggle Sidebar">
+            <i class="fa-solid fa-satellite-dish" id="sidebarToggleIcon"></i>
+        </button>
         <span class="title">NEXUS</span>
     </div>
+
     <nav class="sidebar-nav">
         <div class="nav-section">Menu Utama</div>
         <a class="nav-item" href="#dashboard" data-section="dashboard">
@@ -114,7 +94,7 @@
             <span class="label">Perangkat</span>
             <span class="badge" id="deviceBadge">0</span>
         </a>
-        <a class="nav-item" href="/alerts" data-section="alerts">
+        <a class="nav-item" href="#alerts" data-section="alerts">
             <span class="icon"><i class="fa-solid fa-bell"></i></span>
             <span class="label">Alert Center</span>
             <span class="badge" id="alertBadge">0</span>
@@ -156,6 +136,7 @@
         {% include 'partials/graph_section.html' %}
         {% include 'partials/devices_section.html' %}
         {% include 'partials/attendance_section.html' %}
+        {% include 'partials/alerts_section.html' %}
     </div>
 </div>
 
@@ -168,5 +149,6 @@
 <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.27/dist/interact.min.js"></script>
 <script src="{{ url_for('static', filename='js/alert_rules_builder.js') }}"></script>
+<script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

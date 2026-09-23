@@ -1,26 +1,15 @@
 """
-NEXUS IoT - Flask Application Factory
-
-✅ P0 FIX:
-  - limiter.init_app SEBELUM csrf.init_app (rate limit jalan walau CSRF gagal)
-  - module-level app = create_app() tetap ada (untuk Gunicorn)
-  - signal handler dibungkus try/except (bisa dipanggil dari non-main thread)
-
-✅ P1-A FIX:
-  - Security headers (X-Content-Type-Options, X-Frame-Options, CSP, dll)
-  - MAX_CONTENT_LENGTH handler (413 Payload Too Large)
+NEXUS IoT - Application Factory
 """
-import os
-import signal
 import sys
+import signal
 import logging
-import traceback
 from flask import Flask, jsonify, request
 
-from config import get_config
-from logging_config import setup_logging
-from database import init_db, close_db, get_wib_time
-from extensions import cors, csrf, limiter
+from app.config import get_config
+from app.logging_config import setup_logging
+from app.database import init_db, close_db, get_wib_time
+from app.extensions import cors, csrf, limiter
 
 config = get_config()
 logger = setup_logging(config)
@@ -34,12 +23,13 @@ except ValueError as e:
 
 
 def create_app(config_override=None):
-    app = Flask(__name__)
+    app = Flask(__name__, template_folder='../templates', static_folder='../static')
     app.config.from_object(config)
 
     if config_override:
         app.config.update(config_override)
 
+    # CORS
     cors.init_app(app, resources={
         r"/api/*": {
             "origins": config.CORS_ORIGINS,
@@ -49,30 +39,30 @@ def create_app(config_override=None):
         }
     })
 
-    # ✅ P0 FIX: limiter didaftarkan SEBELUM CSRF
-    # supaya request POST tanpa CSRF token tetap dihitung untuk rate limit.
+    # Rate limiter SEBELUM CSRF (supaya POST tanpa CSRF tetap kena limit)
     limiter.init_app(app)
     csrf.init_app(app)
 
     app.teardown_appcontext(close_db)
 
-    from auth import auth_bp
-    from api import api_bp
-    from views import views_bp
+    # Register blueprints
+    from app.auth import auth_bp
+    from app.api import api_bp
+    from app.views import views_bp
+    from app.dashboards import dashboards_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(api_bp)
     app.register_blueprint(views_bp)
+    app.register_blueprint(dashboards_bp)
 
-    # CSRF: hanya endpoint /api/v1/data yang di-exempt (lihat api.py)
     logger.info("CSRF: only /api/v1/data is exempt (device endpoint)")
 
     # ==========================================
-    # ✅ P1-A: Security headers
+    # Security headers
     # ==========================================
     @app.after_request
     def add_security_headers(response):
-        # Header dasar — selalu ditambahkan
         response.headers['X-Content-Type-Options'] = 'nosniff'
         response.headers['X-Frame-Options'] = 'SAMEORIGIN'
         response.headers['X-XSS-Protection'] = '1; mode=block'
@@ -81,14 +71,11 @@ def create_app(config_override=None):
             'geolocation=(), microphone=(), camera=(), payment=(), usb=()'
         )
 
-        # HSTS hanya kalau HTTPS aktif (SESSION_COOKIE_SECURE=True)
-        # atau dipaksa via ENABLE_HSTS
         if config.SESSION_COOKIE_SECURE or config.ENABLE_HSTS:
             response.headers['Strict-Transport-Security'] = (
                 'max-age=31536000; includeSubDomains'
             )
 
-        # Content-Security-Policy
         csp = (
             f"default-src 'self'; "
             f"script-src {config.CSP_SCRIPT_SRC}; "
@@ -114,11 +101,7 @@ def create_app(config_override=None):
     @app.errorhandler(400)
     def bad_request(e):
         if request.path.startswith('/api/'):
-            return jsonify({
-                'success': False,
-                'error': 'Bad request',
-                'detail': str(e.description) if hasattr(e, 'description') else None,
-            }), 400
+            return jsonify({'success': False, 'error': 'Bad request'}), 400
         return jsonify({'success': False, 'error': 'Bad request'}), 400
 
     @app.errorhandler(401)
@@ -133,13 +116,12 @@ def create_app(config_override=None):
     def not_found(e):
         return jsonify({'success': False, 'error': 'Not found'}), 404
 
-    # ✅ P1-A: handler untuk payload terlalu besar
     @app.errorhandler(413)
     def payload_too_large(e):
         max_mb = config.MAX_CONTENT_LENGTH / (1024 * 1024)
         logger.warning(
             f"Payload too large from {request.remote_addr}: "
-            f"{request.content_length} bytes > {config.MAX_CONTENT_LENGTH} bytes"
+            f"{request.content_length} bytes"
         )
         return jsonify({
             'success': False,
@@ -157,27 +139,20 @@ def create_app(config_override=None):
     @app.errorhandler(500)
     def internal_error(e):
         logger.error(f"Internal server error on {request.method} {request.path}")
-        logger.error(traceback.format_exc())
-
         try:
-            from database import get_db
+            from app.database import get_db
             db = get_db()
             db.rollback()
         except Exception:
             pass
-
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     @app.errorhandler(Exception)
     def unhandled_exception(e):
         from werkzeug.exceptions import HTTPException
-
         if isinstance(e, HTTPException):
             return e
-
-        logger.error(f"Unhandled exception on {request.method} {request.path}: {e}")
-        logger.error(traceback.format_exc())
-
+        logger.error(f"Unhandled exception on {request.method} {request.path}: {e}", exc_info=True)
         if request.path.startswith('/api/'):
             return jsonify({
                 'success': False,
@@ -187,20 +162,20 @@ def create_app(config_override=None):
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
     # ==========================================
-    # Health check & readiness
+    # Health check
     # ==========================================
     @app.route('/health')
     @limiter.exempt
     def health_check():
         try:
-            from database import get_db_context
+            from app.database import get_db_context
             with get_db_context() as conn:
                 conn.execute('SELECT 1').fetchone()
             return jsonify({
                 'status': 'healthy',
                 'timestamp': get_wib_time().isoformat(),
                 'database': 'connected',
-                'version': '3.6',
+                'version': '4.0',
             }), 200
         except Exception as e:
             logger.error(f"Health check failed: {e}", exc_info=True)
@@ -220,57 +195,8 @@ def create_app(config_override=None):
         init_db()
 
     if not app.config.get('TESTING'):
-        from background import start_background_tasks, stop_background_tasks
-
-        # ✅ P0: hanya 1 process yang dapat lock (lihat background.py)
+        from app.background import start_background_tasks
         start_background_tasks()
-
-        def signal_handler(signum, frame):
-            logger.info(f"Received signal {signum}, shutting down...")
-            stop_background_tasks()
-            sys.exit(0)
-
-        # ✅ signal.signal hanya bisa dipanggil di main thread
-        try:
-            signal.signal(signal.SIGTERM, signal_handler)
-            signal.signal(signal.SIGINT, signal_handler)
-        except ValueError:
-            pass
 
     logger.info("Application ready")
     return app
-
-
-# ==========================================
-# Module-level app untuk Gunicorn (`wsgi:app`)
-# ==========================================
-# Ini dieksekusi SATU KALI per worker saat pertama kali `app.py` di-import.
-# wsgi.py cuma `from app import app` — tidak panggil create_app lagi.
-app = create_app()
-
-
-if __name__ == '__main__':
-    logger.info("=" * 60)
-    logger.info("NEXUS IoT starting (dev mode)...")
-    logger.info(f"   Host    : {config.HOST}")
-    logger.info(f"   Port    : {config.PORT}")
-    logger.info(f"   Debug   : {config.DEBUG}")
-    logger.info(f"   Database: {config.DB_PATH}")
-    logger.info(f"   URL     : http://{config.HOST}:{config.PORT}")
-    logger.info("=" * 60)
-
-    try:
-        app.run(
-            host=config.HOST,
-            port=config.PORT,
-            debug=config.DEBUG,
-            use_reloader=False,
-            threaded=True,
-        )
-    except KeyboardInterrupt:
-        logger.info("Keyboard interrupt, shutting down...")
-        try:
-            from background import stop_background_tasks
-            stop_background_tasks()
-        except Exception:
-            pass

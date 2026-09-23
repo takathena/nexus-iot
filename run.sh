@@ -20,8 +20,9 @@ fi
 
 source venv/bin/activate
 
+PORT=$(grep '^PORT' .env | cut -d= -f2 | tr -d ' ' || echo 5000)
 echo -e "${GREEN}Starting NEXUS IoT...${NC}"
-echo -e "${YELLOW}   Akses: http://localhost:$(grep '^PORT' .env | cut -d= -f2 | tr -d ' ')${NC}"
+echo -e "${YELLOW}   Akses: http://localhost:${PORT}${NC}"
 echo ""
 
-exec python -u app.py
+exec python -u run.py

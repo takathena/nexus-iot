@@ -197,7 +197,7 @@
             Simpan API Key ini - hanya muncul sekali:
         </p>
         <div style="background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;padding:13px;display:flex;align-items:center;gap:10px;">
-            <code id="apiKeyDisplay" style="flex:1;font-size:11.5px;color:var(--teal);word-break:break-all;font-family:var(--mono);"></code>
+            <code id="apiKeyDisplay" style="flex:1;font-size:11.5px;color:var(--text);word-break:break-all;font-family:var(--mono);"></code>
             <button class="btn btn-primary" data-action="copy-api-key">Copy</button>
         </div>
         <button class="btn btn-primary modal-close" style="width:100%;margin-top:16px;">
@@ -269,6 +269,31 @@
                 <thead id="statDetailThead"></thead>
                 <tbody id="statDetailBody"></tbody>
             </table>
+        </div>
+    </div>
+</div>
+
+<!-- ANALYTICS TAB MODAL -->
+<div class="modal" id="analyticsTabModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="analyticsTabModalTitle">Tab Analitik</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <input type="hidden" id="analyticsTabMode" value="new">
+        <input type="hidden" id="analyticsTabId" value="">
+        <div class="form-group">
+            <label>Nama Tab</label>
+            <input type="text" id="analyticsTabName" placeholder="Contoh: Suhu, Kelembapan, Gas">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-danger" id="analyticsTabDeleteBtn" style="display:none;margin-right:auto;">
+                <i class="fa-solid fa-trash"></i> Hapus
+            </button>
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-primary" data-action="save-analytics-tab">
+                <i class="fa-solid fa-check"></i> Simpan
+            </button>
         </div>
     </div>
 </div>

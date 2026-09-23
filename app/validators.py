@@ -1,7 +1,7 @@
 """
-NEXUS IoT - Input Validation
+NEXUS IoT - Input Validation Schemas
 """
-from marshmallow import Schema, fields, validate, ValidationError
+from marshmallow import Schema, fields, validate
 
 
 class DeviceCreateSchema(Schema):
@@ -17,7 +17,6 @@ class DeviceCreateSchema(Schema):
     device_type = fields.Str(load_default='ESP32', validate=validate.Length(max=32))
     location = fields.Str(load_default='', validate=validate.Length(max=255))
     description = fields.Str(load_default='', validate=validate.Length(max=1000))
-
     expected_interval = fields.Int(load_default=60, validate=validate.Range(min=10, max=86400))
     offline_timeout = fields.Int(load_default=None, allow_none=True,
                                  validate=validate.Range(min=10, max=604800))
@@ -35,7 +34,6 @@ class DeviceUpdateSchema(Schema):
     description = fields.Str(validate=validate.Length(max=1000))
     latitude = fields.Float(validate=validate.Range(min=-90, max=90))
     longitude = fields.Float(validate=validate.Range(min=-180, max=180))
-
     expected_interval = fields.Int(validate=validate.Range(min=10, max=86400))
     offline_timeout = fields.Int(validate=validate.Range(min=10, max=604800))
     offline_alert_severity = fields.Str(validate=validate.OneOf(['info', 'warning', 'danger']))
@@ -51,12 +49,6 @@ class SensorDataSchema(Schema):
     data = fields.Dict(required=True)
 
 
-class LoginSchema(Schema):
-    username = fields.Str(required=True, validate=validate.Length(min=1, max=64))
-    password = fields.Str(required=True, validate=validate.Length(min=1, max=128))
-
-
 device_create_schema = DeviceCreateSchema()
 device_update_schema = DeviceUpdateSchema()
 sensor_data_schema = SensorDataSchema()
-login_schema = LoginSchema()

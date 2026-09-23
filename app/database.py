@@ -1,14 +1,10 @@
 """
 NEXUS IoT - Database Layer
-Schema version 7: timezone standardization + indexes.
-
-✅ P0 FIX: semua datetime disimpan sebagai naive WIB (tanpa +07:00 suffix).
-Migrasi v7 akan:
-  1. Strip suffix '+07:00' dari datetime yang sudah ada
-  2. Konversi created_at yang UTC (dari DEFAULT CURRENT_TIMESTAMP) ke WIB
+Schema version 10: multi-dashboard + analytics tabs + widgets.
 """
 import os
 import sqlite3
+import hashlib
 from contextlib import contextmanager
 from flask import g
 from datetime import datetime, timedelta, timezone
@@ -17,10 +13,7 @@ WIB = timezone(timedelta(hours=7))
 
 
 def get_wib_time():
-    """
-    ✅ P0 FIX: sekarang mengembalikan NAIVE WIB datetime.
-    Sebelumnya aware (+07:00) yang menyebabkan inkonsistensi di query range.
-    """
+    """Return current WIB time as NAIVE datetime."""
     return datetime.now(WIB).replace(tzinfo=None)
 
 
@@ -36,7 +29,7 @@ def _configure_connection(conn):
 
 
 def _get_db_path():
-    from config import Config
+    from app.config import Config
     return Config.DB_PATH
 
 
@@ -77,24 +70,15 @@ def get_db_context():
         conn.close()
 
 
-SCHEMA_VERSION = 8
-
-# ✅ P0 FIX: default WIB untuk fresh install (bukan UTC)
+SCHEMA_VERSION = 10
 WIB_DEFAULT = "(datetime('now', '+7 hours'))"
 
 
 def init_db():
-    """
-    ✅ P0 FIX: dibungkus process_lock supaya tidak race di multi-worker Gunicorn.
-    Worker pertama menjalankan migrasi; worker lain menunggu dan langsung
-    melihat schema version sudah terbaru.
-    """
-    from utils import process_lock
+    from app.utils import process_lock
 
     with process_lock('db-init', blocking=True) as got_lock:
         if not got_lock:
-            # Tidak mungkin terjadi dengan blocking=True, tapi jaga-jaga
-            print("[DB] Failed to acquire init lock, skipping")
             return
         _init_db_inner()
 
@@ -115,45 +99,24 @@ def _init_db_inner():
 
         print(f"[DB] Current schema version: {current_version}")
 
-        if current_version < 1:
-            _migrate_v1(cursor)
-            cursor.execute('INSERT INTO schema_version (version) VALUES (1)')
-            print("[DB] Applied migration v1")
+        migrations = [
+            (1, _migrate_v1),
+            (2, _migrate_v2),
+            (3, _migrate_v3),
+            (4, _migrate_v4),
+            (5, _migrate_v5),
+            (6, _migrate_v6),
+            (7, _migrate_v7),
+            (8, _migrate_v8),
+            (9, _migrate_v9),
+            (10, _migrate_v10),
+        ]
 
-        if current_version < 2:
-            _migrate_v2(cursor)
-            cursor.execute('INSERT INTO schema_version (version) VALUES (2)')
-            print("[DB] Applied migration v2")
-
-        if current_version < 3:
-            _migrate_v3(cursor)
-            cursor.execute('INSERT INTO schema_version (version) VALUES (3)')
-            print("[DB] Applied migration v3")
-
-        if current_version < 4:
-            _migrate_v4(cursor)
-            cursor.execute('INSERT INTO schema_version (version) VALUES (4)')
-            print("[DB] Applied migration v4")
-
-        if current_version < 5:
-            _migrate_v5(cursor)
-            cursor.execute('INSERT INTO schema_version (version) VALUES (5)')
-            print("[DB] Applied migration v5")
-
-        if current_version < 6:
-            _migrate_v6(cursor)
-            cursor.execute('INSERT INTO schema_version (version) VALUES (6)')
-            print("[DB] Applied migration v6")
-
-        if current_version < 7:
-            _migrate_v7(cursor)
-            cursor.execute('INSERT INTO schema_version (version) VALUES (7)')
-            print("[DB] Applied migration v7 (timezone standardization)")
-
-        if current_version < 8:
-            _migrate_v8(cursor)
-            cursor.execute('INSERT INTO schema_version (version) VALUES (8)')
-            print("[DB] Applied migration v8 (hash API key)")
+        for version, migrate_fn in migrations:
+            if current_version < version:
+                migrate_fn(cursor)
+                cursor.execute('INSERT INTO schema_version (version) VALUES (?)', (version,))
+                print(f"[DB] Applied migration v{version}")
 
         conn.commit()
         print(f"[DB] Database initialized! (version {SCHEMA_VERSION})")
@@ -326,21 +289,8 @@ def _migrate_v6(cursor):
 
 
 def _migrate_v7(cursor):
-    """
-    ✅ P0 FIX: Standarisasi semua datetime ke naive WIB.
-
-    Sebelumnya:
-      - Kolom yang diset eksplisit pakai get_wib_time() → tersimpan sebagai
-        '2026-09-12 14:30:25+07:00' (aware)
-      - Kolom created_at yang pakai DEFAULT CURRENT_TIMESTAMP → tersimpan
-        sebagai '2026-09-12 07:30:25' (UTC naive)
-
-    Sesudah:
-      - Semua kolom → naive WIB '2026-09-12 14:30:25'
-    """
     print("[DB] v7: standardizing timezone to naive WIB...")
 
-    # 1. Kolom yang sebelumnya di-set eksplisit sebagai WIB aware (+07:00)
     tz_fields = [
         ('devices', 'last_seen'),
         ('sensor_data', 'timestamp'),
@@ -362,9 +312,6 @@ def _migrate_v7(cursor):
         except Exception as e:
             print(f"[DB] v7 skip {table}.{column}: {e}")
 
-    # 2. Kolom yang pakai DEFAULT CURRENT_TIMESTAMP (UTC) → konversi ke WIB
-    #    devices.created_at & cardholders.created_at tidak pernah di-set eksplisit,
-    #    jadi semua existing row adalah UTC naive.
     utc_fields = [
         ('devices', 'created_at'),
         ('cardholders', 'created_at'),
@@ -383,34 +330,18 @@ def _migrate_v7(cursor):
 
     print("[DB] v7: timezone standardization complete")
 
+
 def _migrate_v8(cursor):
-    """
-    ✅ P1-B FIX: Hash API key device dengan SHA-256.
-
-    Sebelumnya api_key disimpan plaintext. Sekarang:
-      - api_key_hash: SHA-256(api_key) — untuk verifikasi
-      - api_key: tetap ada untuk kompatibilitas mundur (di-null-kan nanti)
-
-    Migrasi:
-      1. Tambah kolom api_key_hash (kalau belum ada)
-      2. Isi hash untuk semua device dari api_key plaintext yang ada
-    """
-    import hashlib
-
+    """Hash API key + nullify plaintext."""
     print("[DB] v8: hashing API keys...")
 
-    # 1. Tambah kolom api_key_hash
     cols = [row[1] for row in cursor.execute('PRAGMA table_info(devices)').fetchall()]
     if 'api_key_hash' not in cols:
         cursor.execute('ALTER TABLE devices ADD COLUMN api_key_hash TEXT DEFAULT NULL')
         print("[DB] v8: added column api_key_hash")
 
-    # 2. Index untuk lookup cepat saat validasi
-    cursor.execute(
-        'CREATE INDEX IF NOT EXISTS idx_devices_api_key_hash ON devices (api_key_hash)'
-    )
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_devices_api_key_hash ON devices (api_key_hash)')
 
-    # 3. Isi hash untuk semua row yang punya api_key plaintext tapi hash-nya kosong
     rows = cursor.execute(
         'SELECT device_id, api_key FROM devices WHERE api_key IS NOT NULL AND (api_key_hash IS NULL OR api_key_hash = "")'
     ).fetchall()
@@ -428,5 +359,81 @@ def _migrate_v8(cursor):
         )
         hashed += 1
 
-    print(f"[DB] v8: hashed {hashed} API keys")
-    print("[DB] v8: hash API key migration complete")
+    cursor.execute('UPDATE devices SET api_key = NULL WHERE api_key_hash IS NOT NULL')
+    print(f"[DB] v8: hashed {hashed} API keys, plaintext nullified")
+
+
+def _migrate_v9(cursor):
+    """Multi-dashboard + persistent widget layout."""
+    print("[DB] v9: creating dashboards & widgets tables...")
+
+    cursor.execute(f'''
+        CREATE TABLE IF NOT EXISTS dashboards (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            slug TEXT UNIQUE NOT NULL,
+            name TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            icon TEXT DEFAULT 'fa-chart-line',
+            is_default INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT {WIB_DEFAULT},
+            updated_at DATETIME DEFAULT {WIB_DEFAULT}
+        )
+    ''')
+
+    cursor.execute(f'''
+        CREATE TABLE IF NOT EXISTS widgets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dashboard_id INTEGER NOT NULL,
+            widget_type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            device_id TEXT,
+            config TEXT NOT NULL,
+            grid_x INTEGER DEFAULT 0,
+            grid_y INTEGER DEFAULT 0,
+            grid_w INTEGER DEFAULT 2,
+            grid_h INTEGER DEFAULT 2,
+            created_at DATETIME DEFAULT {WIB_DEFAULT},
+            updated_at DATETIME DEFAULT {WIB_DEFAULT},
+            FOREIGN KEY (dashboard_id) REFERENCES dashboards (id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_widgets_dashboard ON widgets (dashboard_id)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_dashboards_slug ON dashboards (slug)')
+
+    existing = cursor.execute('SELECT id FROM dashboards WHERE slug = ?', ('default',)).fetchone()
+    if not existing:
+        cursor.execute('''
+            INSERT INTO dashboards (slug, name, description, icon, is_default)
+            VALUES ('default', 'Dashboard Utama', 'Dashboard bawaan', 'fa-chart-pie', 1)
+        ''')
+        print("[DB] v9: default dashboard created")
+    else:
+        print("[DB] v9: default dashboard already exists")
+
+
+def _migrate_v10(cursor):
+    """Analytics tabs untuk multi-analitik dalam satu dashboard."""
+    print("[DB] v10: creating analytics_tabs...")
+
+    cursor.execute(f'''
+        CREATE TABLE IF NOT EXISTS analytics_tabs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dashboard_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            icon TEXT DEFAULT 'fa-chart-line',
+            position INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT {WIB_DEFAULT},
+            updated_at DATETIME DEFAULT {WIB_DEFAULT},
+            FOREIGN KEY (dashboard_id) REFERENCES dashboards (id) ON DELETE CASCADE
+        )
+    ''')
+
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_analytics_tabs_dashboard ON analytics_tabs (dashboard_id, position)')
+
+    cols = [row[1] for row in cursor.execute('PRAGMA table_info(widgets)').fetchall()]
+    if 'analytics_tab_id' not in cols:
+        cursor.execute('ALTER TABLE widgets ADD COLUMN analytics_tab_id INTEGER DEFAULT NULL')
+        print("[DB] v10: added column widgets.analytics_tab_id")
+
+    print("[DB] v10: analytics_tabs ready")

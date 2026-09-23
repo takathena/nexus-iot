@@ -1,5 +1,5 @@
 """
-NEXUS IoT - Configuration Management
+NEXUS IoT - Configuration
 """
 import os
 from datetime import timedelta
@@ -12,8 +12,6 @@ class Config:
     HOST = os.getenv('HOST', '0.0.0.0')
     PORT = int(os.getenv('PORT', 5000))
     DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
-    WORKERS = int(os.getenv('WORKERS', 2))
-    THREADS = int(os.getenv('THREADS', 4))
     TESTING = False
 
     SECRET_KEY = os.getenv('SECRET_KEY')
@@ -25,21 +23,19 @@ class Config:
     WTF_CSRF_ENABLED = True
     WTF_CSRF_TIME_LIMIT = None
 
-    # ✅ P1-A: Security headers & payload limit
-    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 2 * 1024 * 1024))  # 2 MB
+    MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 2 * 1024 * 1024))
     ENABLE_HSTS = os.getenv('ENABLE_HSTS', 'False').lower() == 'true'
     CSP_REPORT_ONLY = os.getenv('CSP_REPORT_ONLY', 'False').lower() == 'true'
 
-    # ✅ P1-C: Notifikasi eksternal (Telegram)
+    # Notifikasi Telegram
     NOTIFY_ENABLED = os.getenv('NOTIFY_ENABLED', 'False').lower() == 'true'
     NOTIFY_MIN_SEVERITY = os.getenv('NOTIFY_MIN_SEVERITY', 'warning')
     NOTIFY_ON_CLEARED = os.getenv('NOTIFY_ON_CLEARED', 'True').lower() == 'true'
-
     TELEGRAM_ENABLED = os.getenv('TELEGRAM_ENABLED', 'False').lower() == 'true'
     TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
     TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '')
 
-    # CSP whitelist — dikonfigurasi lewat .env, comma-separated
+    # CSP whitelist
     CSP_SCRIPT_SRC = os.getenv(
         'CSP_SCRIPT_SRC',
         "'self' 'unsafe-inline' "
@@ -63,14 +59,13 @@ class Config:
     )
     CSP_CONNECT_SRC = os.getenv(
         'CSP_CONNECT_SRC',
-        "'self' "
-        "https://*.tile.openstreetmap.org"
+        "'self' https://*.tile.openstreetmap.org"
     )
 
     IOT_USERNAME = os.getenv('IOT_USERNAME', 'admin')
     IOT_PASSWORD = os.getenv('IOT_PASSWORD')
 
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     DB_PATH = os.getenv('DB_PATH', os.path.join(BASE_DIR, 'database', 'iot.db'))
     DATA_RETENTION_DAYS = int(os.getenv('DATA_RETENTION_DAYS', 30))
 
@@ -83,27 +78,7 @@ class Config:
     CHECK_INTERVAL = int(os.getenv('CHECK_INTERVAL', 60))
     DEFAULT_EXPECTED_INTERVAL = int(os.getenv('DEFAULT_EXPECTED_INTERVAL', 60))
     DEFAULT_OFFLINE_SEVERITY = os.getenv('DEFAULT_OFFLINE_SEVERITY', 'danger')
-
-    # ✅ P0 FIX: flag untuk mematikan background tasks di process tertentu
     BACKGROUND_TASKS_ENABLED = os.getenv('BACKGROUND_TASKS_ENABLED', 'True').lower() == 'true'
-
-    @staticmethod
-    def _parse_cors_origins():
-        raw = os.getenv('CORS_ORIGINS', 'http://localhost:5000')
-        origins = [o.strip() for o in raw.split(',') if o.strip()]
-        if '*' in origins:
-            import logging
-            logging.getLogger('nexus').warning(
-                "[SECURITY] CORS_ORIGINS='*' ditolak. Menggunakan localhost."
-            )
-            return ['http://localhost:5000']
-        validated = []
-        for o in origins:
-            if o.startswith('http://') or o.startswith('https://'):
-                validated.append(o)
-        return validated or ['http://localhost:5000']
-
-    CORS_ORIGINS = _parse_cors_origins.__func__()
 
     RATE_LIMIT_DEFAULT = os.getenv('RATE_LIMIT_DEFAULT', '200 per minute')
     RATE_LIMIT_DATA = os.getenv('RATE_LIMIT_DATA', '60 per minute')
@@ -116,18 +91,12 @@ class Config:
 
     ALERT_RULES = {
         'temperature': {
-            'healthy': {
-                'min': float(os.getenv('ALERT_TEMP_HEALTHY_MIN', 6)),
-                'max': float(os.getenv('ALERT_TEMP_HEALTHY_MAX', 28)),
-            },
-            'warning': {
-                'min': float(os.getenv('ALERT_TEMP_WARNING_MIN', 0)),
-                'max': float(os.getenv('ALERT_TEMP_WARNING_MAX', 32)),
-            },
-            'danger': {
-                'min': float(os.getenv('ALERT_TEMP_DANGER_MIN', -10)),
-                'max': float(os.getenv('ALERT_TEMP_DANGER_MAX', 40)),
-            },
+            'healthy': {'min': float(os.getenv('ALERT_TEMP_HEALTHY_MIN', 6)),
+                        'max': float(os.getenv('ALERT_TEMP_HEALTHY_MAX', 28))},
+            'warning': {'min': float(os.getenv('ALERT_TEMP_WARNING_MIN', 0)),
+                        'max': float(os.getenv('ALERT_TEMP_WARNING_MAX', 32))},
+            'danger': {'min': float(os.getenv('ALERT_TEMP_DANGER_MIN', -10)),
+                       'max': float(os.getenv('ALERT_TEMP_DANGER_MAX', 40))},
             '_hysteresis': 0.5,
         },
         'humidity': {
@@ -147,10 +116,24 @@ class Config:
     JSON_SORT_KEYS = False
     JSONIFY_PRETTYPRINT_REGULAR = False
 
+    @staticmethod
+    def _parse_cors_origins():
+        raw = os.getenv('CORS_ORIGINS', 'http://localhost:5000')
+        origins = [o.strip() for o in raw.split(',') if o.strip()]
+        if '*' in origins:
+            import logging
+            logging.getLogger('nexus').warning(
+                "[SECURITY] CORS_ORIGINS='*' ditolak. Menggunakan localhost."
+            )
+            return ['http://localhost:5000']
+        validated = [o for o in origins if o.startswith(('http://', 'https://'))]
+        return validated or ['http://localhost:5000']
+
+    CORS_ORIGINS = _parse_cors_origins.__func__()
+
     @classmethod
     def validate(cls):
         errors = []
-
         if not cls.SECRET_KEY:
             errors.append("SECRET_KEY wajib di-set di .env")
         elif len(cls.SECRET_KEY) < 32:
@@ -174,7 +157,6 @@ class Config:
         if cls.CHECK_INTERVAL < 10:
             errors.append("CHECK_INTERVAL minimal 10 detik")
 
-        # ✅ P1-C: validasi notifikasi Telegram
         if cls.NOTIFY_ENABLED:
             if cls.TELEGRAM_ENABLED:
                 if not cls.TELEGRAM_BOT_TOKEN:
@@ -182,7 +164,7 @@ class Config:
                 if not cls.TELEGRAM_CHAT_ID:
                     errors.append("TELEGRAM_ENABLED=True tapi TELEGRAM_CHAT_ID kosong")
             else:
-                errors.append("NOTIFY_ENABLED=True tapi TELEGRAM_ENABLED=False. Tidak ada channel aktif.")
+                errors.append("NOTIFY_ENABLED=True tapi TELEGRAM_ENABLED=False")
 
         if errors:
             raise ValueError(

@@ -1,14 +1,7 @@
 """
 NEXUS IoT - API Routes (v1)
-
-✅ P0 FIX:
-  - Semua endpoint admin dilindungi @login_required
-  - Hanya /data yang @csrf.exempt (device endpoint, pakai API key)
-
-✅ P1-A FIX:
-  - RequestEntityTooLarge ditangkap eksplisit di /data → return 413
 """
-from auth import login_required
+from app.auth import login_required
 import json
 import logging
 import csv
@@ -18,34 +11,26 @@ from datetime import timedelta, datetime
 from flask import Blueprint, request, jsonify, Response
 from marshmallow import ValidationError
 
-from database import get_db_context, get_wib_time
-from validators import device_create_schema, device_update_schema, sensor_data_schema
-from utils import (
+from app.database import get_db_context, get_wib_time
+from app.validators import device_create_schema, device_update_schema, sensor_data_schema
+from app.utils import (
     generate_api_key, safe_json_loads, validate_alert_rules,
     hash_api_key, verify_api_key,
 )
-from alerts import (
+from app.alerts import (
     check_and_create_alerts, get_active_alerts, get_alert_history,
-    get_alert_summary, acknowledge_alert, bulk_acknowledge_alerts,
+    acknowledge_alert, bulk_acknowledge_alerts,
     clear_offline_alert, get_device_alert_rules,
 )
-from extensions import limiter, csrf
-from config import get_config
-from notifier import send_test_notification, get_notification_status
+from app.extensions import limiter, csrf
+from app.config import get_config
+from app.notifier import send_test_notification, get_notification_status
 
 logger = logging.getLogger('nexus')
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
 
 def validate_device_api_key(device_id, api_key):
-    """
-    ✅ P1-B: Verifikasi API key dengan hash (SHA-256).
-
-    Flow:
-      1. Cek api_key_hash (cara baru, P1-B)
-      2. Fallback ke api_key plaintext (kompatibilitas mundur,
-         sebelum semua device di-migrate)
-    """
     if not device_id or not api_key:
         return False
 
@@ -58,15 +43,13 @@ def validate_device_api_key(device_id, api_key):
     if not device:
         return False
 
-    # ✅ Cara baru: verifikasi via hash
     if device['api_key_hash']:
         return verify_api_key(api_key, device['api_key_hash'])
 
-    # ✅ Fallback: plaintext (untuk device yang belum migrate)
+    # Fallback plaintext (device lama yang belum migrate)
     if device['api_key']:
         import hmac
         return hmac.compare_digest(device['api_key'], api_key)
-
     return False
 
 
@@ -103,37 +86,23 @@ def _alert_label(alert_type, severity):
 
 
 # ==========================================
-# DEVICE-FACING ENDPOINT (publik, pakai API key)
+# DEVICE-FACING ENDPOINT
 # ==========================================
 @api_bp.route('/data', methods=['POST'])
 @csrf.exempt
 @limiter.limit(lambda: get_config().RATE_LIMIT_DATA)
 def receive_data():
-    """
-    ✅ P0 FIX: endpoint ini CSRF-exempt karena diakses device (ESP32)
-    pakai API key, bukan session browser.
-
-    ✅ P1-A FIX: tangkap RequestEntityTooLarge secara eksplisit di sini
-    supaya return 413 (bukan 500).
-    """
     from werkzeug.exceptions import RequestEntityTooLarge
 
-    # ✅ P1-A: tangkap payload terlalu besar SEBELUM parse JSON
     try:
         payload = request.get_json(silent=True)
     except RequestEntityTooLarge:
         max_mb = get_config().MAX_CONTENT_LENGTH / (1024 * 1024)
-        logger.warning(
-            f"Payload too large from {request.remote_addr} "
-            f"(content_length={request.content_length})"
-        )
         return jsonify({
             'success': False,
             'error': f'Payload terlalu besar. Maksimal {max_mb:.1f} MB.',
-            'max_bytes': get_config().MAX_CONTENT_LENGTH,
         }), 413
 
-    # Main logic di dalam try besar
     try:
         if not payload:
             return jsonify({'success': False, 'error': 'Invalid JSON'}), 400
@@ -144,7 +113,7 @@ def receive_data():
             return jsonify({'success': False, 'error': err.messages}), 400
 
         if not validate_device_api_key(data['device_id'], data['api_key']):
-            logger.warning(f"Invalid API key attempt: device={data['device_id']} ip={request.remote_addr}")
+            logger.warning(f"Invalid API key attempt: device={data['device_id']}")
             return jsonify({'success': False, 'error': 'Invalid device_id or api_key'}), 401
 
         with get_db_context() as conn:
@@ -170,7 +139,6 @@ def receive_data():
                         (uid, data['device_id'], get_wib_time())
                     )
                     conn.commit()
-                logger.info(f"Attendance recorded: uid={uid} device={data['device_id']}")
 
         try:
             check_and_create_alerts(data['device_id'], data['data'])
@@ -183,22 +151,13 @@ def receive_data():
             'timestamp': get_wib_time().isoformat()
         }), 200
 
-    except RequestEntityTooLarge:
-        # Fallback: kalau exception ini somehow lolos dari try pertama
-        max_mb = get_config().MAX_CONTENT_LENGTH / (1024 * 1024)
-        return jsonify({
-            'success': False,
-            'error': f'Payload terlalu besar. Maksimal {max_mb:.1f} MB.',
-            'max_bytes': get_config().MAX_CONTENT_LENGTH,
-        }), 413
-
     except Exception as e:
         logger.error(f"Error in receive_data: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
 
 # ==========================================
-# ALERT HISTORY (untuk chart trend)
+# ALERT TREND
 # ==========================================
 @api_bp.route('/alerts/trend', methods=['GET'])
 @login_required
@@ -209,21 +168,15 @@ def get_alert_trend():
 
     with get_db_context() as conn:
         rows = conn.execute('''
-            SELECT
-                strftime('%Y-%m-%d %H:00', created_at) AS hour_bucket,
-                severity,
-                COUNT(*) AS count
+            SELECT strftime('%Y-%m-%d %H:00', created_at) AS hour_bucket,
+                   severity, COUNT(*) AS count
             FROM alert_history
             WHERE created_at >= ? AND action = 'created'
             GROUP BY hour_bucket, severity
             ORDER BY hour_bucket ASC
         ''', (since,)).fetchall()
 
-    return jsonify({
-        'success': True,
-        'trend': [dict(r) for r in rows],
-        'range_hours': hours,
-    }), 200
+    return jsonify({'success': True, 'trend': [dict(r) for r in rows], 'range_hours': hours}), 200
 
 
 # ==========================================
@@ -248,6 +201,7 @@ def get_devices():
     for device in rows:
         d = dict(device)
         d.pop('api_key', None)
+        d.pop('api_key_hash', None)
         if d.get('alert_rules'):
             try:
                 d['alert_rules'] = json.loads(d['alert_rules'])
@@ -286,6 +240,7 @@ def add_device():
                 return jsonify({'success': False, 'error': err_msg}), 400
 
         api_key = generate_api_key()
+        api_key_hash = hash_api_key(api_key)
 
         expected_interval = data.get('expected_interval', 60)
         offline_timeout = data.get('offline_timeout')
@@ -294,9 +249,6 @@ def add_device():
 
         alert_rules_json = json.dumps(alert_rules) if alert_rules else None
         offline_severity = data.get('offline_alert_severity', 'danger')
-
-        # ✅ P1-B: hash API key sebelum simpan
-        api_key_hash = hash_api_key(api_key)
 
         with get_db_context() as conn:
             existing = conn.execute(
@@ -307,7 +259,6 @@ def add_device():
             if existing:
                 return jsonify({'success': False, 'error': 'Device ID already exists'}), 400
 
-            # ✅ P1-B: simpan hash, plaintext tetap ada untuk kompatibilitas
             conn.execute('''
                 INSERT INTO devices
                 (device_id, device_name, device_type, location, description,
@@ -317,7 +268,7 @@ def add_device():
             ''', (
                 data['device_id'], data['device_name'], data['device_type'],
                 data['location'], data['description'],
-                api_key, api_key_hash,
+                None, api_key_hash,
                 offline_timeout, expected_interval,
                 alert_rules_json, offline_severity, get_wib_time()
             ))
@@ -365,16 +316,15 @@ def get_device_detail(device_id):
             WHERE device_id = ? AND is_active = 1 AND alert_type != 'uid'
             ORDER BY
                 CASE severity
-                    WHEN 'danger' THEN 1
-                    WHEN 'warning' THEN 2
-                    WHEN 'info' THEN 3
-                    ELSE 4
+                    WHEN 'danger' THEN 1 WHEN 'warning' THEN 2
+                    WHEN 'info' THEN 3 ELSE 4
                 END,
                 created_at DESC
         ''', (device_id,)).fetchall()
 
     device_info = dict(device)
     device_info.pop('api_key', None)
+    device_info.pop('api_key_hash', None)
 
     if device_info.get('alert_rules'):
         try:
@@ -412,15 +362,13 @@ def get_device_history(device_id):
             ORDER BY timestamp ASC LIMIT ?
         ''', (device_id, since, limit)).fetchall()
 
-    history = []
-    for item in rows:
-        history.append({
-            'sensor_type': item['sensor_type'],
-            'data': safe_json_loads(item['data']),
-            'wifi_ssid': item['wifi_ssid'] or '',
-            'uptime_seconds': item['uptime_seconds'] or 0,
-            'timestamp': item['timestamp'],
-        })
+    history = [{
+        'sensor_type': item['sensor_type'],
+        'data': safe_json_loads(item['data']),
+        'wifi_ssid': item['wifi_ssid'] or '',
+        'uptime_seconds': item['uptime_seconds'] or 0,
+        'timestamp': item['timestamp'],
+    } for item in rows]
 
     return jsonify({'success': True, 'history': history, 'data_count': len(history)}), 200
 
@@ -532,8 +480,8 @@ def regenerate_api_key(device_id):
         new_key = generate_api_key()
         new_hash = hash_api_key(new_key)
         conn.execute(
-            'UPDATE devices SET api_key = ?, api_key_hash = ? WHERE device_id = ?',
-            (new_key, new_hash, device_id)
+            'UPDATE devices SET api_key = NULL, api_key_hash = ? WHERE device_id = ?',
+            (new_hash, device_id)
         )
         conn.commit()
 
@@ -591,7 +539,6 @@ def update_device_alert_rules_endpoint(device_id):
                          (json.dumps(payload), device_id))
             conn.commit()
 
-        logger.info(f"Alert rules updated for {device_id}")
         return jsonify({'success': True, 'alert_rules': payload}), 200
 
     except Exception as e:
@@ -614,7 +561,6 @@ def reset_device_alert_rules(device_id):
         conn.execute('UPDATE devices SET alert_rules = NULL WHERE device_id = ?', (device_id,))
         conn.commit()
 
-    logger.info(f"Alert rules reset to global for {device_id}")
     return jsonify({'success': True}), 200
 
 
@@ -676,10 +622,8 @@ def get_dashboard_data():
                        ROW_NUMBER() OVER (
                            PARTITION BY device_id
                            ORDER BY CASE severity
-                               WHEN 'danger' THEN 1
-                               WHEN 'warning' THEN 2
-                               WHEN 'info' THEN 3
-                               ELSE 4
+                               WHEN 'danger' THEN 1 WHEN 'warning' THEN 2
+                               WHEN 'info' THEN 3 ELSE 4
                            END, created_at DESC
                        ) AS rn
                 FROM alerts
@@ -1002,7 +946,7 @@ def export_device_data(device_id):
 
 
 # ==========================================
-# CARDHOLDERS (Absensi RFID)
+# CARDHOLDERS
 # ==========================================
 @api_bp.route('/cardholders', methods=['POST'])
 @login_required
@@ -1026,14 +970,12 @@ def add_cardholder():
             if existing:
                 return jsonify({'success': False, 'error': 'UID sudah terdaftar'}), 400
 
-            # ✅ P0 FIX: set created_at eksplisit (naive WIB)
             conn.execute(
                 'INSERT INTO cardholders (uid, nama, created_at) VALUES (?, ?, ?)',
                 (uid, nama, get_wib_time())
             )
             conn.commit()
 
-        logger.info(f"Cardholder added: {nama}")
         return jsonify({'success': True, 'cardholder': {'uid': uid, 'nama': nama}}), 201
 
     except Exception as e:
@@ -1066,7 +1008,6 @@ def delete_cardholder(uid):
         conn.execute('DELETE FROM cardholders WHERE uid = ?', (uid,))
         conn.commit()
 
-    logger.info(f"Cardholder deleted: {uid}")
     return jsonify({'success': True}), 200
 
 
@@ -1200,7 +1141,7 @@ def get_system_info():
     return jsonify({
         'success': True,
         'info': {
-            'version': '3.6',
+            'version': '4.0',
             'device_count': device_count,
             'sensor_data_count': sensor_count,
             'active_alerts': alert_count,
@@ -1214,15 +1155,13 @@ def get_system_info():
     }), 200
 
 
-
 # ==========================================
-# NOTIFICATIONS (P1-C)
+# NOTIFICATIONS
 # ==========================================
 @api_bp.route('/notifications/test', methods=['POST'])
 @login_required
 @limiter.limit("10 per minute")
 def test_notification():
-    """Kirim notifikasi test ke Telegram."""
     try:
         results = send_test_notification()
         all_success = all(
@@ -1240,5 +1179,4 @@ def test_notification():
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def notification_config():
-    """Cek konfigurasi notifikasi (tanpa credentials)."""
     return jsonify({'success': True, 'config': get_notification_status()}), 200

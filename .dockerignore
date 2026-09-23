@@ -1,47 +1,34 @@
-# Git
 .git
 .gitignore
-.gitattributes
-
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-venv/
-env/
-.venv/
-ENV/
-build/
-dist/
-*.egg-info/
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-
-# Environment (JANGAN copy .env ke image)
 .env
-.env.local
-.env.*.local
+.env.*
 !.env.example
 
-# Database (jangan bawa data lokal ke image)
-database/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+database/*.db*
 logs/
 backup/
+*.log
 
-# IDE
 .vscode/
 .idea/
 *.swp
-*.swo
-
-# OS
 .DS_Store
-Thumbs.db
 
-# Docs (tidak perlu masuk image, tapi TIDAK masalah kalau ada)
 README.md
 LICENSE
-prd.md
 Makefile
+docker-compose.yml
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage

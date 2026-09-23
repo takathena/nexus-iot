@@ -1,5 +1,5 @@
 /* ==========================================
-   NEXUS IoT - Alert Center Logic (v5 FINAL)
+   NEXUS IoT - Alert Center (Section Module)
    ========================================== */
 
 (function() {
@@ -11,7 +11,6 @@
         status: 'all',
         severity: '',
         search: '',
-        refreshInterval: null,
         selectedIds: new Set(),
     };
 
@@ -95,19 +94,6 @@
             co2: 'CO2', moisture: 'Kelembaban Tanah', lux: 'Cahaya',
         };
         return map[type] || String(type).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-    }
-
-    function updateDateTime() {
-        const now = new Date();
-        const dateEl = $('currentDate'), timeEl = $('currentTime');
-        if (dateEl) dateEl.textContent = now.toLocaleDateString('id-ID', {
-            weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-            timeZone: 'Asia/Jakarta',
-        });
-        if (timeEl) timeEl.textContent = now.toLocaleTimeString('id-ID', {
-            hour: '2-digit', minute: '2-digit', second: '2-digit',
-            timeZone: 'Asia/Jakarta',
-        }) + ' WIB';
     }
 
     async function loadStats() {
@@ -253,7 +239,7 @@
         document.querySelectorAll('[data-action="view-device"]').forEach(btn => {
             btn.addEventListener('click', e => {
                 e.stopPropagation();
-                try { sessionStorage.setItem(STORAGE_KEYS.BACK_URL, '/alerts'); } catch (err) {}
+                try { sessionStorage.setItem(STORAGE_KEYS.BACK_URL, '/#alerts'); } catch (err) {}
                 window.location.href = `/device/${encodeURIComponent(btn.dataset.deviceId)}`;
             });
         });
@@ -284,7 +270,7 @@
                 if (e.target.closest('button') || e.target.closest('label')) return;
                 const viewBtn = item.querySelector('[data-action="view-device"]');
                 if (viewBtn) {
-                    try { sessionStorage.setItem(STORAGE_KEYS.BACK_URL, '/alerts'); } catch (err) {}
+                    try { sessionStorage.setItem(STORAGE_KEYS.BACK_URL, '/#alerts'); } catch (err) {}
                     window.location.href = `/device/${encodeURIComponent(viewBtn.dataset.deviceId)}`;
                 }
             });
@@ -353,9 +339,6 @@
     }
 
     function bindEvents() {
-        const logoutBtn = $('logoutBtn');
-        if (logoutBtn) logoutBtn.addEventListener('click', () => window.location.href = '/logout');
-
         document.querySelectorAll('[data-status]').forEach(btn => {
             btn.addEventListener('click', () => {
                 state.status = btn.dataset.status;
@@ -406,41 +389,43 @@
         const bulkAckBtn = $('bulkAckBtn');
         if (bulkAckBtn) bulkAckBtn.addEventListener('click', bulkAcknowledge);
 
-        const themeBtn = $('themeToggleBtn');
-        if (themeBtn) {
-            themeBtn.addEventListener('click', () => {
-                const newTheme = window.ThemeManager ? window.ThemeManager.toggle() : 'dark';
-                updateThemeUI(newTheme);
-            });
-        }
-
         document.addEventListener('keydown', e => {
-            if (e.key === 'Escape') {
-                document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
-            }
             if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault();
-                loadAlerts();
+                const alertsSection = $('alertsSection');
+                if (alertsSection && alertsSection.style.display !== 'none') {
+                    e.preventDefault();
+                    loadAlerts();
+                }
             }
         });
     }
 
-    function updateThemeUI(theme) {
-        const icon = $('themeIcon'), label = $('themeLabel');
-        if (icon) icon.className = theme === 'light' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
-        if (label) label.textContent = theme === 'light' ? 'Tema Terang' : 'Tema Gelap';
-    }
+    let initialized = false;
 
     function init() {
+        if (initialized) return;
+        initialized = true;
         bindEvents();
-        updateDateTime();
-        setInterval(updateDateTime, 1000);
         loadAlerts();
-        state.refreshInterval = setInterval(loadAlerts, 20000);
-        if (window.ThemeManager) updateThemeUI(window.ThemeManager.get());
+        setInterval(() => {
+            const alertsSection = $('alertsSection');
+            if (alertsSection && alertsSection.style.display !== 'none') {
+                loadAlerts();
+            }
+        }, 20000);
     }
+
+    window.NexusAlerts = {
+        init,
+        load: loadAlerts,
+        loadStats,
+    };
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);
-    } else init();
+    } else {
+        init();
+    }
+
+    console.log('[Alerts] Initialized');
 })();

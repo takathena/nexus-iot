@@ -1,16 +1,18 @@
-# ---------- Git ----------
-# Jangan ignore .gitignore-nya sendiri
-# .gitignore  ← hapus baris ini!
+# Environment
+.env
+.env.local
+*.env
 
-# ---------- Python ----------
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
 venv/
 env/
-.venv/
 ENV/
+.venv
 build/
 dist/
 *.egg-info/
@@ -18,38 +20,33 @@ dist/
 .mypy_cache/
 .ruff_cache/
 
-# ---------- Environment ----------
-.env
-.env.local
-.env.*.local
-!.env.example
+# Database
+database/*.db
+database/*.db-shm
+database/*.db-wal
+*.db
+*.sqlite
+*.sqlite3
 
-# ---------- Database ----------
-database/*
-!database/.gitkeep
+# Logs
+logs/
+*.log
 
-# ---------- Logs ----------
-logs/*
-!logs/.gitkeep
+# Backup
+backup/
+*.bak
 
-# ---------- Backup ----------
-backup/*
-!backup/.gitkeep
-
-# ---------- IDE ----------
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
+*~
 
-# ---------- OS ----------
+# OS
 .DS_Store
 Thumbs.db
 
-# ---------- Docker ----------
-# (JANGAN ignore Dockerfile / docker-compose.yml — biar ikut di-commit)
-
-# ---------- Docs ----------
-# (JANGAN ignore README.md / LICENSE — biar ikut di-commit).env
-.env.local
-.env.*.local
+# Runtime
+*.pid
+*.lock

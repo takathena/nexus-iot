@@ -16,6 +16,7 @@ if [ "$(id -u)" = "0" ]; then
     log "Running as root, fixing permissions..."
 
     chown -R nexus:nexus /app/database /app/logs /app/backup 2>/dev/null || true
+    chown -R nexus:nexus /app 2>/dev/null || true
 
     if ! gosu nexus touch /app/logs/.write_test 2>/dev/null; then
         log "WARNING: nexus user cannot write to /app/logs"

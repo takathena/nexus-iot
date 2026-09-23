@@ -1,45 +1,68 @@
 <div id="graphSection">
     <div class="section-card">
-        <div class="section-header">
-            <div class="section-title"><i class="fa-solid fa-chart-line"></i> Analitik Dinamis</div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <!-- ✅ REVISI: Header analytics dengan layout kiri/kanan -->
+        <div class="analytics-header">
+            <!-- KIRI: Tab dropdown + tambah tab -->
+            <div class="analytics-left">
+                <div class="tab-dropdown" id="tabDropdown">
+                    <button class="tab-dropdown-trigger" id="tabDropdownTrigger">
+                        <i class="fa-solid fa-layer-group"></i>
+                        <span class="tab-label" id="tabDropdownLabel">Default</span>
+                        <i class="fa-solid fa-chevron-down" style="font-size:10px;opacity:.6;"></i>
+                    </button>
+                    <div class="tab-dropdown-menu" id="tabDropdownMenu"></div>
+                </div>
+            </div>
+
+            <!-- KANAN: Time range + Refresh + Reset + Tambah Diagram -->
+            <div class="analytics-right">
+                <div class="time-range-dropdown" id="timeRangeDropdown">
+                    <button class="time-range-trigger" id="timeRangeTrigger">
+                        <i class="fa-regular fa-clock"></i>
+                        <span id="timeRangeLabel">24 Jam</span>
+                        <i class="fa-solid fa-chevron-down" style="font-size:10px;opacity:.6;"></i>
+                    </button>
+                    <div class="time-range-menu" id="timeRangeMenu">
+                        <div class="time-range-item" data-minutes="5"><i class="fa-regular fa-clock"></i> 5 Menit</div>
+                        <div class="time-range-item" data-minutes="10"><i class="fa-regular fa-clock"></i> 10 Menit</div>
+                        <div class="time-range-item" data-minutes="30"><i class="fa-regular fa-clock"></i> 30 Menit</div>
+                        <div class="time-range-divider"></div>
+                        <div class="time-range-item" data-minutes="60"><i class="fa-regular fa-hourglass-half"></i> 1 Jam</div>
+                        <div class="time-range-item" data-minutes="180"><i class="fa-regular fa-hourglass-half"></i> 3 Jam</div>
+                        <div class="time-range-item" data-minutes="360"><i class="fa-regular fa-hourglass-half"></i> 6 Jam</div>
+                        <div class="time-range-item" data-minutes="720"><i class="fa-regular fa-hourglass"></i> 12 Jam</div>
+                        <div class="time-range-divider"></div>
+                        <div class="time-range-item active" data-minutes="1440"><i class="fa-regular fa-calendar"></i> 24 Jam</div>
+                        <div class="time-range-item" data-minutes="10080"><i class="fa-regular fa-calendar-days"></i> 7 Hari</div>
+                        <div class="time-range-item" data-minutes="43200"><i class="fa-regular fa-calendar"></i> 30 Hari</div>
+                    </div>
+                </div>
+
                 <button class="btn btn-secondary" data-action="refresh-charts">
                     <i class="fa-solid fa-rotate"></i> Refresh
                 </button>
                 <button class="btn btn-secondary" data-action="reset-layout">
-                    <i class="fa-solid fa-arrows-rotate"></i> Reset Layout
+                    <i class="fa-solid fa-arrows-rotate"></i> Reset
                 </button>
                 <button class="btn btn-primary" data-action="add-chart">
                     <i class="fa-solid fa-plus"></i> Tambah Diagram
                 </button>
             </div>
         </div>
+
+        <!-- Info bar -->
+        <div class="analytics-info">
+            <i class="fa-solid fa-circle-info"></i>
+            Drag header untuk pindah diagram. Drag sudut/tepi untuk resize.
+        </div>
+
+        <!-- Chart grid -->
         <div class="section-body">
-            <div style="display:flex;justify-content:flex-end;align-items:center;flex-wrap:wrap;gap:12px;">
-                <div class="time-range-bar" id="globalTimeRange">
-                    <button class="time-range-btn" data-minutes="5"><i class="fa-solid fa-clock"></i> 5 Menit</button>
-                    <button class="time-range-btn" data-minutes="10"><i class="fa-solid fa-clock"></i> 10 Menit</button>
-                    <button class="time-range-btn" data-minutes="30"><i class="fa-solid fa-clock"></i> 30 Menit</button>
-                    <button class="time-range-btn" data-minutes="60"><i class="fa-solid fa-hourglass-half"></i> 1 Jam</button>
-                    <button class="time-range-btn" data-minutes="180"><i class="fa-solid fa-hourglass-half"></i> 3 Jam</button>
-                    <button class="time-range-btn" data-minutes="360"><i class="fa-solid fa-hourglass-half"></i> 6 Jam</button>
-                    <button class="time-range-btn" data-minutes="720"><i class="fa-solid fa-hourglass"></i> 12 Jam</button>
-                    <button class="time-range-btn active" data-minutes="1440"><i class="fa-solid fa-calendar-day"></i> 24 Jam</button>
-                    <button class="time-range-btn" data-minutes="10080"><i class="fa-solid fa-calendar-week"></i> 7 Hari</button>
-                    <button class="time-range-btn" data-minutes="43200"><i class="fa-solid fa-calendar"></i> 30 Hari</button>
-                </div>
-            </div>
-
-            <p style="font-size:11px;color:var(--text-3);margin-bottom:14px;">
-                <i class="fa-solid fa-info-circle"></i>
-                Tips: Drag header untuk memindahkan diagram, drag sudut kanan bawah diagram untuk resize.
-            </p>
-
             <div class="charts-grid-wrapper">
                 <div class="charts-grid" id="chartsGrid">
                     <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
-                        <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;"></i>
-                        <p style="font-size:14px;font-weight:600;">Belum ada diagram</p>
+                        <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i>
+                        <p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p>
                         <p style="font-size:12px;margin-top:4px;">Klik "Tambah Diagram" untuk membuat visualisasi baru</p>
                     </div>
                 </div>
