@@ -16,6 +16,38 @@ from app.database import get_db_context
 auth_bp = Blueprint('auth', __name__)
 
 
+def _is_api_polling_request():
+    """Return True kalau request ini adalah polling API (bukan interaksi user).
+
+    Polling API tidak boleh memperpanjang sesi — kalau tidak, idle timeout
+    tidak akan pernah aktif selama tab terbuka.
+    """
+    method = request.method.upper()
+    path = request.path or ''
+
+    if method != 'GET':
+        return False
+
+    # Halaman HTML (dashboard, device detail, dsb) => interaksi user
+    if not path.startswith('/api/'):
+        return False
+
+    # Endpoint API yang tidak boleh memperpanjang sesi
+    polling_prefixes = (
+        '/api/v1/dashboard',
+        '/api/v1/devices',
+        '/api/v1/alerts',
+        '/api/v1/attendance',
+        '/api/v1/cardholders',
+        '/api/v1/dashboards',
+        '/api/v1/widgets',
+        '/api/v1/analytics-tabs',
+        '/api/v1/system',
+        '/api/v1/notifications',
+    )
+    return path.startswith(polling_prefixes)
+
+
 def login_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -24,7 +56,6 @@ def login_required(f):
                 return jsonify({'success': False, 'error': 'Unauthorized'}), 401
             return redirect(url_for('auth.login_page'))
 
-        # ✅ FIX Tier 3 #12: idle timeout
         config = get_config()
         idle_minutes = config.SESSION_IDLE_TIMEOUT_MINUTES
         now_ts = time.time()
@@ -42,19 +73,17 @@ def login_required(f):
                     }), 401
                 return redirect(url_for('auth.login_page'))
 
-        session['last_activity'] = now_ts
+        # ✅ FIX: refresh last_activity hanya pada aksi user, bukan polling API
+        if not _is_api_polling_request():
+            session['last_activity'] = now_ts
+
         return f(*args, **kwargs)
     return decorated_function
 
 
 def _authenticate(username, password):
-    """Return user_id kalau valid, None kalau salah.
-
-    ✅ FIX Tier 2 #9: sync password_hash di DB kalau env password diubah.
-    """
     config = get_config()
 
-    # 1. Cek env (primary, backward-compat)
     if config.IOT_USERNAME and config.IOT_PASSWORD:
         if username == config.IOT_USERNAME and password == config.IOT_PASSWORD:
             with get_db_context() as conn:
@@ -64,7 +93,6 @@ def _authenticate(username, password):
                 ).fetchone()
 
                 if user:
-                    # Sync hash kalau env password berubah
                     try:
                         if not check_password_hash(user['password_hash'], password):
                             new_hash = generate_password_hash(password)
@@ -81,7 +109,6 @@ def _authenticate(username, password):
 
                     return user['id']
 
-                # Auto-create user di DB
                 try:
                     pw_hash = generate_password_hash(password)
                     cur = conn.execute('''
@@ -94,7 +121,6 @@ def _authenticate(username, password):
                     current_app.logger.error(f"Gagal create user: {e}")
                     return None
 
-    # 2. Fallback ke DB
     with get_db_context() as conn:
         user = conn.execute(
             'SELECT id, password_hash FROM users WHERE username = ?', (username,)
@@ -107,7 +133,6 @@ def _authenticate(username, password):
 
 
 def ensure_user_dashboard(user_id, username):
-    """Buat default dashboard kalau user belum punya."""
     with get_db_context() as conn:
         existing = conn.execute(
             '''SELECT id FROM dashboards

@@ -1,8 +1,6 @@
 <div id="graphSection">
     <div class="section-card">
-        <!-- ✅ REVISI: Header analytics dengan layout kiri/kanan -->
         <div class="analytics-header">
-            <!-- KIRI: Tab dropdown + tambah tab -->
             <div class="analytics-left">
                 <div class="tab-dropdown" id="tabDropdown">
                     <button class="tab-dropdown-trigger" id="tabDropdownTrigger">
@@ -14,7 +12,6 @@
                 </div>
             </div>
 
-            <!-- KANAN: Time range + Refresh + Reset + Tambah Diagram -->
             <div class="analytics-right">
                 <div class="time-range-dropdown" id="timeRangeDropdown">
                     <button class="time-range-trigger" id="timeRangeTrigger">
@@ -37,7 +34,6 @@
                         <div class="time-range-item" data-minutes="43200"><i class="fa-regular fa-calendar"></i> 30 Hari</div>
                     </div>
                 </div>
-
                 <button class="btn btn-secondary" data-action="refresh-charts">
                     <i class="fa-solid fa-rotate"></i> Refresh
                 </button>
@@ -50,23 +46,21 @@
             </div>
         </div>
 
-        <!-- Info bar -->
         <div class="analytics-info">
             <i class="fa-solid fa-circle-info"></i>
-            Drag header untuk pindah diagram. Drag sudut/tepi untuk resize.
+            Drag header chart untuk pindah. Drag sudut kanan-bawah chart untuk resize. Drag garis <b>—</b> di bawah untuk ubah tinggi kanvas.
         </div>
 
-        <!-- Chart grid -->
         <div class="section-body">
             <div class="charts-grid-wrapper">
                 <div class="charts-grid" id="chartsGrid">
-                    <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
+                    <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);">
                         <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i>
                         <p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p>
                         <p style="font-size:12px;margin-top:4px;">Klik "Tambah Diagram" untuk membuat visualisasi baru</p>
                     </div>
                 </div>
-                <div class="charts-grid-resize-handle"></div>
+                <div class="charts-grid-resize-handle" title="Drag untuk ubah tinggi kanvas"></div>
             </div>
         </div>
     </div>

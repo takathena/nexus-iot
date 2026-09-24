@@ -46,7 +46,6 @@ def validate_device_api_key(device_id, api_key):
     if device['api_key_hash']:
         return verify_api_key(api_key, device['api_key_hash'])
 
-    # Fallback plaintext (device lama yang belum migrate)
     if device['api_key']:
         import hmac
         return hmac.compare_digest(device['api_key'], api_key)
@@ -71,8 +70,6 @@ def update_device_status(device_id, status, ip=None):
                 (status, get_wib_time(), device_id)
             )
 
-        # Catat transisi ke online (sebelumnya hanya 'offline' yang tercatat,
-        # karena data masuk langsung men-set online sebelum status checker sempat).
         if prev_status is not None and prev_status != status:
             conn.execute(
                 'INSERT INTO device_status_log (device_id, status, reason, created_at) '
@@ -148,16 +145,29 @@ def receive_data():
             uid = data['data'].get('uid')
             if uid:
                 with get_db_context() as conn:
-                    conn.execute(
-                        'INSERT INTO attendance (uid, device_id, timestamp) VALUES (?, ?, ?)',
-                        (uid, data['device_id'], get_wib_time())
-                    )
-                    conn.commit()
+                    # ✅ Debounce 30 detik untuk UID+device sama
+                    cutoff = get_wib_time() - timedelta(seconds=30)
+                    recent = conn.execute('''
+                        SELECT id FROM attendance
+                        WHERE uid = ? AND device_id = ? AND timestamp >= ?
+                        ORDER BY timestamp DESC LIMIT 1
+                    ''', (uid, data['device_id'], cutoff)).fetchone()
 
-        try:
-            check_and_create_alerts(data['device_id'], data['data'])
-        except Exception as e:
-            logger.error(f"Alert check failed: {e}", exc_info=True)
+                    if not recent:
+                        conn.execute(
+                            'INSERT INTO attendance (uid, device_id, timestamp) VALUES (?, ?, ?)',
+                            (uid, data['device_id'], get_wib_time())
+                        )
+                        conn.commit()
+                    else:
+                        logger.debug(f"Skip duplicate RFID tap: {uid} on {data['device_id']}")
+
+        # sensor_type 'heartbeat' hanya update last_seen, tidak ada alert
+        if data['sensor_type'] != 'heartbeat':
+            try:
+                check_and_create_alerts(data['device_id'], data['data'])
+            except Exception as e:
+                logger.error(f"Alert check failed: {e}", exc_info=True)
 
         return jsonify({
             'success': True,
@@ -258,8 +268,14 @@ def add_device():
 
         expected_interval = data.get('expected_interval', 60)
         offline_timeout = data.get('offline_timeout')
+        device_type = (data.get('device_type') or '').strip()
+
         if offline_timeout is None:
-            offline_timeout = max(300, expected_interval * 3)
+            # ✅ Khusus device RFID: default offline timeout 24 jam
+            if 'rfid' in device_type.lower():
+                offline_timeout = 86400
+            else:
+                offline_timeout = max(300, expected_interval * 3)
 
         alert_rules_json = json.dumps(alert_rules) if alert_rules else None
         offline_severity = data.get('offline_alert_severity', 'danger')
@@ -373,8 +389,10 @@ def get_device_history(device_id):
         rows = conn.execute('''
             SELECT * FROM sensor_data
             WHERE device_id = ? AND timestamp >= ?
-            ORDER BY timestamp ASC LIMIT ?
+            ORDER BY timestamp DESC LIMIT ?
         ''', (device_id, since, limit)).fetchall()
+
+    rows = list(reversed(rows))
 
     history = [{
         'sensor_type': item['sensor_type'],
@@ -780,12 +798,11 @@ def get_all_alerts():
     limit = min(request.args.get('limit', 200, type=int), 1000)
 
     with get_db_context() as conn:
-        # ✅ FIX #14: pakai LEFT JOIN ke subquery aktif, bukan correlated EXISTS
-        # Jauh lebih cepat untuk history besar.
         base_query = '''
             SELECT h.id, h.device_id, h.alert_type, h.severity, h.message,
                    h.value, h.action, h.created_at,
                    d.device_name, d.location,
+                   active_alerts.id AS alert_id,
                    CASE
                        WHEN h.action IN ('cleared', 'acknowledged') THEN 0
                        WHEN active_alerts.device_id IS NOT NULL THEN 1
@@ -794,7 +811,7 @@ def get_all_alerts():
             FROM alert_history h
             LEFT JOIN devices d ON h.device_id = d.device_id
             LEFT JOIN (
-                SELECT DISTINCT device_id, alert_type
+                SELECT id, device_id, alert_type
                 FROM alerts
                 WHERE is_active = 1
             ) active_alerts
@@ -1034,6 +1051,64 @@ def get_attendance():
     return jsonify({'success': True, 'attendance': [dict(row) for row in rows]}), 200
 
 
+@api_bp.route('/attendance/report', methods=['GET'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def get_attendance_report():
+    """Laporan harian: check-in (tap pertama), check-out (tap terakhir) per UID."""
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    uid = request.args.get('uid')
+
+    query = '''
+        SELECT
+            DATE(a.timestamp) AS day,
+            a.uid,
+            COALESCE(c.nama, 'Tidak dikenal') AS nama,
+            MIN(a.timestamp) AS check_in,
+            MAX(a.timestamp) AS check_out,
+            COUNT(*) AS total_taps
+        FROM attendance a
+        LEFT JOIN cardholders c ON a.uid = c.uid
+        WHERE 1=1
+    '''
+    params = []
+
+    if start_date:
+        query += ' AND a.timestamp >= ?'
+        params.append(f"{start_date} 00:00:00")
+    if end_date:
+        query += ' AND a.timestamp <= ?'
+        params.append(f"{end_date} 23:59:59")
+    if uid:
+        query += ' AND a.uid = ?'
+        params.append(uid)
+
+    query += ' GROUP BY day, a.uid ORDER BY day DESC, check_in DESC LIMIT 2000'
+
+    with get_db_context() as conn:
+        rows = conn.execute(query, params).fetchall()
+
+    report = []
+    for r in rows:
+        d = dict(r)
+        duration_str = '-'
+        if d['check_in'] and d['check_out'] and d['check_in'] != d['check_out']:
+            try:
+                ci = datetime.strptime(d['check_in'], '%Y-%m-%d %H:%M:%S')
+                co = datetime.strptime(d['check_out'], '%Y-%m-%d %H:%M:%S')
+                total_min = int((co - ci).total_seconds() / 60)
+                h = total_min // 60
+                m = total_min % 60
+                duration_str = f"{h}j {m}m"
+            except Exception:
+                pass
+        d['duration'] = duration_str
+        report.append(d)
+
+    return jsonify({'success': True, 'report': report}), 200
+
+
 @api_bp.route('/attendance/stats', methods=['GET'])
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
@@ -1119,11 +1194,11 @@ def get_last_unknown_tap():
 
     return jsonify({'success': True, 'uid': row['uid'], 'timestamp': row['timestamp']}), 200
 
+
 @api_bp.route('/attendance/export', methods=['GET'])
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def export_attendance():
-    """Export data absensi dengan filter tanggal."""
     from flask import Response
     import csv
     import io as _io
@@ -1178,6 +1253,7 @@ def export_attendance():
         headers={'Content-Disposition': f'attachment; filename="{filename}"'}
     )
 
+
 @api_bp.route('/system/info', methods=['GET'])
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
@@ -1205,7 +1281,7 @@ def get_system_info():
     return jsonify({
         'success': True,
         'info': {
-            'version': '4.0',
+            'version': '4.3',
             'device_count': device_count,
             'sensor_data_count': sensor_count,
             'active_alerts': alert_count,

@@ -1,5 +1,6 @@
 /* ==========================================
-   NEXUS IoT v4.1 - Attendance filter & export
+   NEXUS IoT v4.3 - Attendance filter & export
+   Filter tanggal diterapkan di dashboard.js (bukan DOM manipulation)
    ========================================== */
 
 (function() {
@@ -30,54 +31,10 @@
     }
 
     function applyDateFilter() {
-        const tbody = $('attendanceTableBody');
-        if (!tbody) return;
-
-        const { start, end } = getDateRange();
-        const rows = tbody.querySelectorAll('tr');
-
-        if (!start && !end) {
-            rows.forEach(r => r.style.display = '');
-            updateFilterInfo();
-            return;
+        // Delegasi ke dashboard.js (logika filter ada di sana)
+        if (typeof window.__nexusLoadAttendance === 'function') {
+            window.__nexusLoadAttendance();
         }
-
-        const startTs = start ? new Date(start + 'T00:00:00+07:00').getTime() : 0;
-        const endTs = end ? new Date(end + 'T23:59:59+07:00').getTime() : Infinity;
-
-        let visibleCount = 0;
-
-        rows.forEach(row => {
-            const dateEl = row.querySelector('.datetime-display .date');
-            const timeEl = row.querySelector('.datetime-display .time');
-
-            if (!dateEl || !timeEl) {
-                row.style.display = '';
-                return;
-            }
-
-            // Parse tanggal dari format "DD Mmm" + time "HH:MM:SS"
-            // Sulit parse dari display. Lebih baik pakai data-attribute.
-            const ts = row.dataset.timestamp;
-            if (!ts) {
-                row.style.display = '';
-                return;
-            }
-
-            const rowTs = new Date(ts.replace(' ', 'T') + '+07:00').getTime();
-            if (isNaN(rowTs)) {
-                row.style.display = '';
-                return;
-            }
-
-            if (rowTs >= startTs && rowTs <= endTs) {
-                row.style.display = '';
-                visibleCount++;
-            } else {
-                row.style.display = 'none';
-            }
-        });
-
         updateFilterInfo();
     }
 
@@ -108,29 +65,17 @@
 
         const exportBtn = $('attendanceExportBtn');
         if (exportBtn) exportBtn.addEventListener('click', exportCSV);
-    }
 
-    // Patch: setelah attendance di-render, tambahkan data-timestamp ke setiap row
-    // Sebenarnya lebih baik dashboard.js yang handle, tapi kita observer di sini.
-    function observeAttendanceTable() {
-        const tbody = $('attendanceTableBody');
-        if (!tbody) return;
-
-        const observer = new MutationObserver(() => {
-            // Setelah render, kita perlu inject data-timestamp
-            // Karena kita tidak punya akses ke raw timestamp di DOM,
-            // kita pakai trick: ambil dari judul row kalau ada
-            // Solusi: dashboard.js harus tambah data-timestamp="..."
-            // → sudah di-patch di renderAttendanceTable (versi v4.1)
+        // Enter pada input tanggal = apply
+        ['attendanceStartDate', 'attendanceEndDate'].forEach(id => {
+            const el = $(id);
+            if (el) el.addEventListener('change', applyDateFilter);
         });
-
-        observer.observe(tbody, { childList: true });
     }
 
     function init() {
         bind();
-        observeAttendanceTable();
-        console.log('[Attendance] Filter & export initialized');
+        console.log('[Attendance] Filter & export initialized v4.3');
     }
 
     if (document.readyState === 'loading') {

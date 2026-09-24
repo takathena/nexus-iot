@@ -1,3 +1,21 @@
+<style>
+    /* Delete modal harus muncul DI ATAS modal lain (mis. cardholder list) */
+    #deleteModal {
+        z-index: 10050;
+    }
+    #deleteModal .modal-content {
+        box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+    }
+    #confirmDeleteBtn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+    #confirmDeleteBtn:disabled:hover {
+        transform: none;
+        box-shadow: none;
+    }
+</style>
+
 <!-- ADD DEVICE MODAL -->
 <div class="modal" id="addDeviceModal">
     <div class="modal-content" style="max-width:560px;">
@@ -201,13 +219,19 @@
             Tindakan ini tidak dapat dibatalkan.
         </p>
         <div class="form-group" id="deleteConfirmGroup">
-            <label style="color:var(--red);">Ketik nama device untuk konfirmasi</label>
-            <input type="text" id="deleteConfirmInput" placeholder="Ketik nama device..." autocomplete="off">
+            <label style="color:var(--red);" id="deleteConfirmLabel">
+                Ketik nama device untuk konfirmasi
+            </label>
+            <input type="text" id="deleteConfirmInput"
+                   placeholder="Ketik nama device..."
+                   autocomplete="off" autocorrect="off" spellcheck="false">
         </div>
         <input type="hidden" id="deleteDeviceId">
         <div class="modal-actions">
             <button class="btn btn-secondary modal-close">Batal</button>
-            <button class="btn btn-danger" data-action="confirm-delete">Hapus</button>
+            <button class="btn btn-danger" data-action="confirm-delete" id="confirmDeleteBtn" disabled>
+                <i class="fa-solid fa-trash"></i> Hapus
+            </button>
         </div>
     </div>
 </div>

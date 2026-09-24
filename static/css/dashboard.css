@@ -1761,3 +1761,159 @@ body:has(.modal.active) {
     font-family: var(--mono);
     font-weight: 600;
 }
+/* ==========================================
+   v4.3 OVERRIDE — Layout simetris
+   ========================================== */
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: minmax(240px, 280px) minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 18px;
+    align-items: stretch;
+}
+
+@media (max-width: 1200px) {
+    .overview-grid {
+        grid-template-columns: minmax(220px, 260px) minmax(0, 1fr);
+    }
+    .activity-card {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .overview-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Ring card */
+.ring-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 22px 16px;
+    gap: 14px;
+}
+
+.ring-wrap {
+    position: relative;
+    width: 150px;
+    height: 150px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.ring-wrap svg {
+    display: block;
+    transform: rotate(-90deg);
+}
+
+.ring-center {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    pointer-events: none;
+    line-height: 1.15;
+    width: 100%;
+}
+
+.ring-center .pct {
+    font-size: 26px;
+    font-weight: 800;
+    font-family: var(--mono);
+    color: var(--text);
+    margin: 0;
+    letter-spacing: -0.02em;
+}
+
+.ring-center .lbl {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    margin-top: 4px;
+}
+
+.ring-caption {
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-3);
+    font-weight: 600;
+}
+
+/* Stats grid 2x2 */
+.stats-grid-2x2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 12px;
+    min-height: 0;
+}
+
+.stats-grid-2x2 .stat-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 16px 18px;
+    min-height: 108px;
+    height: 100%;
+}
+
+.stats-grid-2x2 .stat-card .stat-top {
+    margin-bottom: 0;
+}
+
+.stats-grid-2x2 .stat-card .stat-info h3 {
+    font-size: 10px;
+    margin-bottom: 4px;
+}
+
+.stats-grid-2x2 .stat-card .stat-info .value {
+    font-size: 26px;
+    line-height: 1;
+}
+
+/* Activity card */
+.activity-card {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+/* Resize handle bawah chart grid */
+.charts-grid-resize-handle {
+    height: 14px;
+    margin-top: 6px;
+    background: transparent;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    position: relative;
+}
+
+.charts-grid-resize-handle::before {
+    content: '';
+    width: 44px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--text-3);
+    transition: width .15s ease, background .15s ease;
+}
+
+.charts-grid-resize-handle:hover::before,
+.charts-grid-resize-handle.dragging::before {
+    width: 90px;
+    background: var(--text-2);
+}
+
+.charts-grid-wrapper {
+    transition: height .12s ease;
+}

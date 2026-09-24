@@ -1,6 +1,6 @@
 """
 NEXUS IoT - Database Layer
-Schema version 13: multi-user + multi-dashboard + analytics tabs (FK repair).
+Schema version 14: multi-user + multi-dashboard + analytics tabs (FK repair v2).
 """
 import os
 import sqlite3
@@ -70,16 +70,12 @@ def get_db_context():
         conn.close()
 
 
-SCHEMA_VERSION = 13
+SCHEMA_VERSION = 14
 WIB_DEFAULT = "(datetime('now', '+7 hours'))"
 
 
 def init_db():
-    """Init DB dengan retry loop — aman untuk multi-worker Gunicorn.
-
-    Worker pertama dapat lock → jalankan migrasi.
-    Worker lain tunggu (bukan crash) sampai migrasi selesai.
-    """
+    """Init DB dengan retry loop — aman untuk multi-worker Gunicorn."""
     import time
     from app.utils import process_lock
 
@@ -130,14 +126,13 @@ def _init_db_inner():
             (11, _migrate_v11),
             (12, _migrate_v12),
             (13, _migrate_v13),
+            (14, _migrate_v14),
         ]
 
         for version, migrate_fn in migrations:
             if current_version < version:
                 migrate_fn(cursor)
                 cursor.execute('INSERT INTO schema_version (version) VALUES (?)', (version,))
-                # Commit per migrasi: PRAGMA foreign_keys hanya efektif di luar transaksi,
-                # dan migrasi berikutnya tidak boleh mewarisi transaksi yang masih terbuka.
                 conn.commit()
                 print(f"[DB] Applied migration v{version}")
 
@@ -224,7 +219,6 @@ def _migrate_v3(cursor):
 def _migrate_v4(cursor):
     fk_was_on = cursor.execute('PRAGMA foreign_keys').fetchone()[0]
     cursor.execute('PRAGMA foreign_keys=OFF')
-
     try:
         cursor.execute('ALTER TABLE attendance RENAME TO attendance_old')
         cursor.execute(f'''
@@ -303,22 +297,10 @@ def _migrate_v5(cursor):
 
 
 def _migrate_v6(cursor):
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_alerts_active_lookup
-        ON alerts (device_id, alert_type, is_active)
-    ''')
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_alerts_active_severity
-        ON alerts (is_active, severity, alert_type)
-    ''')
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_alert_history_action
-        ON alert_history (action, created_at DESC)
-    ''')
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp_desc
-        ON sensor_data (timestamp DESC)
-    ''')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alerts_active_lookup ON alerts (device_id, alert_type, is_active)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alerts_active_severity ON alerts (is_active, severity, alert_type)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_alert_history_action ON alert_history (action, created_at DESC)')
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_sensor_data_timestamp_desc ON sensor_data (timestamp DESC)')
 
 
 def _migrate_v7(cursor):
@@ -365,7 +347,6 @@ def _migrate_v7(cursor):
 
 
 def _migrate_v8(cursor):
-    """Hash API key + nullify plaintext."""
     print("[DB] v8: hashing API keys...")
 
     cols = [row[1] for row in cursor.execute('PRAGMA table_info(devices)').fetchall()]
@@ -392,12 +373,10 @@ def _migrate_v8(cursor):
         )
         hashed += 1
 
-    # Note: api_key akan di-NULL-kan di v11 (setelah NOT NULL constraint di-drop)
     print(f"[DB] v8: hashed {hashed} API keys")
 
 
 def _migrate_v9(cursor):
-    """Multi-dashboard + persistent widget layout."""
     print("[DB] v9: creating dashboards & widgets tables...")
 
     cursor.execute(f'''
@@ -446,7 +425,6 @@ def _migrate_v9(cursor):
 
 
 def _migrate_v10(cursor):
-    """Analytics tabs untuk multi-analitik dalam satu dashboard."""
     print("[DB] v10: creating analytics_tabs...")
 
     cursor.execute(f'''
@@ -473,7 +451,6 @@ def _migrate_v10(cursor):
 
 
 def _migrate_v11(cursor):
-    """Fix: api_key NOT NULL → nullable + rebuild FK references."""
     print("[DB] v11: fixing devices.api_key NOT NULL constraint...")
 
     cols = cursor.execute('PRAGMA table_info(devices)').fetchall()
@@ -490,11 +467,8 @@ def _migrate_v11(cursor):
     count = cursor.execute('SELECT COUNT(*) FROM devices').fetchone()[0]
     print(f"[DB] v11: recreating devices table ({count} rows)...")
 
-    # ✅ WAJIB: matikan FK supaya ALTER TABLE RENAME tidak update FK di tabel lain
     cursor.execute('PRAGMA foreign_keys=OFF')
-
     try:
-        # Drop stale dulu (kalau ada dari migrasi gagal sebelumnya)
         stale = cursor.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='devices_old_v11'"
         ).fetchone()
@@ -502,8 +476,6 @@ def _migrate_v11(cursor):
             print("[DB] v11: dropping leftover devices_old_v11")
             cursor.execute('DROP TABLE devices_old_v11')
 
-        # ✅ FIX: rename via workaround — recreate table tanpa FK reference ke new name
-        # Pakai langkah: copy data ke temp, drop, bikin baru, copy balik
         cursor.execute(f'''
             CREATE TABLE devices_new (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -561,22 +533,14 @@ def _migrate_v11(cursor):
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_devices_status ON devices (status)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_devices_api_key_hash ON devices (api_key_hash)')
 
-        print("[DB] v11: api_key NOT NULL removed (no FK break)")
-
-        # ✅ FIX: rebuild FK di tabel lain supaya reference-nya fresh ke 'devices'
+        print("[DB] v11: api_key NOT NULL removed")
         _rebuild_fk_tables(cursor)
-
     finally:
-        # ✅ Restore FK ON
         cursor.execute('PRAGMA foreign_keys=ON')
 
 
 def _rebuild_fk_tables(cursor):
-    """Rebuild tabel yang punya FK ke devices supaya reference-nya valid.
-
-    Ini untuk fix bug: ALTER TABLE devices RENAME pernah bikin
-    FK reference di tabel lain nyangkut ke nama tabel lama.
-    """
+    """Rebuild tabel yang punya FK ke devices."""
     print("[DB] rebuilding FK tables...")
 
     tables_to_fix = {
@@ -636,39 +600,22 @@ def _rebuild_fk_tables(cursor):
 
     for table_name, create_sql in tables_to_fix.items():
         try:
-            # Cek apakah tabel ada
             exists = cursor.execute(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
                 (table_name,)
             ).fetchone()
-
             if not exists:
                 continue
 
-            # Cek apakah SQL-nya punya stale reference
-            sql_row = cursor.execute(
-                "SELECT sql FROM sqlite_master WHERE type='table' AND name=?",
-                (table_name,)
-            ).fetchone()
-
-            has_stale = sql_row and sql_row[0] and 'devices_old_v11' in sql_row[0]
-
-            if not has_stale:
-                # Meskipun tidak stale, rebuild sekali untuk memastikan FK fresh
-                print(f"[DB] {table_name}: rebuild (preventif)")
-
-            # Copy data ke tabel baru
             cursor.execute(create_sql)
             cursor.execute(f'INSERT INTO {table_name}_new SELECT * FROM {table_name}')
             cursor.execute(f'DROP TABLE {table_name}')
             cursor.execute(f'ALTER TABLE {table_name}_new RENAME TO {table_name}')
 
-            # Rebuild indexes
             for idx_sql in indexes.get(table_name, []):
                 cursor.execute(idx_sql)
 
             print(f"[DB] {table_name}: OK")
-
         except Exception as e:
             print(f"[DB] {table_name}: error - {e}")
             raise
@@ -676,12 +623,10 @@ def _rebuild_fk_tables(cursor):
     print("[DB] FK tables rebuilt")
 
 
-# ✅ FIX #2: multi-user. Tabel users + user_id di dashboards.
 def _migrate_v12(cursor):
     """Multi-user: users table + user_id on dashboards dengan composite unique."""
     print("[DB] v12: multi-user setup...")
 
-    # Users table
     cursor.execute(f'''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -693,19 +638,14 @@ def _migrate_v12(cursor):
         )
     ''')
 
-    # Add user_id ke dashboards, recreate untuk composite unique
     dash_cols = [r[1] for r in cursor.execute('PRAGMA table_info(dashboards)').fetchall()]
 
     if 'user_id' not in dash_cols:
-        # PRAGMA foreign_keys hanya berlaku di luar transaksi -> commit dulu.
         cursor.connection.commit()
         fk_was_on = cursor.execute('PRAGMA foreign_keys').fetchone()[0]
         cursor.execute('PRAGMA foreign_keys=OFF')
 
         try:
-            # Pola resmi SQLite: buat tabel baru, copy, DROP lama, RENAME baru.
-            # JANGAN "RENAME lama -> _old" karena FK di tabel anak ikut ditulis ulang
-            # ke nama _old (penyebab bug 'no such table: dashboards_old_v12').
             cursor.execute('DROP TABLE IF EXISTS dashboards_new')
             cursor.execute(f'''
                 CREATE TABLE dashboards_new (
@@ -735,7 +675,6 @@ def _migrate_v12(cursor):
             if fk_was_on:
                 cursor.execute('PRAGMA foreign_keys=ON')
 
-    # Buat admin user dari env (kalau IOT_PASSWORD di-set)
     admin_user = os.getenv('IOT_USERNAME', 'admin').strip()
     admin_pass = os.getenv('IOT_PASSWORD', '')
 
@@ -753,40 +692,28 @@ def _migrate_v12(cursor):
                     VALUES (?, ?, 'Administrator', 1)
                 ''', (admin_user, pw_hash))
                 user_id = cur.lastrowid
-
-                # Assign orphan dashboards ke user ini
                 cursor.execute(
                     'UPDATE dashboards SET user_id = ? WHERE user_id IS NULL',
                     (user_id,)
                 )
-                print(f"[DB] v12: user '{admin_user}' (id={user_id}) created, orphan dashboards assigned")
+                print(f"[DB] v12: user '{admin_user}' (id={user_id}) created")
             except Exception as e:
                 print(f"[DB] v12: gagal buat admin user: {e}")
         else:
-            # Sudah ada — assign orphan
             cursor.execute(
                 'UPDATE dashboards SET user_id = ? WHERE user_id IS NULL',
                 (existing['id'],)
             )
-            print(f"[DB] v12: admin user '{admin_user}' sudah ada, orphan dashboards assigned")
+            print(f"[DB] v12: admin user '{admin_user}' sudah ada")
     else:
         print("[DB] v12: IOT_PASSWORD kosong, user akan dibuat saat login pertama")
 
-    # Indexes
-    cursor.execute('''
-        CREATE INDEX IF NOT EXISTS idx_dashboards_user
-        ON dashboards (user_id, is_default DESC)
-    ''')
-
+    cursor.execute('CREATE INDEX IF NOT EXISTS idx_dashboards_user ON dashboards (user_id, is_default DESC)')
     print("[DB] v12: multi-user ready")
 
-def _migrate_v13(cursor):
-    """Repair: FK widgets & analytics_tabs yang nyangkut ke 'dashboards_old_v12'.
 
-    Penyebab: migrasi v12 lama memakai ALTER TABLE ... RENAME sehingga SQLite
-    menulis ulang FK di tabel anak. Akibatnya INSERT ke widgets/analytics_tabs
-    gagal 'no such table: main.dashboards_old_v12'. Data lama dipertahankan.
-    """
+def _migrate_v13(cursor):
+    """Repair stale FK references (regex-based, legacy)."""
     import re
     print("[DB] v13: repairing stale FK references...")
 
@@ -820,11 +747,130 @@ def _migrate_v13(cursor):
             print(f"[DB] v13: {table} rebuilt")
 
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_widgets_dashboard ON widgets (dashboard_id)')
-        cursor.execute(
-            'CREATE INDEX IF NOT EXISTS idx_analytics_tabs_dashboard '
-            'ON analytics_tabs (dashboard_id, position)'
-        )
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_analytics_tabs_dashboard ON analytics_tabs (dashboard_id, position)')
         cursor.connection.commit()
+    finally:
+        if fk_was_on:
+            cursor.execute('PRAGMA foreign_keys=ON')
+
+
+def _migrate_v14(cursor):
+    """Safety net v2: verifikasi FK via PRAGMA foreign_key_list + perbaiki jika target tidak ada.
+
+    Ini menangkap kerusakan yang lolos dari v13 (mis. regex tidak match, atau
+    tabel dibuat ulang oleh ALTER TABLE RENAME di SQLite versi baru).
+    """
+    print("[DB] v14: verifying & repairing FK integrity...")
+
+    cursor.connection.commit()
+    fk_was_on = cursor.execute('PRAGMA foreign_keys').fetchone()[0]
+    cursor.execute('PRAGMA foreign_keys=OFF')
+
+    try:
+        existing_tables = {
+            r[0] for r in cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+
+        for table in ('widgets', 'analytics_tabs'):
+            if table not in existing_tables:
+                print(f"[DB] v14: {table} tidak ada, skip")
+                continue
+
+            fks = cursor.execute(f'PRAGMA foreign_key_list({table})').fetchall()
+            # fk columns: id, seq, table, from, to, on_update, on_delete, match
+            broken_targets = [fk[2] for fk in fks if fk[2] not in existing_tables]
+
+            sql_row = cursor.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)
+            ).fetchone()
+            sql = sql_row[0] if sql_row else ''
+            has_stale_sql = 'dashboards_old' in (sql or '')
+
+            if not broken_targets and not has_stale_sql:
+                print(f"[DB] v14: {table} OK")
+                continue
+
+            print(f"[DB] v14: rebuilding {table} (broken={broken_targets}, stale_sql={has_stale_sql})")
+            old_cols = [r[1] for r in cursor.execute(f'PRAGMA table_info({table})').fetchall()]
+
+            if table == 'widgets':
+                cursor.execute('DROP TABLE IF EXISTS widgets_v14')
+                cursor.execute(f'''
+                    CREATE TABLE widgets_v14 (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        dashboard_id INTEGER NOT NULL,
+                        widget_type TEXT NOT NULL,
+                        title TEXT NOT NULL,
+                        device_id TEXT,
+                        config TEXT NOT NULL,
+                        grid_x INTEGER DEFAULT 0,
+                        grid_y INTEGER DEFAULT 0,
+                        grid_w INTEGER DEFAULT 2,
+                        grid_h INTEGER DEFAULT 2,
+                        analytics_tab_id INTEGER DEFAULT NULL,
+                        created_at DATETIME DEFAULT {WIB_DEFAULT},
+                        updated_at DATETIME DEFAULT {WIB_DEFAULT},
+                        FOREIGN KEY (dashboard_id) REFERENCES dashboards (id) ON DELETE CASCADE
+                    )
+                ''')
+                if 'analytics_tab_id' in old_cols:
+                    cursor.execute('INSERT INTO widgets_v14 SELECT * FROM widgets')
+                else:
+                    cursor.execute('''
+                        INSERT INTO widgets_v14
+                        (id, dashboard_id, widget_type, title, device_id, config,
+                         grid_x, grid_y, grid_w, grid_h, analytics_tab_id,
+                         created_at, updated_at)
+                        SELECT id, dashboard_id, widget_type, title, device_id, config,
+                               grid_x, grid_y, grid_w, grid_h, NULL,
+                               created_at, updated_at
+                        FROM widgets
+                    ''')
+                cursor.execute('DROP TABLE widgets')
+                cursor.execute('ALTER TABLE widgets_v14 RENAME TO widgets')
+                cursor.execute('CREATE INDEX IF NOT EXISTS idx_widgets_dashboard ON widgets (dashboard_id)')
+                print("[DB] v14: widgets rebuilt")
+
+            elif table == 'analytics_tabs':
+                cursor.execute('DROP TABLE IF EXISTS analytics_tabs_v14')
+                cursor.execute(f'''
+                    CREATE TABLE analytics_tabs_v14 (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        dashboard_id INTEGER NOT NULL,
+                        name TEXT NOT NULL,
+                        icon TEXT DEFAULT 'fa-chart-line',
+                        position INTEGER DEFAULT 0,
+                        created_at DATETIME DEFAULT {WIB_DEFAULT},
+                        updated_at DATETIME DEFAULT {WIB_DEFAULT},
+                        FOREIGN KEY (dashboard_id) REFERENCES dashboards (id) ON DELETE CASCADE
+                    )
+                ''')
+                cursor.execute('INSERT INTO analytics_tabs_v14 SELECT * FROM analytics_tabs')
+                cursor.execute('DROP TABLE analytics_tabs')
+                cursor.execute('ALTER TABLE analytics_tabs_v14 RENAME TO analytics_tabs')
+                cursor.execute('CREATE INDEX IF NOT EXISTS idx_analytics_tabs_dashboard ON analytics_tabs (dashboard_id, position)')
+                print("[DB] v14: analytics_tabs rebuilt")
+
+        # Pastikan setiap dashboard punya minimal satu tab "Default"
+        dashboards_without_tabs = cursor.execute('''
+            SELECT d.id FROM dashboards d
+            WHERE NOT EXISTS (
+                SELECT 1 FROM analytics_tabs t WHERE t.dashboard_id = d.id
+            )
+        ''').fetchall()
+
+        for row in dashboards_without_tabs:
+            cursor.execute('''
+                INSERT INTO analytics_tabs
+                (dashboard_id, name, icon, position, created_at, updated_at)
+                VALUES (?, 'Default', 'fa-chart-line', 0, ?, ?)
+            ''', (row['id'], get_wib_time(), get_wib_time()))
+            print(f"[DB] v14: default tab created for dashboard {row['id']}")
+
+        cursor.connection.commit()
+        print("[DB] v14: FK integrity verified")
     finally:
         if fk_was_on:
             cursor.execute('PRAGMA foreign_keys=ON')

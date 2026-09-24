@@ -1,8 +1,8 @@
 /* ==========================================
-   NEXUS IoT - Alert Center (v4.1)
+   NEXUS IoT - Alert Center (v4.2)
+   + Fix: ack pakai alert_id (bukan history.id)
    + Sound notification untuk danger/warning baru
    + Mark All Read
-   + Auto-pulse alert baru
    ========================================== */
 
 (function() {
@@ -31,9 +31,12 @@
     function $(id) { return document.getElementById(id); }
 
     function escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = String(str ?? '');
-        return div.innerHTML;
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function parseDate(iso) {
@@ -128,15 +131,25 @@
         return `${trimmed}${unit}`;
     }
 
+    // ✅ helper: pilih ID yang tepat untuk ack (alert_id > id)
+    function getAckId(a) {
+        if (a && a.alert_id !== null && a.alert_id !== undefined) return a.alert_id;
+        return a ? a.id : null;
+    }
+
     // ==========================================
     // SOUND
     // ==========================================
     function _getAudioCtx() {
-        if (_audioCtx) return _audioCtx;
-        try {
-            _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        } catch (e) {
-            console.warn('[Alerts] AudioContext tidak didukung');
+        if (!_audioCtx) {
+            try {
+                _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.warn('[Alerts] AudioContext tidak didukung');
+            }
+        }
+        if (_audioCtx && _audioCtx.state === 'suspended') {
+            try { _audioCtx.resume(); } catch (e) {}
         }
         return _audioCtx;
     }
@@ -247,6 +260,17 @@
             state.alerts = freshAlerts;
             state.newlyAdded = new Set(newOnes.map(a => a.id));
 
+            // Bersihkan selectedIds yang sudah tidak valid
+            const validAckIds = new Set(
+                freshAlerts
+                    .filter(a => a.is_still_active === 1 && a.severity !== 'healthy')
+                    .map(a => getAckId(a))
+                    .filter(x => x !== null)
+            );
+            state.selectedIds.forEach(id => {
+                if (!validAckIds.has(id)) state.selectedIds.delete(id);
+            });
+
             applyFilter();
             loadStats();
 
@@ -332,20 +356,29 @@
         const typeLabel = alertTypeLabel(a.alert_type);
         const isHealthy = severity === 'healthy';
         const itemClass = isHealthy ? 'resolved' : (isActive ? severity : 'resolved');
-        const isChecked = state.selectedIds.has(a.id);
+        const ackId = getAckId(a);
+        const isChecked = ackId !== null && state.selectedIds.has(ackId);
         const isNew = state.newlyAdded && state.newlyAdded.has(a.id);
 
         const valueDisplay = formatValue(a.alert_type, a.value);
         const timeStr = formatTime(a.created_at);
         const statusText = isActive && !isHealthy ? 'Aktif' : 'Selesai';
 
+        const checkboxHtml = (isActive && !isHealthy && ackId !== null) ? `
+            <label class="alert-row-check" onclick="event.stopPropagation();">
+                <input type="checkbox" class="alert-checkbox" data-alert-id="${ackId}" ${isChecked ? 'checked' : ''}>
+            </label>
+        ` : '<div style="width:20px;flex-shrink:0;"></div>';
+
+        const ackBtnHtml = (isActive && !isHealthy && ackId !== null) ? `
+            <button class="alert-act-btn ack" data-action="acknowledge" data-alert-id="${ackId}" title="Tandai Selesai">
+                <i class="fa-solid fa-check"></i>
+            </button>
+        ` : '';
+
         return `
             <div class="alert-row ${itemClass}${isNew ? ' is-new' : ''}" data-alert-id="${a.id}">
-                ${isActive && !isHealthy ? `
-                    <label class="alert-row-check" onclick="event.stopPropagation();">
-                        <input type="checkbox" class="alert-checkbox" data-alert-id="${a.id}" ${isChecked ? 'checked' : ''}>
-                    </label>
-                ` : '<div style="width:20px;flex-shrink:0;"></div>'}
+                ${checkboxHtml}
 
                 <span class="alert-icon"><i class="fa-solid ${icon}"></i></span>
 
@@ -367,11 +400,7 @@
                     <button class="alert-act-btn view" data-action="view-device" data-device-id="${escapeHtml(a.device_id)}" title="Lihat Device">
                         <i class="fa-solid fa-eye"></i>
                     </button>
-                    ${isActive && !isHealthy ? `
-                        <button class="alert-act-btn ack" data-action="acknowledge" data-alert-id="${a.id}" title="Tandai Selesai">
-                            <i class="fa-solid fa-check"></i>
-                        </button>
-                    ` : ''}
+                    ${ackBtnHtml}
                 </div>
             </div>`;
     }
@@ -421,14 +450,15 @@
     function updateBulkBar() {
         const bar = $('bulkActionBar');
         if (!bar) return;
-        const activeAlerts = state.filtered.filter(a => a.is_still_active === 1 && a.severity !== 'healthy');
+        const activeAlerts = state.filtered.filter(a => a.is_still_active === 1 && a.severity !== 'healthy' && getAckId(a) !== null);
         if (activeAlerts.length === 0) { bar.style.display = 'none'; return; }
         bar.style.display = 'flex';
         const countEl = $('selectedCount');
         if (countEl) countEl.textContent = `${state.selectedIds.size} dipilih`;
         const selectAll = $('selectAllCheckbox');
         if (selectAll) {
-            selectAll.checked = activeAlerts.length > 0 && activeAlerts.every(a => state.selectedIds.has(a.id));
+            const allIds = activeAlerts.map(a => getAckId(a));
+            selectAll.checked = allIds.length > 0 && allIds.every(id => state.selectedIds.has(id));
         }
     }
 
@@ -466,7 +496,7 @@
 
     async function markAllVisible() {
         const visibleActive = state.filtered.filter(a =>
-            a.is_still_active === 1 && a.severity !== 'healthy');
+            a.is_still_active === 1 && a.severity !== 'healthy' && getAckId(a) !== null);
 
         if (visibleActive.length === 0) {
             window.showToast('Tidak ada alert aktif di filter ini', 'info');
@@ -475,7 +505,7 @@
 
         if (!confirm(`Tandai ${visibleActive.length} alert sebagai selesai?`)) return;
 
-        const ids = visibleActive.map(a => a.id);
+        const ids = visibleActive.map(a => getAckId(a));
         try {
             const res = await fetch('/api/v1/alerts/bulk-acknowledge', {
                 method: 'POST',
@@ -562,8 +592,8 @@
         const selectAll = $('selectAllCheckbox');
         if (selectAll) {
             selectAll.addEventListener('change', e => {
-                const activeAlerts = state.filtered.filter(a => a.is_still_active === 1 && a.severity !== 'healthy');
-                if (e.target.checked) activeAlerts.forEach(a => state.selectedIds.add(a.id));
+                const activeAlerts = state.filtered.filter(a => a.is_still_active === 1 && a.severity !== 'healthy' && getAckId(a) !== null);
+                if (e.target.checked) activeAlerts.forEach(a => state.selectedIds.add(getAckId(a)));
                 else state.selectedIds.clear();
                 renderAlerts();
                 updateBulkBar();
@@ -617,5 +647,5 @@
         init();
     }
 
-    console.log('[Alerts] Initialized v4.1');
+    console.log('[Alerts] Initialized v4.2');
 })();

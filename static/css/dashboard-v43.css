@@ -1,0 +1,300 @@
+/* ==========================================
+   NEXUS IoT v4.7 — Chart Absolute + Collision
+   ========================================== */
+
+/* ---------- Overview grid ---------- */
+.overview-grid {
+    display: grid;
+    grid-template-columns: minmax(220px, 260px) minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 16px;
+    align-items: stretch;
+}
+@media (max-width: 1280px) {
+    .overview-grid { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
+    .overview-grid .activity-card { grid-column: 1 / -1; }
+}
+@media (max-width: 768px) {
+    .overview-grid { grid-template-columns: 1fr; }
+}
+
+.ring-card {
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 20px 16px; gap: 12px; min-height: 0;
+}
+.ring-wrap {
+    position: relative; width: 150px; height: 150px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto; flex-shrink: 0;
+}
+.ring-wrap svg { display: block; width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring-center {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center; pointer-events: none;
+    width: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+}
+.ring-center .pct {
+    font-size: 26px; font-weight: 800; font-family: var(--mono);
+    color: var(--text); margin: 0; letter-spacing: -0.03em; line-height: 1;
+}
+.ring-center .lbl {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-3); margin-top: 5px; line-height: 1;
+}
+.ring-caption {
+    text-align: center; font-size: 12px;
+    color: var(--text-3); font-weight: 600; line-height: 1.3;
+}
+
+.stats-grid-2x2 {
+    display: grid; grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr; gap: 12px; min-height: 0;
+}
+.stats-grid-2x2 .stat-card {
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 16px 18px; min-height: 108px; height: 100%; gap: 8px;
+}
+.stats-grid-2x2 .stat-card .stat-top {
+    margin-bottom: 0; display: flex;
+    justify-content: space-between; align-items: flex-start;
+}
+.stats-grid-2x2 .stat-card .stat-info { margin-top: auto; }
+.stats-grid-2x2 .stat-card .stat-info h3 { font-size: 10px; margin-bottom: 4px; }
+.stats-grid-2x2 .stat-card .stat-info .value { font-size: 26px; line-height: 1; font-weight: 800; }
+
+.activity-card { display: flex; flex-direction: column; min-height: 0; max-height: 340px; }
+.activity-list { overflow-y: auto; flex: 1; min-height: 0; }
+
+/* ==========================================
+   CHARTS CANVAS
+   ========================================== */
+
+.charts-grid-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+/* Canvas = area bermain chart, scroll-able */
+.charts-grid {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 720px;
+    min-height: 400px;
+    background: var(--surface-2);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    overflow: auto;
+    scrollbar-width: thin;
+}
+
+/* Chart card — ABSOLUTE, ukuran FIXED */
+.chart-card {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    width: 440px;
+    height: 320px;
+    min-width: 240px;
+    min-height: 160px;
+    background: var(--surface);
+    border: 1px solid var(--hairline);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    overflow: hidden;
+    cursor: default;
+    transition: box-shadow 0.12s ease, border-color 0.12s ease;
+    z-index: 1;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.chart-card:hover {
+    border-color: var(--text-3);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.16);
+}
+
+.chart-card.dragging {
+    z-index: 900;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    transition: none;
+}
+
+.chart-card.resizing {
+    z-index: 901;
+    box-shadow: 0 16px 40px rgba(0,0,0,0.45);
+    transition: none;
+}
+
+.chart-card-header {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--hairline-soft);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-shrink: 0;
+    cursor: grab;
+    background: var(--surface);
+    touch-action: none;
+}
+.chart-card-header:active { cursor: grabbing; }
+
+.chart-card-title {
+    font-size: 12.5px;
+    font-weight: 700;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--text);
+    pointer-events: none;
+}
+.chart-card-title i { color: var(--blue); font-size: 11px; flex-shrink: 0; }
+.chart-card-title .chart-meta {
+    font-size: 10px;
+    color: var(--text-3);
+    font-weight: 500;
+    flex-shrink: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chart-actions {
+    display: flex;
+    gap: 2px;
+    flex-shrink: 0;
+    pointer-events: auto;
+}
+
+.chart-action-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    color: var(--text-3);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    transition: background 0.12s, color 0.12s;
+    flex-shrink: 0;
+    font-family: inherit;
+}
+.chart-action-btn:hover { background: var(--surface-2); color: var(--text); }
+.chart-action-btn.remove:hover {
+    background: var(--accent-crit-bg);
+    color: var(--accent-crit);
+}
+
+.chart-card-body {
+    flex: 1;
+    min-height: 0;
+    padding: 6px 8px 8px;
+    overflow: hidden;
+}
+.chart-canvas-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+.chart-canvas-container canvas {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Handle resize SE — sudut kanan bawah chart */
+.chart-card-resize {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 18px;
+    height: 18px;
+    cursor: se-resize;
+    z-index: 5;
+}
+.chart-card-resize::after {
+    content: '';
+    position: absolute;
+    bottom: 3px;
+    right: 3px;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--text-3);
+    border-bottom: 2px solid var(--text-3);
+    border-bottom-right-radius: 2px;
+    opacity: 0.5;
+    transition: opacity 0.12s;
+}
+.chart-card:hover .chart-card-resize::after { opacity: 1; }
+
+/* ==========================================
+   HANDLE — (SIMPLE, seperti Nexus 3.0)
+   ========================================== */
+.charts-grid-resize-handle {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100px;
+    height: 14px;
+    cursor: ns-resize;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    z-index: 10;
+    background: transparent;
+}
+
+.charts-grid-resize-handle::before {
+    content: '';
+    width: 40px;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--text-3);
+    opacity: 0.5;
+    transition: width 0.12s, opacity 0.12s, background 0.12s;
+}
+
+.charts-grid-resize-handle:hover::before,
+.charts-grid-resize-handle.dragging::before {
+    width: 80px;
+    opacity: 1;
+    background: var(--text);
+}
+
+/* Empty state */
+.empty-charts {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-3);
+    pointer-events: none;
+}
+
+/* ---------- Attendance tabs ---------- */
+.attendance-tabs button.attendance-tab {
+    transition: color 0.15s ease, border-color 0.15s ease;
+    font-family: inherit;
+}
+.attendance-tabs button.attendance-tab.active { color: var(--text); }
+.attendance-tabs button.attendance-tab:hover { color: var(--text); }
+
+/* ---------- Delete modal ---------- */
+#deleteModal { z-index: 10050 !important; }
+#deleteModal .modal-content { box-shadow: 0 24px 60px rgba(0,0,0,0.55); }
+#confirmDeleteBtn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: auto; }
+#confirmDeleteBtn:disabled:hover { transform: none; box-shadow: none; }
+
+/* Hide duplicate handle line dari dashboard.css lama */
+.charts-grid-resize-handle::after { display: none !important; }

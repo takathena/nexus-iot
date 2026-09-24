@@ -1,11 +1,6 @@
 /* ==========================================
-   NEXUS IoT - Dashboard Logic (v4.1 FULL)
-   Perubahan dari v17:
-     ✅ Map redesign — selectMapDevice, placeMarkerAt, unsaved-change guard
-     ✅ Activity Feed — timeline alert + device status
-     ✅ N+1 fix — batch chart fetch per (device, timeRange)
-     ✅ Stat card click → navigate ke section + filter
-     ✅ Session idle handling (401 SESSION_IDLE)
+   NEXUS IoT - Dashboard Logic (v4.8)
+   Chart absolute positioning + anti-tumpuk + auto-scroll + clamp.
    ========================================== */
 
 (function() {
@@ -35,22 +30,26 @@
         deviceSearchTerm: '',
         analyticsTabs: [],
         currentTabId: null,
-        resizeObservers: [],
         isInitialized: false,
         dashboardSlug: null,
-        // ✅ v4.1: map redesign
         mapFilter: 'all',
         mapSearchTerm: '',
         mapHasUnsavedChange: false,
-        // ✅ v4.1: activity feed
         activityRefreshInterval: null,
+        markerMap: new Map(),
+        attendanceView: 'report',
+        deleteTarget: null,
+        canvasHeight: 720,
     };
 
     const CHART_FONT = "'Inter', -apple-system, sans-serif";
-    const CHART_COLORS = [
-        '#c97a7a', '#7a9dc4', '#5fb587', '#d99a56',
-        '#a88cc4', '#6ab8b8', '#b8a85a', '#8cb069',
-    ];
+    const CHART_COLORS = ['#c97a7a', '#7a9dc4', '#5fb587', '#d99a56', '#a88cc4', '#6ab8b8', '#b8a85a', '#8cb069'];
+    const GAP = 12;
+    const PADDING = 16;
+    const DEFAULT_W = 440;
+    const DEFAULT_H = 320;
+    const MIN_W = 240;
+    const MIN_H = 160;
 
     const DATA_KEYS = {
         temperature: { label: 'Suhu', unit: '°C', color: '#c97a7a' },
@@ -71,10 +70,12 @@
         GLOBAL_TIME: 'nexus-global-time',
         LAST_SECTION: 'nexus-last-section',
         BACK_URL: 'nexus_back_url',
+        CURRENT_TAB: 'nexus-current-tab',
+        CHART_LAYOUT_PREFIX: 'nexus-chart-layout-',
+        CANVAS_HEIGHT: 'nexus-chart-canvas-height',
     };
 
     const DASHBOARD_SECTIONS = ['dashboard', 'map', 'graph', 'attendance', 'devices', 'alerts'];
-    const ALL_SECTIONS = DASHBOARD_SECTIONS;
 
     const $ = (id) => document.getElementById(id);
     const $$ = (sel) => document.querySelectorAll(sel);
@@ -83,59 +84,34 @@
     // HELPERS
     // ==========================================
     function escapeHtml(str) {
-        const div = document.createElement('div');
-        div.textContent = String(str ?? '');
-        return div.innerHTML;
+        return String(str ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
-
     function parseDate(iso) {
         if (!iso) return null;
         const s = String(iso).trim();
-        if (/[+-]\d{2}:\d{2}$/.test(s) || s.endsWith('Z')) {
-            const d = new Date(s);
-            return isNaN(d.getTime()) ? null : d;
-        }
-        if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s)) {
-            const d = new Date(s.replace(' ', 'T') + '+07:00');
-            return isNaN(d.getTime()) ? null : d;
-        }
-        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s)) {
-            const d = new Date(s + '+07:00');
-            return isNaN(d.getTime()) ? null : d;
-        }
-        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
-            const d = new Date(s + 'T00:00:00+07:00');
-            return isNaN(d.getTime()) ? null : d;
-        }
-        const d = new Date(s);
-        return isNaN(d.getTime()) ? null : d;
+        if (/[+-]\d{2}:\d{2}$/.test(s) || s.endsWith('Z')) { const d = new Date(s); return isNaN(d.getTime()) ? null : d; }
+        if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(s)) { const d = new Date(s.replace(' ', 'T') + '+07:00'); return isNaN(d.getTime()) ? null : d; }
+        if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s)) { const d = new Date(s + '+07:00'); return isNaN(d.getTime()) ? null : d; }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) { const d = new Date(s + 'T00:00:00+07:00'); return isNaN(d.getTime()) ? null : d; }
+        const d = new Date(s); return isNaN(d.getTime()) ? null : d;
     }
-
-    function formatUptime(seconds) {
-        if (!seconds && seconds !== 0) return '-';
-        seconds = parseInt(seconds) || 0;
-        if (seconds < 60) return `${seconds}s`;
-        const d = Math.floor(seconds / 86400);
-        const h = Math.floor((seconds % 86400) / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
+    function formatUptime(s) {
+        if (!s && s !== 0) return '-';
+        s = parseInt(s) || 0;
+        if (s < 60) return `${s}s`;
+        const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
         if (d > 0) return `${d}h ${h}j`;
         if (h > 0) return `${h}j ${m}m`;
         return `${m}m`;
     }
-
     function formatTime(iso) {
-        const d = parseDate(iso);
-        if (!d) return '-';
-        try {
-            return d.toLocaleTimeString('id-ID', {
-                hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
-            });
-        } catch (e) { return '-'; }
+        const d = parseDate(iso); if (!d) return '-';
+        try { return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }); } catch (e) { return '-'; }
     }
-
     function formatDateTimeSplit(iso) {
-        const d = parseDate(iso);
-        if (!d) return { date: '-', time: '-' };
+        const d = parseDate(iso); if (!d) return { date: '-', time: '-' };
         try {
             return {
                 date: d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', timeZone: 'Asia/Jakarta' }),
@@ -143,7 +119,6 @@
             };
         } catch (e) { return { date: '-', time: '-' }; }
     }
-
     function formatRelativeTime(date) {
         if (!(date instanceof Date)) return '-';
         const diff = (Date.now() - date.getTime()) / 1000;
@@ -154,7 +129,6 @@
         if (diff < 604800) return `${Math.floor(diff / 86400)} hari lalu`;
         return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
     }
-
     function formatTimeRange(minutes) {
         if (minutes <= 0) return '0 menit';
         if (minutes < 60) return `${minutes} menit`;
@@ -163,7 +137,6 @@
         if (minutes < 43200) return `${Math.round(minutes / 10080)} minggu`;
         return `${Math.round(minutes / 43200)} bulan`;
     }
-
     function getChartColors() {
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
         return {
@@ -177,41 +150,29 @@
             pointBorderColor: isLight ? '#fff' : '#1c2027',
         };
     }
-
-    function showToast(message, type) {
-        if (window.showToast) window.showToast(message, type);
+    function downsampleHistory(arr, max) {
+        if (!Array.isArray(arr) || arr.length <= max) return arr;
+        const step = arr.length / max;
+        const out = [];
+        for (let i = 0; i < max; i++) out.push(arr[Math.floor(i * step)]);
+        if (out[out.length - 1] !== arr[arr.length - 1]) out.push(arr[arr.length - 1]);
+        return out;
     }
-
-    function lockBodyScroll() {
-        document.body.classList.add('modal-open');
-    }
+    function showToast(msg, type) { if (window.showToast) window.showToast(msg, type); }
+    function lockBodyScroll() { document.body.classList.add('modal-open'); }
     function unlockBodyScrollIfNoModal() {
-        if (!document.querySelector('.modal.active')) {
-            document.body.classList.remove('modal-open');
-        }
+        if (!document.querySelector('.modal.active')) document.body.classList.remove('modal-open');
     }
-
-    function openModal(id) {
-        const el = $(id);
-        if (el) { el.classList.add('active'); lockBodyScroll(); }
-    }
-
-    function closeModal(id) {
-        const el = $(id);
-        if (el) el.classList.remove('active');
-        unlockBodyScrollIfNoModal();
-    }
-
+    function openModal(id) { const el = $(id); if (el) { el.classList.add('active'); lockBodyScroll(); } }
+    function closeModal(id) { const el = $(id); if (el) el.classList.remove('active'); unlockBodyScrollIfNoModal(); }
     function registerMapInstance(map) {
         if (!window.__nexusMaps) window.__nexusMaps = [];
         if (!window.__nexusMaps.includes(map)) window.__nexusMaps.push(map);
     }
-
     function getSectionFromHash() {
         const hash = (window.location.hash || '').replace('#', '').trim();
         return DASHBOARD_SECTIONS.includes(hash) ? hash : 'dashboard';
     }
-
     function updateHash(section, replace = false) {
         if (!DASHBOARD_SECTIONS.includes(section)) return;
         const newHash = `#${section}`;
@@ -221,62 +182,38 @@
     }
 
     // ==========================================
-    // SECTION NAVIGATION
+    // SECTION NAV
     // ==========================================
     function showSection(section, skipHistory = false) {
         if (!DASHBOARD_SECTIONS.includes(section)) section = 'dashboard';
-
         state.currentSection = section;
 
-        ALL_SECTIONS.forEach(s => {
+        DASHBOARD_SECTIONS.forEach(s => {
             const el = $(s + 'Section');
             if (!el) return;
-            if (s === section) {
-                el.style.display = 'block';
-                el.removeAttribute('hidden');
-            } else {
-                el.style.display = 'none';
-                el.setAttribute('hidden', '');
-            }
+            if (s === section) { el.style.display = 'block'; el.removeAttribute('hidden'); }
+            else { el.style.display = 'none'; el.setAttribute('hidden', ''); }
         });
 
-        const staleStyle = document.getElementById('nexus-section-style');
-        if (staleStyle) staleStyle.remove();
-
-        const titles = {
-            dashboard: 'Dashboard',
-            map: 'Peta Interaktif',
-            graph: 'Analitik Sensor',
-            devices: 'Manajemen Perangkat',
-            attendance: 'Absensi',
-            alerts: 'Alert Center',
-        };
+        const titles = { dashboard: 'Dashboard', map: 'Peta Interaktif', graph: 'Analitik Sensor', devices: 'Manajemen Perangkat', attendance: 'Absensi', alerts: 'Alert Center' };
         const titleEl = $('pageTitle');
         if (titleEl) titleEl.textContent = titles[section] || 'Dashboard';
 
-        $$('.sidebar-nav .nav-item[data-section]').forEach((item) => {
-            const sec = item.getAttribute('data-section');
-            item.classList.toggle('active', sec === section);
+        $$('.sidebar-nav .nav-item[data-section]').forEach(item => {
+            item.classList.toggle('active', item.getAttribute('data-section') === section);
         });
 
         const searchBox = document.querySelector('.search-box');
         const searchInput = $('searchInput');
-        const noSearchSections = ['map', 'graph', 'alerts'];
-        if (searchBox) searchBox.style.display = noSearchSections.includes(section) ? 'none' : '';
+        const noSearch = ['map', 'graph', 'alerts'];
+        if (searchBox) searchBox.style.display = noSearch.includes(section) ? 'none' : '';
         if (searchInput) {
             searchInput.value = state.deviceSearchTerm || '';
-            searchInput.placeholder = section === 'attendance'
-                ? 'Cari nama/UID/perangkat...'
-                : 'Cari perangkat...';
+            searchInput.placeholder = section === 'attendance' ? 'Cari nama/UID/perangkat...' : 'Cari perangkat...';
         }
 
         if (section !== 'attendance') stopAttendancePolling();
-
-        if (section === 'attendance') {
-            loadAttendance();
-            startAttendancePolling();
-        }
-
+        if (section === 'attendance') { loadAttendance(); startAttendancePolling(); }
         if (section === 'map') {
             setTimeout(() => {
                 if (!state.mapFull) initFullMap();
@@ -286,25 +223,20 @@
                 updateMapSelectedBanner();
             }, 100);
         }
-
         if (section === 'dashboard') {
-            setTimeout(() => {
-                if (state.mapPreview) state.mapPreview.invalidateSize();
-                loadActivityFeed();
-            }, 100);
+            setTimeout(() => { if (state.mapPreview) state.mapPreview.invalidateSize(); loadActivityFeed(); }, 100);
         }
-
         if (section === 'graph') {
             setTimeout(() => {
                 loadAnalyticsTabs();
                 refreshAllCharts();
+                setTimeout(() => {
+                    state.charts.forEach(c => { if (c.chartInstance) try { c.chartInstance.resize(); } catch (e) {} });
+                }, 200);
             }, 100);
         }
-
-        if (section === 'alerts') {
-            if (window.NexusAlerts && typeof window.NexusAlerts.load === 'function') {
-                window.NexusAlerts.load();
-            }
+        if (section === 'alerts' && window.NexusAlerts && typeof window.NexusAlerts.load === 'function') {
+            window.NexusAlerts.load();
         }
 
         try { sessionStorage.setItem(STORAGE_KEYS.LAST_SECTION, section); } catch (e) {}
@@ -314,55 +246,25 @@
     function updateDateTime() {
         const now = new Date();
         const dateEl = $('currentDate'), timeEl = $('currentTime');
-        if (dateEl) dateEl.textContent = now.toLocaleDateString('id-ID', {
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-            timeZone: 'Asia/Jakarta',
-        });
-        if (timeEl) timeEl.textContent = now.toLocaleTimeString('id-ID', {
-            hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta',
-        }) + ' WIB';
+        if (dateEl) dateEl.textContent = now.toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Jakarta' });
+        if (timeEl) timeEl.textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
     }
 
     // ==========================================
-    // DASHBOARD MAIN LOAD
+    // DASHBOARD LOAD
     // ==========================================
     async function loadDashboard() {
         const result = await API.getDashboard();
-
         if (!result.success) {
-            // ✅ Session idle handling
-            if (result.status === 401) {
-                showToast('Session expired, silakan login lagi', 'warning');
-                setTimeout(() => window.location.href = '/login', 1500);
-                return;
-            }
-
-            console.error('[Dashboard] Load failed:', result.error);
-
+            if (result.status === 401) { showToast('Session expired', 'warning'); setTimeout(() => window.location.href = '/login', 1500); return; }
             const tbody = $('deviceTableBody');
-            if (tbody) {
-                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--accent-crit);">
-                    <i class="fa-solid fa-triangle-exclamation" style="font-size:24px;display:block;margin-bottom:8px;"></i>
-                    Gagal memuat data. <button onclick="location.reload()" style="color:var(--accent-info);text-decoration:underline;background:none;border:none;cursor:pointer;font-family:inherit;">Muat ulang</button>
-                </td></tr>`;
-            }
-
+            if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--accent-crit);">Gagal memuat</td></tr>`;
             const tbodyFull = $('deviceTableBodyFull');
-            if (tbodyFull) {
-                tbodyFull.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--accent-crit);">Gagal memuat data</td></tr>`;
-            }
-
-            const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
-            setText('totalDevices', '-');
-            setText('onlineDevices', '-');
-            setText('offlineDevices', '-');
-            setText('activeAlerts', '-');
+            if (tbodyFull) tbodyFull.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--accent-crit);">Gagal memuat</td></tr>`;
             return;
         }
-
         const { summary, devices } = result.data;
         state.devices = Array.isArray(devices) ? devices : [];
-
         const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
         setText('totalDevices', summary.total_devices);
         setText('onlineDevices', summary.online_devices);
@@ -370,7 +272,6 @@
         setText('activeAlerts', summary.active_alerts || 0);
         setText('deviceBadge', summary.total_devices);
         setText('alertBadge', summary.active_alerts || 0);
-
         updateHealthRing(summary);
         loadMarkers(state.mapPreview);
         if (state.mapFull) loadMarkers(state.mapFull, true);
@@ -382,22 +283,17 @@
     }
 
     function updateHealthRing(summary) {
-        const healthy = summary.healthy_devices ?? summary.online_devices ?? 0;
+        const healthy = summary.online_devices ?? 0;
         const total = summary.total_devices ?? 0;
         const pct = total > 0 ? Math.round((healthy / total) * 100) : 0;
-        const circumference = 2 * Math.PI * 63;
-        const offset = circumference - (pct / 100) * circumference;
-
+        const circ = 2 * Math.PI * 63;
+        const offset = circ - (pct / 100) * circ;
         const ring = $('healthRingProgress');
         if (!ring) return;
-        ring.setAttribute('stroke-dasharray', circumference.toFixed(1));
+        ring.setAttribute('stroke-dasharray', circ.toFixed(1));
         ring.style.strokeDashoffset = offset;
-
-        const pctEl = $('ringPct');
-        if (pctEl) pctEl.textContent = pct + '%';
-
-        const captionEl = $('ringCaption');
-        if (captionEl) captionEl.textContent = `${healthy} / ${total} perangkat sehat`;
+        const pctEl = $('ringPct'); if (pctEl) pctEl.textContent = pct + '%';
+        const capEl = $('ringCaption'); if (capEl) capEl.textContent = `${healthy} / ${total} perangkat online`;
     }
 
     // ==========================================
@@ -406,25 +302,19 @@
     async function loadActivityFeed() {
         const container = $('activityList');
         if (!container) return;
-
         try {
             const alertsRes = await API.getAlertsAll({ limit: 20 });
             const events = [];
-
             if (alertsRes.success && Array.isArray(alertsRes.data.alerts)) {
                 alertsRes.data.alerts.slice(0, 15).forEach(a => {
                     events.push({
-                        type: 'alert',
-                        severity: a.severity || 'info',
+                        type: 'alert', severity: a.severity || 'info',
                         title: a.device_name || a.device_id,
                         message: a.message || a.alert_type,
-                        timestamp: a.created_at,
-                        deviceId: a.device_id,
-                        isActive: a.is_still_active === 1,
+                        timestamp: a.created_at, deviceId: a.device_id,
                     });
                 });
             }
-
             state.devices.forEach(d => {
                 if (!d.last_seen) return;
                 events.push({
@@ -432,444 +322,227 @@
                     severity: d.status === 'online' ? 'online' : 'offline',
                     title: d.device_name,
                     message: d.status === 'online' ? 'Baru saja online' : 'Terakhir terlihat',
-                    timestamp: d.last_seen,
-                    deviceId: d.device_id,
+                    timestamp: d.last_seen, deviceId: d.device_id,
                 });
             });
-
             events.sort((a, b) => {
-                const da = parseDate(a.timestamp);
-                const db = parseDate(b.timestamp);
+                const da = parseDate(a.timestamp), db = parseDate(b.timestamp);
                 if (!da || !db) return 0;
                 return db - da;
             });
-
             const top = events.slice(0, 12);
-
-            if (top.length === 0) {
-                container.innerHTML = `<div class="activity-empty">Belum ada aktivitas</div>`;
-                return;
-            }
-
-            const iconMap = {
-                danger: 'fa-fire',
-                warning: 'fa-triangle-exclamation',
-                info: 'fa-circle-info',
-                online: 'fa-circle-check',
-                offline: 'fa-power-off',
-            };
-
+            if (top.length === 0) { container.innerHTML = `<div class="activity-empty">Belum ada aktivitas</div>`; return; }
+            const iconMap = { danger: 'fa-fire', warning: 'fa-triangle-exclamation', info: 'fa-circle-info', online: 'fa-circle-check', offline: 'fa-power-off' };
             container.innerHTML = top.map(ev => {
                 const sev = ev.severity || 'info';
                 const icon = iconMap[sev] || 'fa-bell';
                 const dt = parseDate(ev.timestamp);
                 const timeStr = dt ? formatRelativeTime(dt) : '-';
-                const shortMsg = ev.type === 'alert'
-                    ? escapeHtml(String(ev.message).slice(0, 80))
-                    : escapeHtml(ev.message);
-
-                return `
-                    <div class="activity-item" data-device-id="${escapeHtml(ev.deviceId)}">
-                        <div class="activity-icon ${sev}">
-                            <i class="fa-solid ${icon}"></i>
-                        </div>
-                        <div class="activity-body">
-                            <div class="activity-text">
-                                <strong>${escapeHtml(ev.title)}</strong> — ${shortMsg}
-                            </div>
-                            <div class="activity-time">${timeStr}</div>
-                        </div>
-                    </div>
-                `;
+                const shortMsg = ev.type === 'alert' ? escapeHtml(String(ev.message).slice(0, 80)) : escapeHtml(ev.message);
+                return `<div class="activity-item" data-device-id="${escapeHtml(ev.deviceId)}"><div class="activity-icon ${sev}"><i class="fa-solid ${icon}"></i></div><div class="activity-body"><div class="activity-text"><strong>${escapeHtml(ev.title)}</strong> — ${shortMsg}</div><div class="activity-time">${timeStr}</div></div></div>`;
             }).join('');
-
             container.querySelectorAll('.activity-item').forEach(item => {
-                item.addEventListener('click', () => {
-                    const deviceId = item.dataset.deviceId;
-                    if (deviceId) viewDevice(deviceId);
-                });
+                item.addEventListener('click', () => { const id = item.dataset.deviceId; if (id) viewDevice(id); });
             });
-
-        } catch (e) {
-            console.error('[Activity] Failed to load:', e);
-            container.innerHTML = `<div class="activity-empty">Gagal memuat aktivitas</div>`;
-        }
+        } catch (e) { console.error(e); container.innerHTML = `<div class="activity-empty">Gagal memuat aktivitas</div>`; }
     }
 
     // ==========================================
-    // MAP PREVIEW (dashboard)
+    // MAP
     // ==========================================
     function initMapPreview() {
         if (state.mapPreview) return;
-        const el = $('mapPreview');
-        if (!el) return;
-        state.mapPreview = L.map('mapPreview', {
-            zoomControl: true, attributionControl: false,
-        }).setView([-2.5489, 118.0149], 5);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
-            .addTo(state.mapPreview);
+        const el = $('mapPreview'); if (!el) return;
+        state.mapPreview = L.map('mapPreview', { zoomControl: true, attributionControl: false }).setView([-2.5489, 118.0149], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(state.mapPreview);
         registerMapInstance(state.mapPreview);
     }
-
-    // ==========================================
-    // MAP FULL (v4.1 REDESIGN)
-    // ==========================================
     function initFullMap() {
         if (state.mapFull) return;
-        const el = $('mapFull');
-        if (!el) return;
-
+        const el = $('mapFull'); if (!el) return;
         state.mapFull = L.map('mapFull').setView([-2.5489, 118.0149], 5);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
-            .addTo(state.mapFull);
-
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(state.mapFull);
         if (typeof L.markerClusterGroup === 'function') {
             state.markerCluster = L.markerClusterGroup();
             state.mapFull.addLayer(state.markerCluster);
         }
-
         state.mapFull.on('click', (e) => {
-            if (!state.selectedMapDeviceId) {
-                showToast('Pilih device di list terlebih dahulu', 'warning');
-                return;
-            }
+            if (!state.selectedMapDeviceId) { showToast('Pilih device di list dulu', 'warning'); return; }
             placeMarkerAt(e.latlng.lat, e.latlng.lng);
         });
-
         registerMapInstance(state.mapFull);
     }
-
     function placeMarkerAt(lat, lng) {
         if (!state.mapFull) return;
-
-        state.selectedLat = lat;
-        state.selectedLng = lng;
-
-        if (state.marker) {
-            state.marker.setLatLng([lat, lng]);
-        } else {
+        state.selectedLat = lat; state.selectedLng = lng;
+        if (state.marker) { state.marker.setLatLng([lat, lng]); }
+        else {
             state.marker = L.marker([lat, lng], { draggable: true }).addTo(state.mapFull);
-            state.marker.on('dragstart', () => {
-                state.mapHasUnsavedChange = true;
-            });
+            state.marker.on('dragstart', () => { state.mapHasUnsavedChange = true; });
             state.marker.on('dragend', (e) => {
                 const pos = e.target.getLatLng();
-                state.selectedLat = pos.lat;
-                state.selectedLng = pos.lng;
+                state.selectedLat = pos.lat; state.selectedLng = pos.lng;
                 state.mapHasUnsavedChange = true;
                 updateMapSelectedBanner();
             });
         }
-
         state.mapHasUnsavedChange = true;
         updateMapSelectedBanner();
     }
-
     function getDeviceMapStyle(d) {
-        let color = '#6c7580';
-        let label = (d.status || 'offline').toUpperCase();
-
-        if (d.status === 'offline') {
-            color = '#c97a7a';
-            label = 'OFFLINE';
-        } else if (d.has_alert && d.top_alert_severity) {
+        let color = '#6c7580'; let label = (d.status || 'offline').toUpperCase();
+        if (d.status === 'offline') { color = '#c97a7a'; label = 'OFFLINE'; }
+        else if (d.has_alert && d.top_alert_severity) {
             if (d.top_alert_severity === 'danger') color = '#c97a7a';
             else if (d.top_alert_severity === 'warning') color = '#d99a56';
             else if (d.top_alert_severity === 'info') color = '#7a9dc4';
             label = d.top_alert_severity.toUpperCase();
-        } else if (d.status === 'online') {
-            color = '#5fb587';
-            label = 'ONLINE';
-        }
+        } else if (d.status === 'online') { color = '#5fb587'; label = 'ONLINE'; }
         return { color, label };
     }
-
     function loadMarkers(map, useCluster = false) {
         if (!map) return;
-
-        // ✅ FIX Tier 1 #1: jangan hapus marker manual kalau ada unsaved change
-        if (state.marker && !state.mapHasUnsavedChange) {
-            map.removeLayer(state.marker);
-            state.marker = null;
-        }
-
-        if (useCluster && state.markerCluster) {
-            state.markerCluster.clearLayers();
-        }
-
-        map.eachLayer(layer => {
-            if (layer === state.markerCluster) return;
-            if (layer === state.marker) return;
-            if (layer instanceof L.CircleMarker || layer instanceof L.Marker) {
-                map.removeLayer(layer);
-            }
-        });
-
+        if (state.marker && !state.mapHasUnsavedChange) { map.removeLayer(state.marker); state.marker = null; }
+        const validIds = new Set();
         state.devices.forEach(d => {
             if (d.latitude == null || d.longitude == null) return;
             if (d.latitude === 0 && d.longitude === 0) return;
-
-            const style = getDeviceMapStyle(d);
-
-            const popup = `
-                <div style="font-family:Inter,sans-serif;min-width:200px;">
-                    <div style="font-weight:700;margin-bottom:4px;font-size:13px;">${escapeHtml(d.device_name)}</div>
-                    <div style="font-size:11px;color:#888;margin-bottom:6px;font-family:monospace;">${escapeHtml(d.device_id)}</div>
-                    ${d.location ? `<div style="font-size:11px;color:#888;margin-bottom:4px;">📍 ${escapeHtml(d.location)}</div>` : ''}
-                    <div style="font-size:11px;margin-bottom:8px;">Status: <b style="color:${style.color};">${style.label}</b></div>
-                    <div style="display:flex;gap:6px;">
-                        <button onclick="window.__nexusMapSelect('${escapeHtml(d.device_id)}')"
-                                style="flex:1;padding:6px 10px;background:#e8ebef;color:#14171c;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">
-                            Pilih
-                        </button>
-                        <button onclick="window.__nexusMapView('${escapeHtml(d.device_id)}')"
-                                style="flex:1;padding:6px 10px;background:#5fbb86;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">
-                            Detail
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            const marker = L.circleMarker([d.latitude, d.longitude], {
-                radius: 8, color: style.color, fillColor: style.color,
-                fillOpacity: 0.8, weight: 2,
-            }).bindPopup(popup);
-
-            marker.on('click', () => {
-                selectMapDevice(d.device_id, { zoom: false, placeMarker: false });
-            });
-
-            if (useCluster && state.markerCluster) {
-                state.markerCluster.addLayer(marker);
-            } else {
-                marker.addTo(map);
+            validIds.add(d.device_id);
+        });
+        const mapKey = useCluster ? 'cluster' : 'main';
+        for (const [deviceId, entry] of state.markerMap.entries()) {
+            if (entry.mapKey !== mapKey) continue;
+            if (!validIds.has(deviceId)) {
+                try {
+                    if (useCluster && state.markerCluster) state.markerCluster.removeLayer(entry.marker);
+                    else map.removeLayer(entry.marker);
+                } catch (e) {}
+                state.markerMap.delete(deviceId);
             }
+        }
+        state.devices.forEach(d => {
+            if (!validIds.has(d.device_id)) return;
+            const style = getDeviceMapStyle(d);
+            const existing = state.markerMap.get(d.device_id);
+            if (existing && existing.mapKey === mapKey) {
+                try {
+                    existing.marker.setLatLng([d.latitude, d.longitude]);
+                    existing.marker.setStyle({ color: style.color, fillColor: style.color, radius: 8, fillOpacity: 0.8, weight: 2 });
+                } catch (e) {}
+                return;
+            }
+            const popup = `<div style="font-family:Inter,sans-serif;min-width:200px;"><div style="font-weight:700;margin-bottom:4px;">${escapeHtml(d.device_name)}</div><div style="font-size:11px;color:#888;margin-bottom:6px;font-family:monospace;">${escapeHtml(d.device_id)}</div><div style="font-size:11px;margin-bottom:8px;">Status: <b style="color:${style.color};">${style.label}</b></div><div style="display:flex;gap:6px;"><button onclick="window.__nexusMapSelect('${escapeHtml(d.device_id)}')" style="flex:1;padding:6px 10px;background:#e8ebef;color:#14171c;border:none;border-radius:6px;font-size:11px;cursor:pointer;">Pilih</button><button onclick="window.__nexusMapView('${escapeHtml(d.device_id)}')" style="flex:1;padding:6px 10px;background:#5fbb86;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;">Detail</button></div></div>`;
+            const marker = L.circleMarker([d.latitude, d.longitude], { radius: 8, color: style.color, fillColor: style.color, fillOpacity: 0.8, weight: 2 }).bindPopup(popup);
+            marker.on('click', () => selectMapDevice(d.device_id, { zoom: false, placeMarker: false }));
+            if (useCluster && state.markerCluster) state.markerCluster.addLayer(marker);
+            else marker.addTo(map);
+            state.markerMap.set(d.device_id, { marker, mapKey });
         });
     }
-
     function selectMapDevice(deviceId, opts = {}) {
         const device = state.devices.find(d => d.device_id === deviceId);
         if (!device) return;
-
-        // Konfirmasi kalau ganti device & ada unsaved change
         if (state.selectedMapDeviceId && state.selectedMapDeviceId !== deviceId && state.mapHasUnsavedChange) {
-            if (!confirm('Ada perubahan lokasi yang belum disimpan. Lanjutkan pindah device?')) return;
+            if (!confirm('Ada perubahan lokasi belum disimpan. Lanjutkan?')) return;
         }
-
         state.selectedMapDeviceId = deviceId;
         state.mapHasUnsavedChange = false;
-        state.selectedLat = null;
-        state.selectedLng = null;
-
-        // Update list highlight
+        state.selectedLat = null; state.selectedLng = null;
         const list = $('mapDeviceList');
-        if (list) {
-            list.querySelectorAll('.map-device-item').forEach(el => {
-                el.classList.toggle('selected', el.dataset.deviceId === deviceId);
-            });
-        }
-
-        const hasLoc = device.latitude && device.longitude &&
-                       !(device.latitude === 0 && device.longitude === 0);
-
+        if (list) list.querySelectorAll('.map-device-item').forEach(el => el.classList.toggle('selected', el.dataset.deviceId === deviceId));
+        const hasLoc = device.latitude && device.longitude && !(device.latitude === 0 && device.longitude === 0);
         if (hasLoc) {
-            state.selectedLat = device.latitude;
-            state.selectedLng = device.longitude;
+            state.selectedLat = device.latitude; state.selectedLng = device.longitude;
             if (state.mapFull) {
-                state.mapFull.flyTo([device.latitude, device.longitude],
-                    Math.max(state.mapFull.getZoom(), 14), { duration: 1 });
+                const targetZoom = opts.zoom ? 15 : Math.max(state.mapFull.getZoom(), 13);
+                state.mapFull.flyTo([device.latitude, device.longitude], targetZoom, { duration: 1 });
             }
         } else if (opts.placeMarker && state.mapFull) {
-            const center = state.mapFull.getCenter();
-            placeMarkerAt(center.lat, center.lng);
+            const c = state.mapFull.getCenter();
+            placeMarkerAt(c.lat, c.lng);
         }
-
-        if (opts.zoom && hasLoc && state.mapFull) {
-            state.mapFull.flyTo([device.latitude, device.longitude], 15, { duration: 1.2 });
-        }
-
         updateMapSelectedBanner();
     }
-
     function updateMapSelectedBanner() {
-        const banner = $('mapSelectedBanner');
-        const nameEl = $('mapSelectedName');
-        const coordEl = $('mapSelectedCoord');
-        const dotEl = $('mapSelectedDot');
+        const banner = $('mapSelectedBanner'); const nameEl = $('mapSelectedName');
+        const coordEl = $('mapSelectedCoord'); const dotEl = $('mapSelectedDot');
         const saveBtn = $('saveLocationBtn');
-
-        if (!state.selectedMapDeviceId) {
-            if (banner) banner.style.display = 'none';
-            return;
-        }
-
+        if (!state.selectedMapDeviceId) { if (banner) banner.style.display = 'none'; return; }
         const device = state.devices.find(d => d.device_id === state.selectedMapDeviceId);
-        if (!device) {
-            if (banner) banner.style.display = 'none';
-            return;
-        }
-
+        if (!device) { if (banner) banner.style.display = 'none'; return; }
         const style = getDeviceMapStyle(device);
-
         if (banner) banner.style.display = 'flex';
         if (nameEl) nameEl.textContent = device.device_name;
         if (dotEl) dotEl.style.background = style.color;
-
         if (coordEl) {
             if (state.selectedLat != null && state.selectedLng != null) {
-                const hasUnsaved = state.mapHasUnsavedChange;
-                coordEl.innerHTML = `${state.selectedLat.toFixed(5)}, ${state.selectedLng.toFixed(5)}` +
-                    (hasUnsaved ? ' <span style="color:var(--accent-warn);font-weight:700;">• belum disimpan</span>' : '');
-            } else {
-                coordEl.textContent = 'Belum ada koordinat — klik peta untuk atur';
-            }
+                coordEl.innerHTML = `${state.selectedLat.toFixed(5)}, ${state.selectedLng.toFixed(5)}` + (state.mapHasUnsavedChange ? ' <span style="color:var(--accent-warn);font-weight:700;">• belum disimpan</span>' : '');
+            } else coordEl.textContent = 'Belum ada koordinat';
         }
-
-        if (saveBtn) {
-            saveBtn.disabled = !(state.selectedLat != null && state.selectedLng != null && state.mapHasUnsavedChange);
-        }
+        if (saveBtn) saveBtn.disabled = !(state.selectedLat != null && state.selectedLng != null && state.mapHasUnsavedChange);
     }
-
     function renderMapDeviceList() {
-        const container = $('mapDeviceList');
-        if (!container) return;
-
+        const container = $('mapDeviceList'); if (!container) return;
         const filter = state.mapFilter || 'all';
         const term = (state.mapSearchTerm || '').toLowerCase().trim();
-
         let list = state.devices.slice();
-
         if (filter === 'online') list = list.filter(d => d.status === 'online');
         else if (filter === 'offline') list = list.filter(d => d.status === 'offline');
         else if (filter === 'alert') list = list.filter(d => d.has_alert === true);
-        else if (filter === 'located') list = list.filter(d =>
-            d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0)
-        );
-
-        if (term) {
-            list = list.filter(d =>
-                (d.device_name || '').toLowerCase().includes(term) ||
-                (d.device_id || '').toLowerCase().includes(term) ||
-                (d.location || '').toLowerCase().includes(term)
-            );
-        }
-
-        const countEl = $('mapListCount');
-        if (countEl) countEl.textContent = list.length;
-
-        if (list.length === 0) {
-            container.innerHTML = `<div class="map-empty-list">
-                ${term ? 'Tidak ada device yang cocok' : 'Tidak ada device di filter ini'}
-            </div>`;
-            return;
-        }
-
+        else if (filter === 'located') list = list.filter(d => d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0));
+        if (term) list = list.filter(d => (d.device_name || '').toLowerCase().includes(term) || (d.device_id || '').toLowerCase().includes(term) || (d.location || '').toLowerCase().includes(term));
+        const countEl = $('mapListCount'); if (countEl) countEl.textContent = list.length;
+        if (list.length === 0) { container.innerHTML = `<div class="map-empty-list">${term ? 'Tidak ada device yang cocok' : 'Tidak ada device di filter ini'}</div>`; return; }
         container.innerHTML = list.map(d => {
             const style = getDeviceMapStyle(d);
             const hasLoc = d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0);
             const isSelected = state.selectedMapDeviceId === d.device_id;
-
-            return `
-                <button class="map-device-item ${isSelected ? 'selected' : ''}"
-                        data-device-id="${escapeHtml(d.device_id)}">
-                    <span class="device-dot" style="background:${style.color};"></span>
-                    <div class="device-info">
-                        <div class="device-name">${escapeHtml(d.device_name)}</div>
-                        <div class="device-id">
-                            ${escapeHtml(d.device_id)}
-                            ${!hasLoc ? '<span style="color:var(--accent-warn);margin-left:4px;font-size:9px;">• belum ada lokasi</span>' : ''}
-                        </div>
-                    </div>
-                    <span class="device-status" style="background:${style.color}20;color:${style.color};">${escapeHtml(style.label)}</span>
-                </button>
-            `;
+            return `<button class="map-device-item ${isSelected ? 'selected' : ''}" data-device-id="${escapeHtml(d.device_id)}"><span class="device-dot" style="background:${style.color};"></span><div class="device-info"><div class="device-name">${escapeHtml(d.device_name)}</div><div class="device-id">${escapeHtml(d.device_id)}${!hasLoc ? '<span style="color:var(--accent-warn);margin-left:4px;font-size:9px;">• belum ada lokasi</span>' : ''}</div></div><span class="device-status" style="background:${style.color}20;color:${style.color};">${escapeHtml(style.label)}</span></button>`;
         }).join('');
-
         container.querySelectorAll('.map-device-item').forEach(item => {
-            item.addEventListener('click', () => {
-                selectMapDevice(item.dataset.deviceId, { zoom: true, placeMarker: true });
-            });
+            item.addEventListener('click', () => selectMapDevice(item.dataset.deviceId, { zoom: true, placeMarker: true }));
         });
     }
-
     async function saveLocation() {
         const deviceId = state.selectedMapDeviceId;
         if (!deviceId) { showToast('Pilih perangkat dulu', 'error'); return; }
-        if (!Number.isFinite(state.selectedLat) || !Number.isFinite(state.selectedLng)) {
-            showToast('Atur lokasi dulu di peta', 'error'); return;
-        }
-
-        const result = await API.updateDevice(deviceId, {
-            latitude: state.selectedLat,
-            longitude: state.selectedLng,
-        });
-
+        if (!Number.isFinite(state.selectedLat) || !Number.isFinite(state.selectedLng)) { showToast('Atur lokasi dulu', 'error'); return; }
+        const result = await API.updateDevice(deviceId, { latitude: state.selectedLat, longitude: state.selectedLng });
         if (result.success) {
             showToast(`Lokasi ${deviceId} tersimpan`, 'success');
-
             const device = state.devices.find(d => d.device_id === deviceId);
-            if (device) {
-                device.latitude = state.selectedLat;
-                device.longitude = state.selectedLng;
-            }
-
+            if (device) { device.latitude = state.selectedLat; device.longitude = state.selectedLng; }
             state.mapHasUnsavedChange = false;
             updateMapSelectedBanner();
             loadDashboard();
-        } else {
-            showToast(result.error || 'Gagal menyimpan lokasi', 'error');
-        }
+        } else showToast(result.error || 'Gagal menyimpan', 'error');
     }
-
     function clearMapSelection() {
-        if (state.mapHasUnsavedChange) {
-            if (!confirm('Ada perubahan yang belum disimpan. Yakin batal?')) return;
-        }
+        if (state.mapHasUnsavedChange && !confirm('Ada perubahan belum disimpan. Yakin batal?')) return;
         state.selectedMapDeviceId = null;
-        state.selectedLat = null;
-        state.selectedLng = null;
+        state.selectedLat = null; state.selectedLng = null;
         state.mapHasUnsavedChange = false;
-
-        if (state.marker && state.mapFull) {
-            state.mapFull.removeLayer(state.marker);
-            state.marker = null;
-        }
-
+        if (state.marker && state.mapFull) { state.mapFull.removeLayer(state.marker); state.marker = null; }
         const list = $('mapDeviceList');
-        if (list) {
-            list.querySelectorAll('.map-device-item').forEach(el => el.classList.remove('selected'));
-        }
+        if (list) list.querySelectorAll('.map-device-item').forEach(el => el.classList.remove('selected'));
         updateMapSelectedBanner();
     }
-
-    // Expose ke popup marker
-    window.__nexusMapSelect = function(deviceId) {
-        if (state.mapFull) state.mapFull.closePopup();
-        selectMapDevice(deviceId, { zoom: false, placeMarker: true });
-    };
-    window.__nexusMapView = function(deviceId) {
-        viewDevice(deviceId);
-    };
+    window.__nexusMapSelect = function(id) { if (state.mapFull) state.mapFull.closePopup(); selectMapDevice(id, { zoom: false, placeMarker: true }); };
+    window.__nexusMapView = function(id) { viewDevice(id); };
 
     // ==========================================
-    // DEVICE FILTERS & TABLE
+    // DEVICE FILTERS
     // ==========================================
     function setDeviceFilter(filter) {
         state.deviceFilter = filter;
-        $$('#deviceFilterBar .filter-btn').forEach(btn =>
-            btn.classList.toggle('active', btn.dataset.filter === filter)
-        );
+        $$('#deviceFilterBar .filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === filter));
         renderFilteredDevices();
     }
-
     function setDeviceFilterFull(filter) {
         state.deviceFilterFull = filter;
-        $$('#deviceFilterBarFull .filter-btn').forEach(btn =>
-            btn.classList.toggle('active', btn.dataset.filter === filter)
-        );
+        $$('#deviceFilterBarFull .filter-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.filter === filter));
         renderFilteredDevicesFull();
     }
-
     function filterDevicesByStatus(devices, filter) {
         switch (filter) {
             case 'online': return devices.filter(d => d.status === 'online');
@@ -878,114 +551,38 @@
             default: return devices;
         }
     }
-
-    function renderFilteredDevices() {
-        const filtered = filterDevicesByStatus(state.devices, state.deviceFilter);
-        renderTable(filtered, 'deviceTableBody', false);
-    }
-
-    function renderFilteredDevicesFull() {
-        const filtered = filterDevicesByStatus(state.devices, state.deviceFilterFull);
-        renderTable(filtered, 'deviceTableBodyFull', true);
-    }
-
+    function renderFilteredDevices() { renderTable(filterDevicesByStatus(state.devices, state.deviceFilter), 'deviceTableBody', false); }
+    function renderFilteredDevicesFull() { renderTable(filterDevicesByStatus(state.devices, state.deviceFilterFull), 'deviceTableBodyFull', true); }
     function updateFilterCounts() {
-        const onlineCount = state.devices.filter(d => d.status === 'online').length;
-        const offlineCount = state.devices.filter(d => d.status === 'offline').length;
-        const alertCount = state.devices.filter(d => d.has_alert === true).length;
-
-        const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+        const setText = (id, v) => { const el = $(id); if (el) el.textContent = v; };
         setText('filterCountAll', state.devices.length);
-        setText('filterCountOnline', onlineCount);
-        setText('filterCountOffline', offlineCount);
-        setText('filterCountAlert', alertCount);
+        setText('filterCountOnline', state.devices.filter(d => d.status === 'online').length);
+        setText('filterCountOffline', state.devices.filter(d => d.status === 'offline').length);
+        setText('filterCountAlert', state.devices.filter(d => d.has_alert === true).length);
     }
-
     function renderTable(devices, tbodyId, full) {
-        const tbody = $(tbodyId);
-        if (!tbody) return;
-
-        if (devices.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${full ? 9 : 7}" style="text-align:center;padding:40px;color:var(--text-3);">Tidak ada perangkat</td></tr>`;
-            return;
-        }
-
+        const tbody = $(tbodyId); if (!tbody) return;
+        if (devices.length === 0) { tbody.innerHTML = `<tr><td colspan="${full ? 9 : 7}" style="text-align:center;padding:40px;color:var(--text-3);">Tidak ada perangkat</td></tr>`; return; }
         tbody.innerHTML = devices.map(d => {
             const lastSeen = formatTime(d.last_seen);
             const uptime = formatUptime(d.latest_uptime_seconds || 0);
             const wifi = escapeHtml(d.latest_wifi_ssid || '-');
-
             let statusClass, statusLabel;
-            if (d.status === 'offline') {
-                statusClass = 'offline';
-                statusLabel = 'OFFLINE';
-            } else if (d.has_alert && d.top_alert_severity) {
+            if (d.status === 'offline') { statusClass = 'offline'; statusLabel = 'OFFLINE'; }
+            else if (d.has_alert && d.top_alert_severity) {
                 statusClass = d.top_alert_severity;
-                statusLabel = d.top_alert_severity === 'danger' ? 'BAHAYA'
-                            : d.top_alert_severity === 'warning' ? 'PERINGATAN'
-                            : d.top_alert_severity.toUpperCase();
-            } else {
-                statusClass = d.status || 'online';
-                statusLabel = (d.status || 'online').toUpperCase();
-            }
-
-            const intervalInfo = d.expected_interval
-                ? `<span style="font-size:10px;color:var(--text-3);margin-left:6px;">${formatUptime(d.expected_interval)}</span>`
-                : '';
-
-            const alertCount = d.total_active_alerts > 1
-                ? `<span style="font-size:10px;background:var(--accent-crit-bg);color:var(--accent-crit);padding:2px 6px;border-radius:8px;margin-left:6px;">${d.total_active_alerts} alert</span>`
-                : '';
-
-            return `
-                <tr data-device-id="${escapeHtml(d.device_id)}">
-                    <td><span class="status-badge ${statusClass}"><span class="status-dot-inline"></span>${escapeHtml(statusLabel)}</span></td>
-                    <td><span class="device-id">${escapeHtml(d.device_id)}</span></td>
-                    <td>
-                        <span class="device-name">${escapeHtml(d.device_name)}</span>
-                        ${intervalInfo}
-                        ${alertCount}
-                    </td>
-                    ${full ? `<td>${escapeHtml(d.device_type || '-')}</td>` : ''}
-                    <td>${wifi}</td>
-                    <td>${uptime}</td>
-                    ${full ? `<td>${escapeHtml(d.location || '-')}</td>` : ''}
-                    <td>${lastSeen}</td>
-                    <td>
-                        <div class="device-actions">
-                            <button class="action-btn view" data-action="view" data-device-id="${escapeHtml(d.device_id)}" title="Detail"><i class="fa-solid fa-eye"></i></button>
-                            <button class="action-btn config" data-action="config" data-device-id="${escapeHtml(d.device_id)}" title="Konfigurasi"><i class="fa-solid fa-sliders"></i></button>
-                            <button class="action-btn regenerate" data-action="regenerate-key" data-device-id="${escapeHtml(d.device_id)}" title="Regenerate API Key"><i class="fa-solid fa-key"></i></button>
-                            <button class="action-btn delete" data-action="delete" data-device-id="${escapeHtml(d.device_id)}" title="Hapus"><i class="fa-solid fa-trash"></i></button>
-                        </div>
-                    </td>
-                </tr>`;
+                statusLabel = d.top_alert_severity === 'danger' ? 'BAHAYA' : d.top_alert_severity === 'warning' ? 'PERINGATAN' : d.top_alert_severity.toUpperCase();
+            } else { statusClass = d.status || 'online'; statusLabel = (d.status || 'online').toUpperCase(); }
+            return `<tr data-device-id="${escapeHtml(d.device_id)}"><td><span class="status-badge ${statusClass}"><span class="status-dot-inline"></span>${escapeHtml(statusLabel)}</span></td><td><span class="device-id">${escapeHtml(d.device_id)}</span></td><td><span class="device-name">${escapeHtml(d.device_name)}</span></td>${full ? `<td>${escapeHtml(d.device_type || '-')}</td>` : ''}<td>${wifi}</td><td>${uptime}</td>${full ? `<td>${escapeHtml(d.location || '-')}</td>` : ''}<td>${lastSeen}</td><td><div class="device-actions"><button class="action-btn view" data-action="view" data-device-id="${escapeHtml(d.device_id)}" title="Detail"><i class="fa-solid fa-eye"></i></button><button class="action-btn config" data-action="config" data-device-id="${escapeHtml(d.device_id)}" title="Konfigurasi"><i class="fa-solid fa-sliders"></i></button><button class="action-btn regenerate" data-action="regenerate-key" data-device-id="${escapeHtml(d.device_id)}" title="Regen Key"><i class="fa-solid fa-key"></i></button><button class="action-btn delete" data-action="delete" data-device-id="${escapeHtml(d.device_id)}" title="Hapus"><i class="fa-solid fa-trash"></i></button></div></td></tr>`;
         }).join('');
-
-        tbody.querySelectorAll('[data-action="view"]').forEach(btn =>
-            btn.addEventListener('click', () => viewDevice(btn.dataset.deviceId))
-        );
-        tbody.querySelectorAll('[data-action="config"]').forEach(btn =>
-            btn.addEventListener('click', () => openEditDeviceConfig(btn.dataset.deviceId))
-        );
-        tbody.querySelectorAll('[data-action="regenerate-key"]').forEach(btn =>
-            btn.addEventListener('click', () => regenerateApiKey(btn.dataset.deviceId))
-        );
-        tbody.querySelectorAll('[data-action="delete"]').forEach(btn =>
-            btn.addEventListener('click', () => openDeleteModal(btn.dataset.deviceId))
-        );
+        tbody.querySelectorAll('[data-action="view"]').forEach(b => b.addEventListener('click', () => viewDevice(b.dataset.deviceId)));
+        tbody.querySelectorAll('[data-action="config"]').forEach(b => b.addEventListener('click', () => openEditDeviceConfig(b.dataset.deviceId)));
+        tbody.querySelectorAll('[data-action="regenerate-key"]').forEach(b => b.addEventListener('click', () => regenerateApiKey(b.dataset.deviceId)));
+        tbody.querySelectorAll('[data-action="delete"]').forEach(b => b.addEventListener('click', () => openDeleteModal(b.dataset.deviceId)));
     }
-
     function filterDevices() {
         const term = (state.deviceSearchTerm || '').toLowerCase().trim();
-        const searched = term
-            ? state.devices.filter(d =>
-                d.device_id.toLowerCase().includes(term) ||
-                d.device_name.toLowerCase().includes(term) ||
-                (d.location && d.location.toLowerCase().includes(term))
-              )
-            : state.devices;
-
+        const searched = term ? state.devices.filter(d => d.device_id.toLowerCase().includes(term) || d.device_name.toLowerCase().includes(term) || (d.location && d.location.toLowerCase().includes(term))) : state.devices;
         renderTable(filterDevicesByStatus(searched, state.deviceFilter), 'deviceTableBody', false);
         renderTable(filterDevicesByStatus(searched, state.deviceFilterFull), 'deviceTableBodyFull', true);
     }
@@ -997,187 +594,120 @@
         const result = await API.getAttendanceStats();
         if (!result.success) return;
         const s = result.data.stats || {};
-        const setVal = (id, val) => { const el = $(id); if (el) el.textContent = val ?? 0; };
+        const setVal = (id, v) => { const el = $(id); if (el) el.textContent = v ?? 0; };
         setVal('statHadirHariIni', s.hadir_hari_ini);
         setVal('statTotalKartu', s.total_kartu_aktif);
         setVal('statBelumTerdaftar', s.kartu_belum_terdaftar);
     }
-
+    function setAttendanceView(view) {
+        state.attendanceView = view;
+        document.querySelectorAll('.attendance-tab').forEach(btn => {
+            const active = btn.dataset.tab === view;
+            btn.classList.toggle('active', active);
+            btn.style.color = active ? 'var(--text)' : 'var(--text-3)';
+            btn.style.borderBottomColor = active ? 'var(--accent-info)' : 'transparent';
+        });
+        loadAttendance();
+    }
     async function loadAttendance() {
-        const tbody = $('attendanceTableBody');
+        const tbody = $('attendanceTableBody'); const thead = $('attendanceThead');
         if (!tbody) return;
-
-        const result = await API.getAttendance();
-        if (!result.success) {
-            tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><h3>Gagal Memuat</h3><p>Coba muat ulang halaman</p></div></td></tr>`;
-            return;
+        const startVal = ($('attendanceStartDate') || {}).value || '';
+        const endVal = ($('attendanceEndDate') || {}).value || '';
+        if (state.attendanceView === 'report') {
+            const params = new URLSearchParams();
+            if (startVal) params.set('start', startVal);
+            if (endVal) params.set('end', endVal);
+            const res = await API.call(`/api/v1/attendance/report?${params}`);
+            if (!res.success) { tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:30px;color:var(--accent-crit);">Gagal memuat</td></tr>`; return; }
+            if (thead) thead.innerHTML = `<tr><th>Tanggal</th><th>Nama</th><th>UID</th><th>Check-in</th><th>Check-out</th></tr>`;
+            const rows = res.data.report || [];
+            if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><h3>Belum Ada Laporan</h3></div></td></tr>`; return; }
+            tbody.innerHTML = rows.map(r => {
+                const ci = r.check_in ? r.check_in.split(' ')[1] : '-';
+                const co = (r.check_out && r.check_out !== r.check_in) ? r.check_out.split(' ')[1] : '-';
+                return `<tr><td><span style="font-family:var(--mono);font-size:12px;">${escapeHtml(r.day)}</span></td><td>${escapeHtml(r.nama)}</td><td><span class="device-id">${escapeHtml(r.uid)}</span></td><td><span style="color:var(--accent-ok);font-weight:600;font-family:var(--mono);font-size:12px;">${ci}</span></td><td><span style="color:var(--accent-warn);font-weight:600;font-family:var(--mono);font-size:12px;">${co}</span></td></tr>`;
+            }).join('');
+        } else {
+            const result = await API.getAttendance();
+            if (!result.success) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--accent-crit);">Gagal memuat</td></tr>`; return; }
+            if (thead) thead.innerHTML = `<tr><th>Nama</th><th>UID</th><th>Perangkat</th><th>Waktu</th></tr>`;
+            let rows = result.data.attendance || [];
+            if (startVal || endVal) {
+                const startTs = startVal ? new Date(startVal + 'T00:00:00+07:00').getTime() : 0;
+                const endTs = endVal ? new Date(endVal + 'T23:59:59+07:00').getTime() : Infinity;
+                rows = rows.filter(r => { const d = parseDate(r.timestamp); if (!d) return true; const t = d.getTime(); return t >= startTs && t <= endTs; });
+            }
+            if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><i class="fa-solid fa-id-card"></i><h3>Belum Ada Aktivitas</h3></div></td></tr>`; return; }
+            tbody.innerHTML = rows.map(r => {
+                const dt = formatDateTimeSplit(r.timestamp);
+                return `<tr data-timestamp="${escapeHtml(String(r.timestamp))}"><td>${escapeHtml(r.nama)}</td><td><span class="device-id">${escapeHtml(r.uid)}</span></td><td>${escapeHtml(r.device_id)}</td><td><div class="datetime-display"><div class="date">${dt.date}</div><div class="time">${dt.time}</div></div></td></tr>`;
+            }).join('');
         }
-
-        const rows = result.data.attendance || [];
-        const previousLastId = state.attendanceLastId;
-        const maxId = rows.length ? Math.max(...rows.map(r => r.id || 0)) : previousLastId;
-
-        state.attendance = rows;
-        state.attendanceLastId = maxId;
-
-        renderAttendanceFiltered(previousLastId);
         loadAttendanceStats();
     }
-
-    function renderAttendanceFiltered(previousLastId) {
-        const term = (state.deviceSearchTerm || '').toLowerCase().trim();
-        const rows = term
-            ? state.attendance.filter(r =>
-                (r.nama || '').toLowerCase().includes(term) ||
-                (r.uid || '').toLowerCase().includes(term) ||
-                (r.device_id || '').toLowerCase().includes(term)
-              )
-            : state.attendance;
-        renderAttendanceTable(rows, previousLastId);
-    }
-
-    function renderAttendanceTable(rows, previousLastId) {
-        const tbody = $('attendanceTableBody');
-        if (!tbody) return;
-
-        if (state.attendance.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><i class="fa-solid fa-id-card"></i><h3>Belum Ada Aktivitas</h3><p>Belum ada kartu yang ter-tap</p></div></td></tr>`;
-            return;
-        }
-        if (rows.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><i class="fa-solid fa-magnifying-glass"></i><h3>Tidak Ditemukan</h3></div></td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = rows.map(r => {
-            const dt = formatDateTimeSplit(r.timestamp);
-            const isNew = previousLastId > 0 && r.id > previousLastId;
-            return `
-            <tr class="${isNew ? 'row-flash' : ''}" data-timestamp="${escapeHtml(String(r.timestamp))}">
-                <td>${escapeHtml(r.nama)}</td>
-                <td><span class="device-id">${escapeHtml(r.uid)}</span></td>
-                <td>${escapeHtml(r.device_id)}</td>
-                <td><div class="datetime-display"><div class="date">${dt.date}</div><div class="time">${dt.time}</div></div></td>
-            </tr>`;
-        }).join('');
-    }
-
-    function filterAttendance() { renderAttendanceFiltered(0); }
-
     function startAttendancePolling() {
         stopAttendancePolling();
-        state.attendanceInterval = setInterval(loadAttendance, 4000);
+        state.attendanceInterval = setInterval(() => { if (state.currentSection === 'attendance') loadAttendance(); }, 5000);
     }
-
-    function stopAttendancePolling() {
-        if (state.attendanceInterval) {
-            clearInterval(state.attendanceInterval);
-            state.attendanceInterval = null;
-        }
-    }
+    function stopAttendancePolling() { if (state.attendanceInterval) { clearInterval(state.attendanceInterval); state.attendanceInterval = null; } }
 
     // ==========================================
-    // CARDHOLDER / STAT DETAIL MODAL
+    // CARDHOLDER / STAT DETAIL
     // ==========================================
     function openCardholderModal() {
-        const uidEl = $('cardholderUid');
-        const namaEl = $('cardholderNama');
-        if (uidEl) uidEl.value = '';
-        if (namaEl) namaEl.value = '';
+        const uidEl = $('cardholderUid'); const namaEl = $('cardholderNama');
+        if (uidEl) uidEl.value = ''; if (namaEl) namaEl.value = '';
         openModal('cardholderModal');
     }
-
     async function captureLastTap() {
         const result = await API.getLastUnknownTap();
-        if (!result.success) { showToast('Gagal mengambil tap terakhir', 'error'); return; }
-        if (!result.data.uid) { showToast('Belum ada kartu asing yang ke-tap', 'error'); return; }
-        const uidEl = $('cardholderUid');
-        if (uidEl) uidEl.value = result.data.uid;
+        if (!result.success) { showToast('Gagal', 'error'); return; }
+        if (!result.data.uid) { showToast('Belum ada kartu asing', 'error'); return; }
+        const uidEl = $('cardholderUid'); if (uidEl) uidEl.value = result.data.uid;
     }
-
     async function submitCardholder() {
-        const uidEl = $('cardholderUid');
-        const namaEl = $('cardholderNama');
-        const uid = uidEl ? uidEl.value.trim() : '';
-        const nama = namaEl ? namaEl.value.trim() : '';
-        if (!uid || !nama) { showToast('UID dan Nama wajib diisi!', 'error'); return; }
+        const uid = ($('cardholderUid') || {}).value?.trim() || '';
+        const nama = ($('cardholderNama') || {}).value?.trim() || '';
+        if (!uid || !nama) { showToast('UID dan Nama wajib', 'error'); return; }
         const result = await API.addCardholder({ uid, nama });
-        if (result.success) {
-            closeModal('cardholderModal');
-            showToast('Kartu berhasil didaftarkan!', 'success');
-            loadAttendance();
-        } else {
-            showToast(result.error || 'Gagal mendaftarkan kartu', 'error');
-        }
+        if (result.success) { closeModal('cardholderModal'); showToast('Kartu terdaftar!', 'success'); loadAttendance(); }
+        else showToast(result.error || 'Gagal', 'error');
     }
-
     async function openStatDetailModal(type) {
-        const titleEl = $('statDetailTitle');
-        const thead = $('statDetailThead');
-        const tbody = $('statDetailBody');
+        const titleEl = $('statDetailTitle'); const thead = $('statDetailThead'); const tbody = $('statDetailBody');
         if (!tbody) return;
         tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:30px;color:var(--text-3);">Memuat...</td></tr>`;
         openModal('statDetailModal');
-
         if (type === 'hadir') {
             if (titleEl) titleEl.textContent = 'Hadir Hari Ini';
             if (thead) thead.innerHTML = `<tr><th>Nama</th><th>UID</th><th style="text-align:right;">Tap Pertama</th></tr>`;
             const result = await API.getAttendanceToday();
             const rows = result.success ? (result.data.hadir || []) : [];
-            if (rows.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:30px;color:var(--text-3);">Belum ada yang tap hari ini</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = rows.map(r => `
-                <tr><td>${escapeHtml(r.nama)}</td><td><span class="device-id">${escapeHtml(r.uid)}</span></td><td style="text-align:right;">${formatDateTimeSplit(r.pertama_tap).time}</td></tr>
-            `).join('');
+            if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:30px;color:var(--text-3);">Belum ada tap</td></tr>`; return; }
+            tbody.innerHTML = rows.map(r => `<tr><td>${escapeHtml(r.nama)}</td><td><span class="device-id">${escapeHtml(r.uid)}</span></td><td style="text-align:right;">${formatDateTimeSplit(r.pertama_tap).time}</td></tr>`).join('');
         } else if (type === 'total') {
             if (titleEl) titleEl.textContent = 'Total Kartu Aktif';
-            if (thead) thead.innerHTML = `<tr><th>Nama</th><th>UID</th><th>Terdaftar Sejak</th><th style="text-align:right;">Aksi</th></tr>`;
+            if (thead) thead.innerHTML = `<tr><th>Nama</th><th>UID</th><th>Terdaftar</th><th style="text-align:right;">Aksi</th></tr>`;
             const result = await API.getCardholders();
             const rows = result.success ? (result.data.cardholders || []) : [];
-            if (rows.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-3);">Belum ada kartu terdaftar</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = rows.map(r => `
-                <tr>
-                    <td>${escapeHtml(r.nama)}</td>
-                    <td><span class="device-id">${escapeHtml(r.uid)}</span></td>
-                    <td>${formatDateTimeSplit(r.created_at).date}</td>
-                    <td style="text-align:right;"><button class="action-btn delete" data-action="hapus-cardholder" data-uid="${escapeHtml(r.uid)}" data-nama="${escapeHtml(r.nama)}"><i class="fa-solid fa-trash"></i></button></td>
-                </tr>`).join('');
-            tbody.querySelectorAll('[data-action="hapus-cardholder"]').forEach(btn => {
-                btn.addEventListener('click', () => openDeleteCardholderModal(btn.dataset.uid, btn.dataset.nama));
-            });
+            if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;padding:30px;color:var(--text-3);">Belum ada kartu</td></tr>`; return; }
+            tbody.innerHTML = rows.map(r => `<tr><td>${escapeHtml(r.nama)}</td><td><span class="device-id">${escapeHtml(r.uid)}</span></td><td>${formatDateTimeSplit(r.created_at).date}</td><td style="text-align:right;"><button class="action-btn delete" data-action="hapus-cardholder" data-uid="${escapeHtml(r.uid)}" data-nama="${escapeHtml(r.nama)}"><i class="fa-solid fa-trash"></i></button></td></tr>`).join('');
+            tbody.querySelectorAll('[data-action="hapus-cardholder"]').forEach(btn => btn.addEventListener('click', () => openDeleteCardholderModal(btn.dataset.uid, btn.dataset.nama)));
         } else if (type === 'belum-terdaftar') {
             if (titleEl) titleEl.textContent = 'Kartu Belum Terdaftar';
             if (thead) thead.innerHTML = `<tr><th>UID</th><th>Tap Terakhir</th><th style="text-align:right;">Aksi</th></tr>`;
             const result = await API.getUnregisteredCards();
             const rows = result.success ? (result.data.kartu || []) : [];
-            if (rows.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:30px;color:var(--text-3);">Semua kartu sudah terdaftar</td></tr>`;
-                return;
-            }
-            tbody.innerHTML = rows.map(r => {
-                const dt = formatDateTimeSplit(r.terakhir_tap);
-                return `
-                <tr>
-                    <td><span class="device-id">${escapeHtml(r.uid)}</span></td>
-                    <td>${dt.date} ${dt.time}</td>
-                    <td style="text-align:right;"><button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" data-action="daftarkan-from-detail" data-uid="${escapeHtml(r.uid)}">Daftarkan</button></td>
-                </tr>`;
-            }).join('');
-            tbody.querySelectorAll('[data-action="daftarkan-from-detail"]').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    closeModal('statDetailModal');
-                    const uidEl = $('cardholderUid');
-                    const namaEl = $('cardholderNama');
-                    if (uidEl) uidEl.value = btn.dataset.uid;
-                    if (namaEl) namaEl.value = '';
-                    openModal('cardholderModal');
-                });
-            });
+            if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;padding:30px;color:var(--text-3);">Semua kartu terdaftar</td></tr>`; return; }
+            tbody.innerHTML = rows.map(r => { const dt = formatDateTimeSplit(r.terakhir_tap); return `<tr><td><span class="device-id">${escapeHtml(r.uid)}</span></td><td>${dt.date} ${dt.time}</td><td style="text-align:right;"><button class="btn btn-secondary" style="padding:6px 12px;font-size:12px;" data-action="daftarkan-from-detail" data-uid="${escapeHtml(r.uid)}">Daftarkan</button></td></tr>`; }).join('');
+            tbody.querySelectorAll('[data-action="daftarkan-from-detail"]').forEach(btn => btn.addEventListener('click', () => {
+                closeModal('statDetailModal');
+                const uidEl = $('cardholderUid'); const namaEl = $('cardholderNama');
+                if (uidEl) uidEl.value = btn.dataset.uid;
+                if (namaEl) namaEl.value = '';
+                openModal('cardholderModal');
+            }));
         }
     }
 
@@ -1189,183 +719,126 @@
         try { sessionStorage.setItem(STORAGE_KEYS.BACK_URL, backUrl); } catch (e) {}
         window.location.href = `/device/${encodeURIComponent(id)}`;
     }
-
     async function regenerateApiKey(deviceId) {
-        if (!confirm(`Regenerate API key untuk ${deviceId}?\n\nKey lama tidak akan berfungsi lagi.`)) return;
+        if (!confirm(`Regenerate API key ${deviceId}?`)) return;
         const result = await API.regenerateKey(deviceId);
         if (result.success) {
-            const display = $('apiKeyDisplay');
-            if (display) display.textContent = result.data.api_key;
-            openModal('apiKeyModal');
-            loadDashboard();
-        } else {
-            showToast(result.error || 'Gagal regenerate API key', 'error');
-        }
+            const display = $('apiKeyDisplay'); if (display) display.textContent = result.data.api_key;
+            openModal('apiKeyModal'); loadDashboard();
+        } else showToast(result.error || 'Gagal', 'error');
     }
-
     function openAddDeviceModal() {
         if (window.populateAlertRules) window.populateAlertRules('add', null);
         const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
-        setVal('addDeviceId', '');
-        setVal('addDeviceName', '');
-        setVal('addDeviceLocation', '');
-        setVal('addDeviceInterval', '60');
-        setVal('addDeviceOfflineTimeout', '');
+        setVal('addDeviceId', ''); setVal('addDeviceName', ''); setVal('addDeviceLocation', '');
+        setVal('addDeviceInterval', '60'); setVal('addDeviceOfflineTimeout', '');
         openModal('addDeviceModal');
     }
-
     async function addDevice() {
-        const idEl = $('addDeviceId');
-        const nameEl = $('addDeviceName');
+        const idEl = $('addDeviceId'); const nameEl = $('addDeviceName');
         const deviceId = idEl ? idEl.value.trim() : '';
         const deviceName = nameEl ? nameEl.value.trim() : '';
-        if (!deviceId || !deviceName) { showToast('ID dan Nama wajib diisi!', 'error'); return; }
-
+        if (!deviceId || !deviceName) { showToast('ID dan Nama wajib', 'error'); return; }
         const alertRules = window.collectAlertRules ? window.collectAlertRules('add') : null;
-
         const payload = {
-            device_id: deviceId,
-            device_name: deviceName,
+            device_id: deviceId, device_name: deviceName,
             device_type: ($('addDeviceType') || {}).value,
             location: (($('addDeviceLocation') || {}).value || '').trim(),
             expected_interval: parseInt(($('addDeviceInterval') || {}).value) || 60,
         };
-
         const offlineTimeout = ($('addDeviceOfflineTimeout') || {}).value;
         if (offlineTimeout) payload.offline_timeout = parseInt(offlineTimeout);
         if (alertRules) payload.alert_rules = alertRules;
-
         const result = await API.addDevice(payload);
-
         if (result.success) {
             closeModal('addDeviceModal');
-            const display = $('apiKeyDisplay');
-            if (display) display.textContent = result.data.device.api_key;
+            const display = $('apiKeyDisplay'); if (display) display.textContent = result.data.device.api_key;
             openModal('apiKeyModal');
-
-            if (idEl) idEl.value = '';
-            if (nameEl) nameEl.value = '';
-            const locEl = $('addDeviceLocation');
-            if (locEl) locEl.value = '';
-            const intEl = $('addDeviceInterval');
-            if (intEl) intEl.value = '60';
-            const toEl = $('addDeviceOfflineTimeout');
-            if (toEl) toEl.value = '';
+            if (idEl) idEl.value = ''; if (nameEl) nameEl.value = '';
+            const locEl = $('addDeviceLocation'); if (locEl) locEl.value = '';
+            const intEl = $('addDeviceInterval'); if (intEl) intEl.value = '60';
+            const toEl = $('addDeviceOfflineTimeout'); if (toEl) toEl.value = '';
             if (window.populateAlertRules) window.populateAlertRules('add', null);
-
             loadDashboard();
         } else {
-            const errMsg = typeof result.error === 'object'
-                ? Object.values(result.error).flat().join(', ')
-                : result.error;
-            showToast(errMsg || 'Gagal menambahkan perangkat', 'error');
+            const errMsg = typeof result.error === 'object' ? Object.values(result.error).flat().join(', ') : result.error;
+            showToast(errMsg || 'Gagal', 'error');
         }
     }
-
     function copyApiKey() {
-        const display = $('apiKeyDisplay');
-        if (!display) return;
-        const text = display.textContent;
-        navigator.clipboard.writeText(text)
-            .then(() => showToast('API Key disalin!', 'success'))
-            .catch(() => showToast('Gagal menyalin', 'error'));
+        const display = $('apiKeyDisplay'); if (!display) return;
+        navigator.clipboard.writeText(display.textContent).then(() => showToast('Tersalin!', 'success')).catch(() => showToast('Gagal', 'error'));
     }
-
     async function openEditDeviceConfig(deviceId) {
         const result = await API.getDevice(deviceId);
-        if (!result.success) { showToast('Gagal memuat konfigurasi device', 'error'); return; }
-
+        if (!result.success) { showToast('Gagal memuat', 'error'); return; }
         const device = result.data.device;
         const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
         setVal('editConfigDeviceId', deviceId);
         setVal('editDeviceInterval', device.expected_interval || 60);
         setVal('editDeviceOfflineTimeout', device.offline_timeout || 900);
-
         if (window.populateAlertRules) window.populateAlertRules('edit', device.alert_rules);
         openModal('editDeviceConfigModal');
     }
-
     async function saveDeviceConfig() {
         const deviceId = ($('editConfigDeviceId') || {}).value;
         if (!deviceId) return;
-
         const alertRules = window.collectAlertRules ? window.collectAlertRules('edit') : null;
-
         const payload = {
             expected_interval: parseInt(($('editDeviceInterval') || {}).value) || 60,
             offline_timeout: parseInt(($('editDeviceOfflineTimeout') || {}).value) || 900,
             alert_rules: alertRules,
         };
-
         const result = await API.updateDevice(deviceId, payload);
-        if (result.success) {
-            closeModal('editDeviceConfigModal');
-            showToast('Konfigurasi berhasil disimpan', 'success');
-            loadDashboard();
-        } else {
-            const errMsg = typeof result.error === 'object'
-                ? Object.values(result.error).flat().join(', ')
-                : result.error;
-            showToast(errMsg || 'Gagal menyimpan konfigurasi', 'error');
-        }
+        if (result.success) { closeModal('editDeviceConfigModal'); showToast('Tersimpan', 'success'); loadDashboard(); }
+        else showToast(result.error || 'Gagal', 'error');
     }
-
+    function updateDeleteButtonState() {
+        const btn = $('confirmDeleteBtn'); const input = $('deleteConfirmInput');
+        if (!btn || !input) return;
+        const target = state.deleteTarget;
+        if (!target) { btn.disabled = true; return; }
+        btn.disabled = input.value.trim() !== target.confirmKey;
+    }
     function openDeleteModal(id) {
-        const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
-        setVal('deleteType', 'device');
-        setVal('deleteDeviceId', id);
-        const titleEl = $('deleteModalTitle');
-        const textEl = $('deleteModalText');
+        const device = state.devices.find(d => d.device_id === id);
+        const deviceName = device ? device.device_name : id;
+        state.deleteTarget = { type: 'device', id, confirmKey: id };
+        const setVal = (elId, val) => { const el = $(elId); if (el) el.value = val; };
+        setVal('deleteType', 'device'); setVal('deleteDeviceId', id);
+        const titleEl = $('deleteModalTitle'); const textEl = $('deleteModalText');
+        const labelEl = $('deleteConfirmLabel'); const inputEl = $('deleteConfirmInput');
         if (titleEl) titleEl.textContent = 'Hapus Perangkat';
-        if (textEl) textEl.textContent = `Ketik nama device "${id}" untuk konfirmasi:`;
-        const confirmInput = $('deleteConfirmInput');
-        if (confirmInput) confirmInput.value = '';
+        if (textEl) textEl.textContent = `Perangkat "${deviceName}" (${id}) akan dihapus permanen.`;
+        if (labelEl) labelEl.innerHTML = `Ketik <code style="background:var(--surface-2);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:12px;">${escapeHtml(id)}</code> untuk konfirmasi`;
+        if (inputEl) { inputEl.value = ''; inputEl.placeholder = `Ketik ${id}...`; }
+        updateDeleteButtonState();
         openModal('deleteModal');
     }
-
     function openDeleteCardholderModal(uid, nama) {
-        const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
-        setVal('deleteType', 'cardholder');
-        setVal('deleteDeviceId', uid);
-        const titleEl = $('deleteModalTitle');
-        const textEl = $('deleteModalText');
+        state.deleteTarget = { type: 'cardholder', id: uid, confirmKey: nama };
+        const setVal = (elId, val) => { const el = $(elId); if (el) el.value = val; };
+        setVal('deleteType', 'cardholder'); setVal('deleteDeviceId', uid);
+        const titleEl = $('deleteModalTitle'); const textEl = $('deleteModalText');
+        const labelEl = $('deleteConfirmLabel'); const inputEl = $('deleteConfirmInput');
         if (titleEl) titleEl.textContent = 'Hapus Kartu';
-        if (textEl) textEl.textContent = `Kartu "${nama}" (${uid}) akan dihapus. Riwayat tap lamanya tetap tersimpan.`;
-        const confirmInput = $('deleteConfirmInput');
-        if (confirmInput) confirmInput.value = '';
+        if (textEl) textEl.textContent = `Kartu "${nama}" (${uid}) akan dihapus.`;
+        if (labelEl) labelEl.innerHTML = `Ketik nama <code style="background:var(--surface-2);padding:2px 6px;border-radius:4px;font-family:var(--mono);font-size:12px;">${escapeHtml(nama)}</code> untuk konfirmasi`;
+        if (inputEl) { inputEl.value = ''; inputEl.placeholder = `Ketik ${nama}...`; }
+        updateDeleteButtonState();
         openModal('deleteModal');
     }
-
     async function confirmDelete() {
-        const id = ($('deleteDeviceId') || {}).value;
-        const type = ($('deleteType') || {}).value;
-        if (!id) return;
-
-        if (type === 'device') {
-            const confirmInput = $('deleteConfirmInput');
-            if (confirmInput && confirmInput.value.trim() !== id) {
-                showToast(`Ketik "${id}" untuk konfirmasi`, 'error');
-                return;
-            }
-        }
-
-        const result = type === 'cardholder'
-            ? await API.deleteCardholder(id)
-            : await API.deleteDevice(id);
-
+        const target = state.deleteTarget; if (!target) return;
+        const input = $('deleteConfirmInput'); const value = input ? input.value.trim() : '';
+        if (value !== target.confirmKey) { showToast(`Ketik "${target.confirmKey}" dengan benar`, 'error'); return; }
+        const result = target.type === 'cardholder' ? await API.deleteCardholder(target.id) : await API.deleteDevice(target.id);
         if (result.success) {
             closeModal('deleteModal');
-            if (type === 'cardholder') {
-                showToast('Kartu dihapus', 'success');
-                openStatDetailModal('total');
-                loadAttendance();
-            } else {
-                showToast('Perangkat dihapus', 'success');
-                loadDashboard();
-            }
-        } else {
-            showToast(result.error || 'Gagal menghapus', 'error');
-        }
+            state.deleteTarget = null;
+            if (target.type === 'cardholder') { showToast('Kartu dihapus', 'success'); openStatDetailModal('total'); loadAttendance(); }
+            else { showToast('Perangkat dihapus', 'success'); loadDashboard(); }
+        } else showToast(result.error || 'Gagal', 'error');
     }
 
     // ==========================================
@@ -1374,69 +847,39 @@
     async function loadAnalyticsTabs() {
         const store = window.DashboardStore;
         if (!store) return;
-
         let targetDashboard = null;
-
         if (state.dashboardSlug) {
             const res = await API.call(`/api/v1/dashboards/slug/${encodeURIComponent(state.dashboardSlug)}`);
             if (res.success) targetDashboard = res.data.dashboard;
         }
-
         if (!targetDashboard) {
             await store.loadDashboards();
             targetDashboard = store.state.dashboards.find(d => d.is_default) || store.state.dashboards[0];
         }
-
         if (!targetDashboard) return;
-
         await store.loadDashboard(targetDashboard.id);
-
         const res = await API.call(`/api/v1/dashboards/${targetDashboard.id}/analytics-tabs`);
         state.analyticsTabs = res.success ? (res.data.tabs || []) : [];
-
-        if (state.currentTabId === null && state.analyticsTabs.length > 0) {
-            state.currentTabId = state.analyticsTabs[0].id;
-        }
-
+        let savedTabId = null;
+        try { const raw = sessionStorage.getItem(STORAGE_KEYS.CURRENT_TAB); if (raw) savedTabId = parseInt(raw); } catch (e) {}
+        const validIds = new Set(state.analyticsTabs.map(t => t.id));
+        if (savedTabId && validIds.has(savedTabId)) state.currentTabId = savedTabId;
+        else if (state.currentTabId !== null && validIds.has(state.currentTabId)) {}
+        else state.currentTabId = state.analyticsTabs.length > 0 ? state.analyticsTabs[0].id : null;
         renderAnalyticsTabs();
+        if (state.currentTabId) await loadTabCharts(state.currentTabId);
     }
-
     function renderAnalyticsTabs() {
-        const trigger = $('tabDropdownTrigger');
-        const label = $('tabDropdownLabel');
-        const menu = $('tabDropdownMenu');
+        const trigger = $('tabDropdownTrigger'); const label = $('tabDropdownLabel'); const menu = $('tabDropdownMenu');
         if (!trigger || !label || !menu) return;
-
         const currentTab = state.analyticsTabs.find(t => t.id === state.currentTabId);
         label.textContent = currentTab ? currentTab.name : 'Pilih Tab';
-
         let html = '';
         state.analyticsTabs.forEach(tab => {
-            html += `
-                <div class="tab-dropdown-item ${state.currentTabId === tab.id ? 'active' : ''}"
-                     data-tab-id="${tab.id}">
-                    <i class="fa-solid ${escapeHtml(tab.icon || 'fa-chart-line')}"></i>
-                    <span>${escapeHtml(tab.name)}</span>
-                    <div class="tab-actions">
-                        <button class="tab-action-btn" data-action="rename-tab" data-tab-id="${tab.id}" title="Rename">
-                            <i class="fa-solid fa-pen"></i>
-                        </button>
-                        <button class="tab-action-btn" data-action="delete-tab" data-tab-id="${tab.id}" title="Hapus">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
-                    </div>
-                </div>
-            `;
+            html += `<div class="tab-dropdown-item ${state.currentTabId === tab.id ? 'active' : ''}" data-tab-id="${tab.id}"><i class="fa-solid ${escapeHtml(tab.icon || 'fa-chart-line')}"></i><span>${escapeHtml(tab.name)}</span><div class="tab-actions"><button class="tab-action-btn" data-action="rename-tab" data-tab-id="${tab.id}" title="Rename"><i class="fa-solid fa-pen"></i></button><button class="tab-action-btn" data-action="delete-tab" data-tab-id="${tab.id}" title="Hapus"><i class="fa-solid fa-trash"></i></button></div></div>`;
         });
-        html += `
-            <div class="tab-dropdown-divider"></div>
-            <div class="tab-dropdown-add" data-action="new-tab">
-                <i class="fa-solid fa-plus"></i>
-                <span>Tambah Tab Analitik</span>
-            </div>
-        `;
+        html += `<div class="tab-dropdown-divider"></div><div class="tab-dropdown-add" data-action="new-tab"><i class="fa-solid fa-plus"></i><span>Tambah Tab Analitik</span></div>`;
         menu.innerHTML = html;
-
         menu.querySelectorAll('[data-tab-id]').forEach(item => {
             const tabId = parseInt(item.dataset.tabId);
             item.addEventListener('click', (e) => {
@@ -1445,7 +888,6 @@
                 menu.classList.remove('active');
             });
         });
-
         menu.querySelectorAll('[data-action="rename-tab"], [data-action="delete-tab"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -1455,109 +897,165 @@
                 menu.classList.remove('active');
             });
         });
-
         const addBtn = menu.querySelector('[data-action="new-tab"]');
-        if (addBtn) {
-            addBtn.addEventListener('click', () => {
-                openAnalyticsTabModal('new');
-                menu.classList.remove('active');
-            });
-        }
+        if (addBtn) addBtn.addEventListener('click', () => { openAnalyticsTabModal('new'); menu.classList.remove('active'); });
     }
-
     async function switchAnalyticsTab(tabId) {
         state.currentTabId = tabId;
+        try { sessionStorage.setItem(STORAGE_KEYS.CURRENT_TAB, String(tabId)); } catch (e) {}
         renderAnalyticsTabs();
         await loadTabCharts(tabId);
     }
-
     function openAnalyticsTabModal(mode, tabId, currentName) {
-        const titleEl = $('analyticsTabModalTitle');
-        const modeEl = $('analyticsTabMode');
-        const idEl = $('analyticsTabId');
-        const nameEl = $('analyticsTabName');
+        const titleEl = $('analyticsTabModalTitle'); const modeEl = $('analyticsTabMode');
+        const idEl = $('analyticsTabId'); const nameEl = $('analyticsTabName');
         const delBtn = $('analyticsTabDeleteBtn');
-
         if (titleEl) titleEl.textContent = mode === 'edit' ? 'Edit Tab Analitik' : 'Tambah Tab Analitik';
         if (modeEl) modeEl.value = mode;
         if (idEl) idEl.value = tabId || '';
         if (nameEl) nameEl.value = currentName || '';
         if (delBtn) delBtn.style.display = mode === 'edit' ? 'inline-flex' : 'none';
-
         openModal('analyticsTabModal');
     }
-
     async function saveAnalyticsTab() {
         const mode = ($('analyticsTabMode') || {}).value;
         const tabId = ($('analyticsTabId') || {}).value;
-        const nameEl = $('analyticsTabName');
-        const name = nameEl ? nameEl.value.trim() : '';
-        if (!name) { showToast('Nama tab wajib diisi', 'error'); return; }
-
+        const name = ($('analyticsTabName') || {}).value?.trim() || '';
+        if (!name) { showToast('Nama tab wajib', 'error'); return; }
         const store = window.DashboardStore;
         const dashboardId = store.state.currentDashboardId;
-
         if (mode === 'edit' && tabId) {
-            const res = await API.call(`/api/v1/analytics-tabs/${tabId}`, {
-                method: 'PUT',
-                body: JSON.stringify({ name }),
-            });
-            if (res.success) {
-                closeModal('analyticsTabModal');
-                showToast('Tab berhasil diupdate', 'success');
-                await loadAnalyticsTabs();
-            } else {
-                showToast(res.error || 'Gagal update tab', 'error');
-            }
+            const res = await API.call(`/api/v1/analytics-tabs/${tabId}`, { method: 'PUT', body: JSON.stringify({ name }) });
+            if (res.success) { closeModal('analyticsTabModal'); showToast('Tab diupdate', 'success'); await loadAnalyticsTabs(); }
+            else showToast(res.error || 'Gagal', 'error');
         } else {
-            const res = await API.call(`/api/v1/dashboards/${dashboardId}/analytics-tabs`, {
-                method: 'POST',
-                body: JSON.stringify({ name, icon: 'fa-chart-line' }),
-            });
-            if (res.success) {
-                closeModal('analyticsTabModal');
-                showToast('Tab berhasil dibuat', 'success');
-                await loadAnalyticsTabs();
-                switchAnalyticsTab(res.data.id);
-            } else {
-                showToast(res.error || 'Gagal membuat tab', 'error');
+            const res = await API.call(`/api/v1/dashboards/${dashboardId}/analytics-tabs`, { method: 'POST', body: JSON.stringify({ name, icon: 'fa-chart-line' }) });
+            if (res.success) { closeModal('analyticsTabModal'); showToast('Tab dibuat', 'success'); await loadAnalyticsTabs(); switchAnalyticsTab(res.data.id); }
+            else showToast(res.error || 'Gagal', 'error');
+        }
+    }
+    async function deleteAnalyticsTab() {
+        const tabId = ($('analyticsTabId') || {}).value;
+        if (!tabId || !confirm('Hapus tab ini beserta diagramnya?')) return;
+        const res = await API.call(`/api/v1/analytics-tabs/${tabId}`, { method: 'DELETE' });
+        if (res.success) {
+            closeModal('analyticsTabModal');
+            showToast('Tab dihapus', 'success');
+            if (state.currentTabId === parseInt(tabId)) {
+                state.currentTabId = null;
+                try { sessionStorage.removeItem(STORAGE_KEYS.CURRENT_TAB); } catch (e) {}
+            }
+            await loadAnalyticsTabs();
+            if (state.analyticsTabs.length > 0) switchAnalyticsTab(state.analyticsTabs[0].id);
+            else {
+                state.charts.forEach(c => { if (c.chartInstance) try { c.chartInstance.destroy(); } catch (e) {} });
+                state.charts = [];
+                const grid = $('chartsGrid');
+                if (grid) grid.innerHTML = `<div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);"><i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i><p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p></div>`;
+            }
+        } else showToast(res.error || 'Gagal', 'error');
+    }
+
+    // ==========================================
+    // CHART ENGINE — v4.8
+    // ==========================================
+    function layoutKey() { return STORAGE_KEYS.CHART_LAYOUT_PREFIX + (state.currentTabId || 'default'); }
+
+    function saveChartLayout() {
+        const layout = state.charts.map(c => ({
+            id: c.id, widgetId: c.widgetId, title: c.title, deviceId: c.deviceId,
+            chartType: c.chartType, showData: c.showData,
+            x: c.x, y: c.y, w: c.w, h: c.h,
+        }));
+        try { localStorage.setItem(layoutKey(), JSON.stringify(layout)); } catch (e) {}
+        try { localStorage.setItem(STORAGE_KEYS.CANVAS_HEIGHT, String(state.canvasHeight)); } catch (e) {}
+    }
+
+    function loadChartLayout() {
+        try { return JSON.parse(localStorage.getItem(layoutKey()) || 'null'); } catch (e) { return null; }
+    }
+
+    function loadCanvasHeight() {
+        try {
+            const h = parseInt(localStorage.getItem(STORAGE_KEYS.CANVAS_HEIGHT));
+            if (h && h >= 300 && h <= 3000) state.canvasHeight = h;
+        } catch (e) {}
+    }
+
+    function applyChartGeom(c) {
+        const el = document.getElementById(c.id);
+        if (!el) return;
+        el.style.left = c.x + 'px';
+        el.style.top = c.y + 'px';
+        el.style.width = c.w + 'px';
+        el.style.height = c.h + 'px';
+    }
+
+    function applyAllGeom() {
+        state.charts.forEach(applyChartGeom);
+    }
+
+    function getRect(c) {
+        return { left: c.x, top: c.y, right: c.x + c.w, bottom: c.y + c.h };
+    }
+
+    function rectsOverlap(a, b) {
+        return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+    }
+
+    // ANTI-TUMPUK: push yang bawah turun
+    function resolveCollisions() {
+        if (state.charts.length < 2) return;
+        const sorted = [...state.charts].sort((a, b) => a.y - b.y);
+        let changed = true;
+        let iter = 0;
+        while (changed && iter < 30) {
+            changed = false;
+            iter++;
+            for (let i = 0; i < sorted.length; i++) {
+                const a = sorted[i];
+                const aRect = getRect(a);
+                for (let j = i + 1; j < sorted.length; j++) {
+                    const b = sorted[j];
+                    const bRect = getRect(b);
+                    if (rectsOverlap(aRect, bRect)) {
+                        b.y = aRect.bottom + GAP;
+                        bRect.top = b.y;
+                        bRect.bottom = b.y + bRect.height;
+                        changed = true;
+                    }
+                }
             }
         }
     }
 
-    async function deleteAnalyticsTab() {
-        const tabId = ($('analyticsTabId') || {}).value;
-        if (!tabId) return;
-        if (!confirm('Hapus tab ini beserta semua diagram di dalamnya?')) return;
+    // CLAMP: batasi chart ke dalam canvas
+    function clampChartsToCanvas() {
+        const grid = $('chartsGrid');
+        if (!grid) return;
+        const canvasW = grid.clientWidth;
+        const maxW = Math.max(MIN_W, canvasW - PADDING * 2);
+        const limit = canvasW - PADDING;
 
-        const res = await API.call(`/api/v1/analytics-tabs/${tabId}`, { method: 'DELETE' });
+        state.charts.forEach(c => {
+            if (c.w > maxW) c.w = maxW;
+            if (c.x < PADDING) c.x = PADDING;
+            if (c.x + c.w > limit) c.x = Math.max(PADDING, limit - c.w);
+            if (c.y < PADDING) c.y = PADDING;
+        });
+    }
 
-        if (res.success) {
-            closeModal('analyticsTabModal');
-            showToast('Tab dihapus', 'success');
-            if (state.currentTabId === parseInt(tabId)) state.currentTabId = null;
-            await loadAnalyticsTabs();
-
-            if (state.analyticsTabs.length > 0) {
-                switchAnalyticsTab(state.analyticsTabs[0].id);
-            } else {
-                state.charts.forEach(c => {
-                    if (c.chartInstance) {
-                        try { c.chartInstance.destroy(); } catch (e) {}
-                    }
-                });
-                state.charts = [];
-                const grid = $('chartsGrid');
-                if (grid) {
-                    grid.innerHTML = `
-                        <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
-                            <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i>
-                            <p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p>
-                        </div>`;
-                }
-            }
-        } else {
-            showToast(res.error || 'Gagal hapus tab', 'error');
+    function autoGrowCanvas() {
+        const grid = $('chartsGrid');
+        if (!grid) return;
+        let maxBottom = 0;
+        state.charts.forEach(c => {
+            maxBottom = Math.max(maxBottom, c.y + c.h);
+        });
+        const needed = maxBottom + PADDING * 2;
+        if (needed > state.canvasHeight) {
+            state.canvasHeight = needed;
+            grid.style.height = needed + 'px';
         }
     }
 
@@ -1566,183 +1064,330 @@
         const store = window.DashboardStore;
         const dashboardId = store.state.currentDashboardId;
         if (!dashboardId) return;
-
         const res = await API.call(`/api/v1/dashboards/${dashboardId}/analytics-tabs/${tabId}/widgets`);
         const widgets = res.success ? (res.data.widgets || []) : [];
 
-        state.resizeObservers.forEach(obs => {
-            try { obs.disconnect(); } catch (e) {}
-        });
-        state.resizeObservers = [];
-
         state.charts.forEach(c => {
-            if (c.chartInstance) {
-                try { c.chartInstance.destroy(); } catch (e) {}
-            }
+            if (c.chartInstance) try { c.chartInstance.destroy(); } catch (e) {}
             const el = document.getElementById(c.id);
-            if (el) {
-                try { interact(el).unset(); } catch (e) {}
-                el.remove();
-            }
+            if (el) { try { interact(el).unset(); } catch (e) {} el.remove(); }
         });
         state.charts = [];
 
         const grid = $('chartsGrid');
-        if (grid) grid.innerHTML = '';
+        if (grid) {
+            grid.innerHTML = '';
+            grid.style.height = state.canvasHeight + 'px';
+        }
 
         if (widgets.length === 0) {
-            if (grid) {
-                grid.innerHTML = `
-                    <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
-                        <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i>
-                        <p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p>
-                    </div>`;
-            }
+            if (grid) grid.innerHTML = `<div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);"><i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i><p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p></div>`;
             return;
         }
 
-        widgets.forEach((w) => {
+        const savedLayout = loadChartLayout() || {};
+        const savedMap = {};
+        if (Array.isArray(savedLayout)) savedLayout.forEach(s => { savedMap[s.id] = s; });
+
+        widgets.forEach((w, idx) => {
+            const saved = savedMap[`chart_${w.id}`];
+            let x, y, cw, ch;
+            if (saved && typeof saved.x === 'number') {
+                x = saved.x; y = saved.y;
+                cw = saved.w || DEFAULT_W;
+                ch = saved.h || DEFAULT_H;
+            } else {
+                const col = idx % 2;
+                const row = Math.floor(idx / 2);
+                x = PADDING + col * (DEFAULT_W + GAP);
+                y = PADDING + row * (DEFAULT_H + GAP);
+                cw = DEFAULT_W;
+                ch = DEFAULT_H;
+            }
             const config = {
                 id: `chart_${w.id}`,
                 widgetId: w.id,
-                analyticsTabId: w.analytics_tab_id,
                 title: w.title,
                 deviceId: w.device_id,
                 deviceName: state.devices.find(d => d.device_id === w.device_id)?.device_name || w.device_id,
                 chartType: store.mapWidgetTypeToChartType(w.widget_type),
                 showData: (w.config && w.config.show_data) || {},
-                gridX: w.grid_x || 0,
-                gridY: w.grid_y || 0,
-                gridW: w.grid_w || 2,
-                gridH: w.grid_h || 2,
+                x, y, w: cw, h: ch,
                 chartInstance: null,
-                isLoading: false,
             };
             state.charts.push(config);
             state.chartIdCounter = Math.max(state.chartIdCounter, w.id);
-
-            renderChartCard(config);
         });
 
-        // ✅ v4.1 N+1 FIX: batch fetch per (device, timeRange)
+        state.charts.forEach(c => renderChartCard(c));
+        clampChartsToCanvas();
+        resolveCollisions();
+        applyAllGeom();
+        autoGrowCanvas();
         await loadAllChartDataBatched();
     }
 
-    // ✅ v4.1: Batch fetch — 1 request per (deviceId + time range)
-    async function loadAllChartDataBatched() {
-        if (state.charts.length === 0) return;
+    function renderChartCard(config) {
+        const grid = $('chartsGrid');
+        if (!grid) return;
+        const emptyEl = grid.querySelector('.empty-charts');
+        if (emptyEl) emptyEl.remove();
 
-        const groups = new Map();
-        state.charts.forEach(c => {
-            const key = `${c.deviceId}|${state.globalTimeMinutes}`;
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key).push(c);
-        });
+        const card = document.createElement('div');
+        card.className = 'chart-card';
+        card.id = config.id;
+        card.style.left = config.x + 'px';
+        card.style.top = config.y + 'px';
+        card.style.width = config.w + 'px';
+        card.style.height = config.h + 'px';
 
-        const hours = Math.max(1, Math.ceil(state.globalTimeMinutes / 60));
-        const limit = Math.min(Math.max(hours * 60, 500), 5000);
+        const dataLabels = Object.entries(config.showData).filter(([_, v]) => v).map(([k]) => DATA_KEYS[k]?.label || k).join(', ');
 
-        const promises = [];
-        for (const [key, charts] of groups.entries()) {
-            const deviceId = charts[0].deviceId;
-            promises.push(
-                API.getDeviceHistory(deviceId, { hours, limit }).then(result => ({
-                    charts, result, hours, limit
-                }))
-            );
-        }
+        card.innerHTML = `
+            <div class="chart-card-header">
+                <div class="chart-card-title">
+                    <i class="fa-solid fa-chart-line"></i>
+                    <span>${escapeHtml(config.title)}</span>
+                    <span class="chart-meta">(${escapeHtml(config.deviceName)} - ${escapeHtml(dataLabels)})</span>
+                </div>
+                <div class="chart-actions">
+                    <button class="chart-action-btn" data-action="edit" title="Edit"><i class="fa-solid fa-pen"></i></button>
+                    <button class="chart-action-btn remove" data-action="remove" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            </div>
+            <div class="chart-card-body">
+                <div class="chart-canvas-container">
+                    <canvas id="${config.id}_canvas"></canvas>
+                </div>
+            </div>
+            <div class="chart-card-resize"></div>
+        `;
 
-        const results = await Promise.all(promises);
+        grid.appendChild(card);
 
-        for (const { charts, result } of results) {
-            if (!result.success) {
-                charts.forEach(c => showChartEmpty(c.id, 'Gagal memuat data'));
-                continue;
-            }
+        card.querySelector('[data-action="edit"]').addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); openEditChartModal(config.id); });
+        card.querySelector('[data-action="remove"]').addEventListener('click', e => { e.stopPropagation(); e.preventDefault(); removeChart(config.id); });
 
-            const history = result.data.history || [];
-            const now = Date.now();
-            const cutoffTime = now - state.globalTimeMinutes * 60 * 1000;
-            const filtered = history.filter(item => {
-                const d = parseDate(item.timestamp);
-                return d && d.getTime() >= cutoffTime;
-            });
-
-            const dataToRender = filtered.length > 0 ? filtered : history;
-
-            if (dataToRender.length === 0) {
-                charts.forEach(c => showChartEmpty(c.id, 'Menunggu data sensor...'));
-                continue;
-            }
-
-            charts.forEach(c => {
-                try {
-                    renderChartDataSync(c, dataToRender);
-                } catch (e) {
-                    console.error('[Chart] Render failed:', c.id, e);
-                }
-            });
-        }
+        initializeDragResize(config.id);
     }
 
-    function generateDataCheckboxes(selectedData = {}) {
-        const container = $('chartDataCheckboxes');
-        if (!container) return;
-        container.innerHTML = Object.entries(DATA_KEYS).map(([key, info]) => `
-            <label class="checkbox-item">
-                <input type="checkbox" class="chart-data-checkbox" data-key="${key}" ${selectedData[key] ? 'checked' : ''}>
-                <span class="data-color" style="background:${info.color};"></span>
-                <span>${escapeHtml(info.label)} (${escapeHtml(info.unit)})</span>
-            </label>
-        `).join('');
+    function initializeDragResize(chartId) {
+        const el = document.getElementById(chartId);
+        if (!el || typeof interact === 'undefined') return;
+
+        let dragState = null;
+        let autoScrollRAF = null;
+
+        function stopAutoScroll() {
+            if (autoScrollRAF) {
+                cancelAnimationFrame(autoScrollRAF);
+                autoScrollRAF = null;
+            }
+        }
+
+        function startAutoScroll() {
+            stopAutoScroll();
+
+            function loop() {
+                autoScrollRAF = null;
+                if (!dragState) return;
+
+                const grid = $('chartsGrid');
+                const c = state.charts.find(x => x.id === chartId);
+                if (!grid || !c) {
+                    autoScrollRAF = requestAnimationFrame(loop);
+                    return;
+                }
+
+                const gridRect = grid.getBoundingClientRect();
+                const y = dragState.lastY;
+                const margin = 70;
+                const maxSpeed = 16;
+
+                let scrollDelta = 0;
+
+                if (y > gridRect.bottom - margin) {
+                    const t = Math.min(1, (y - (gridRect.bottom - margin)) / margin);
+                    scrollDelta = maxSpeed * t;
+                } else if (y < gridRect.top + margin) {
+                    const t = Math.min(1, ((gridRect.top + margin) - y) / margin);
+                    scrollDelta = -maxSpeed * t;
+                }
+
+                if (scrollDelta !== 0) {
+                    const before = grid.scrollTop;
+                    grid.scrollTop += scrollDelta;
+                    const actual = grid.scrollTop - before;
+
+                    if (actual !== 0) {
+                        c.y = Math.max(PADDING, c.y + actual);
+                        el.style.top = c.y + 'px';
+
+                        if (c.y + c.h + PADDING > state.canvasHeight) {
+                            state.canvasHeight = c.y + c.h + PADDING;
+                            grid.style.height = state.canvasHeight + 'px';
+                        }
+                    }
+                }
+
+                autoScrollRAF = requestAnimationFrame(loop);
+            }
+
+            autoScrollRAF = requestAnimationFrame(loop);
+        }
+
+        interact(el)
+            .draggable({
+                allowFrom: '.chart-card-header',
+                ignoreFrom: '.chart-actions',
+                inertia: false,
+                listeners: {
+                    start(event) {
+                        el.classList.add('dragging');
+
+                        const elRect = el.getBoundingClientRect();
+                        dragState = {
+                            offsetX: event.clientX - elRect.left,
+                            offsetY: event.clientY - elRect.top,
+                            lastY: event.clientY,
+                        };
+
+                        startAutoScroll();
+                    },
+                    move(event) {
+                        const c = state.charts.find(x => x.id === chartId);
+                        if (!c || !dragState) return;
+
+                        const grid = $('chartsGrid');
+                        const gridRect = grid.getBoundingClientRect();
+
+                        const newLeft = event.clientX - dragState.offsetX - gridRect.left + grid.scrollLeft;
+                        const newTop = event.clientY - dragState.offsetY - gridRect.top + grid.scrollTop;
+
+                        c.x = Math.max(PADDING, newLeft);
+                        c.y = Math.max(PADDING, newTop);
+
+                        el.style.left = c.x + 'px';
+                        el.style.top = c.y + 'px';
+
+                        dragState.lastY = event.clientY;
+                    },
+                    end() {
+                        el.classList.remove('dragging');
+                        stopAutoScroll();
+                        dragState = null;
+
+                        clampChartsToCanvas();
+                        resolveCollisions();
+                        applyAllGeom();
+                        autoGrowCanvas();
+                        saveChartLayout();
+                    }
+                }
+            })
+            .resizable({
+                edges: { right: true, bottom: true, left: false, top: false },
+                inertia: false,
+                modifiers: [interact.modifiers.restrictSize({ min: { width: MIN_W, height: MIN_H } })],
+                listeners: {
+                    start() { el.classList.add('resizing'); },
+                    move(event) {
+                        const c = state.charts.find(x => x.id === chartId);
+                        if (!c) return;
+                        const grid = $('chartsGrid');
+                        const canvasW = grid ? grid.clientWidth : 1000;
+                        const maxW = Math.max(MIN_W, canvasW - c.x - PADDING);
+                        c.w = Math.min(event.rect.width, maxW);
+                        c.h = event.rect.height;
+                        el.style.width = c.w + 'px';
+                        el.style.height = c.h + 'px';
+                        if (c.chartInstance) try { c.chartInstance.resize(); } catch (e) {}
+                    },
+                    end() {
+                        el.classList.remove('resizing');
+                        clampChartsToCanvas();
+                        resolveCollisions();
+                        applyAllGeom();
+                        autoGrowCanvas();
+                        saveChartLayout();
+                    }
+                }
+            });
+    }
+
+    function bindGridResize() {
+        const handle = document.querySelector('.charts-grid-resize-handle');
+        const grid = $('chartsGrid');
+        if (!handle || !grid) return;
+
+        grid.style.height = state.canvasHeight + 'px';
+
+        let startY = 0, startH = 0;
+
+        function start(clientY) {
+            startY = clientY;
+            startH = grid.clientHeight;
+            handle.classList.add('dragging');
+            document.body.style.cursor = 'ns-resize';
+            document.body.style.userSelect = 'none';
+        }
+        function move(clientY) {
+            const delta = clientY - startY;
+            const newH = Math.min(Math.max(startH + delta, 300), 3000);
+            grid.style.height = newH + 'px';
+            state.canvasHeight = newH;
+        }
+        function end() {
+            handle.classList.remove('dragging');
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+            saveChartLayout();
+        }
+
+        handle.addEventListener('mousedown', e => {
+            e.preventDefault();
+            start(e.clientY);
+            const onMove = ev => move(ev.clientY);
+            const onUp = () => { end(); document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        });
+        handle.addEventListener('touchstart', e => {
+            start(e.touches[0].clientY);
+            const onMove = ev => move(ev.touches[0].clientY);
+            const onEnd = () => { end(); document.removeEventListener('touchmove', onMove); document.removeEventListener('touchend', onEnd); };
+            document.addEventListener('touchmove', onMove, { passive: true });
+            document.addEventListener('touchend', onEnd);
+        }, { passive: true });
+    }
+
+    function generateDataCheckboxes(selected = {}) {
+        const container = $('chartDataCheckboxes'); if (!container) return;
+        container.innerHTML = Object.entries(DATA_KEYS).map(([key, info]) => `<label class="checkbox-item"><input type="checkbox" class="chart-data-checkbox" data-key="${key}" ${selected[key] ? 'checked' : ''}><span class="data-color" style="background:${info.color};"></span><span>${escapeHtml(info.label)} (${escapeHtml(info.unit)})</span></label>`).join('');
     }
 
     function openAddChartModal() {
-        if (!state.currentTabId) {
-            showToast('Buat tab analitik dulu', 'warning');
-            return;
-        }
-
-        const titleEl = $('chartModalTitle');
-        const editEl = $('editChartId');
-        const chartTitleEl = $('chartTitle');
+        if (!state.currentTabId) { showToast('Buat tab analitik dulu', 'warning'); return; }
+        const titleEl = $('chartModalTitle'); const editEl = $('editChartId'); const chartTitleEl = $('chartTitle');
         if (titleEl) titleEl.textContent = 'Tambah Diagram';
         if (editEl) editEl.value = '';
         if (chartTitleEl) chartTitleEl.value = '';
-
         const select = $('chartDeviceSelect');
-        if (select) {
-            select.innerHTML = '<option value="">Pilih Perangkat...</option>' +
-                state.devices.map(d => `<option value="${escapeHtml(d.device_id)}">${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`).join('');
-        }
-
-        const typeEl = $('chartTypeSelect');
-        if (typeEl) typeEl.value = 'line';
+        if (select) select.innerHTML = '<option value="">Pilih Perangkat...</option>' + state.devices.map(d => `<option value="${escapeHtml(d.device_id)}">${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`).join('');
+        const typeEl = $('chartTypeSelect'); if (typeEl) typeEl.value = 'line';
         generateDataCheckboxes({ temperature: true });
         openModal('chartModal');
     }
 
     function openEditChartModal(chartId) {
-        const chart = state.charts.find(c => c.id === chartId);
-        if (!chart) return;
-
-        const titleEl = $('chartModalTitle');
-        const editEl = $('editChartId');
-        const chartTitleEl = $('chartTitle');
+        const chart = state.charts.find(c => c.id === chartId); if (!chart) return;
+        const titleEl = $('chartModalTitle'); const editEl = $('editChartId'); const chartTitleEl = $('chartTitle');
         if (titleEl) titleEl.textContent = 'Edit Diagram';
         if (editEl) editEl.value = chartId;
         if (chartTitleEl) chartTitleEl.value = chart.title;
-
         const select = $('chartDeviceSelect');
-        if (select) {
-            select.innerHTML = '<option value="">Pilih Perangkat...</option>' +
-                state.devices.map(d =>
-                    `<option value="${escapeHtml(d.device_id)}" ${d.device_id === chart.deviceId ? 'selected' : ''}>${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`
-                ).join('');
-        }
-
-        const typeEl = $('chartTypeSelect');
-        if (typeEl) typeEl.value = chart.chartType;
+        if (select) select.innerHTML = '<option value="">Pilih Perangkat...</option>' + state.devices.map(d => `<option value="${escapeHtml(d.device_id)}" ${d.device_id === chart.deviceId ? 'selected' : ''}>${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`).join('');
+        const typeEl = $('chartTypeSelect'); if (typeEl) typeEl.value = chart.chartType;
         generateDataCheckboxes(chart.showData);
         openModal('chartModal');
     }
@@ -1752,429 +1397,135 @@
         const title = (($('chartTitle') || {}).value || '').trim() || 'Diagram';
         const deviceId = ($('chartDeviceSelect') || {}).value;
         const chartType = ($('chartTypeSelect') || {}).value;
-
         const showData = {};
-        document.querySelectorAll('#chartDataCheckboxes .chart-data-checkbox').forEach(cb => {
-            showData[cb.dataset.key] = cb.checked;
-        });
-
-        if (!deviceId) { showToast('Pilih perangkat terlebih dahulu!', 'error'); return; }
-        if (!Object.values(showData).some(v => v)) { showToast('Pilih minimal satu jenis data!', 'error'); return; }
-
+        document.querySelectorAll('#chartDataCheckboxes .chart-data-checkbox').forEach(cb => { showData[cb.dataset.key] = cb.checked; });
+        if (!deviceId) { showToast('Pilih perangkat dulu', 'error'); return; }
+        if (!Object.values(showData).some(v => v)) { showToast('Pilih minimal 1 data', 'error'); return; }
         const store = window.DashboardStore;
         const dashboardId = store.state.currentDashboardId;
         const widgetType = store.mapChartTypeToWidgetType(chartType);
-
         if (editId) {
-            const chart = state.charts.find(c => c.id === editId);
-            if (!chart) return;
-
-            await API.call(`/api/v1/widgets/${chart.widgetId}`, {
+            const chart = state.charts.find(c => c.id === editId); if (!chart) return;
+            const res = await API.call(`/api/v1/widgets/${chart.widgetId}`, {
                 method: 'PUT',
-                body: JSON.stringify({
-                    title, device_id: deviceId,
-                    widget_type: widgetType,
-                    config: { show_data: showData },
-                }),
+                body: JSON.stringify({ title, device_id: deviceId, widget_type: widgetType, config: { show_data: showData } }),
             });
-
-            chart.title = title;
-            chart.deviceId = deviceId;
+            if (!res.success) { showToast(res.error || 'Gagal', 'error'); return; }
+            chart.title = title; chart.deviceId = deviceId;
             chart.deviceName = state.devices.find(d => d.device_id === deviceId)?.device_name || deviceId;
-            chart.chartType = chartType;
-            chart.showData = showData;
-
-            if (chart.chartInstance) { chart.chartInstance.destroy(); chart.chartInstance = null; }
-
+            chart.chartType = chartType; chart.showData = showData;
+            if (chart.chartInstance) { try { chart.chartInstance.destroy(); } catch (e) {} chart.chartInstance = null; }
             const card = document.getElementById(editId);
             if (card) {
-                const dataLabels = Object.entries(showData).filter(([_, v]) => v)
-                    .map(([k]) => DATA_KEYS[k]?.label || k).join(', ');
-                card.querySelector('.chart-card-title').innerHTML = `
-                    <i class="fa-solid fa-chart-line"></i> ${escapeHtml(title)}
-                    <span style="font-size:10px;color:var(--text-3);font-weight:500;">(${escapeHtml(chart.deviceName)} - ${escapeHtml(dataLabels)})</span>
-                `;
+                const dataLabels = Object.entries(showData).filter(([_, v]) => v).map(([k]) => DATA_KEYS[k]?.label || k).join(', ');
+                card.querySelector('.chart-card-title').innerHTML = `<i class="fa-solid fa-chart-line"></i><span>${escapeHtml(title)}</span><span class="chart-meta">(${escapeHtml(chart.deviceName)} - ${escapeHtml(dataLabels)})</span>`;
             }
-            await loadAllChartDataBatched();
-            showToast('Diagram berhasil diperbarui', 'success');
+            await loadDynamicChartData(chart);
+            showToast('Diagram diupdate', 'success');
         } else {
             const res = await API.call(`/api/v1/dashboards/${dashboardId}/widgets`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    widget_type: widgetType,
-                    title: title,
-                    device_id: deviceId,
+                    widget_type: widgetType, title, device_id: deviceId,
                     config: { show_data: showData },
-                    grid_x: 0, grid_y: 0, grid_w: 2, grid_h: 2,
+                    grid_x: 0, grid_y: 0, grid_w: 6, grid_h: 2,
                     analytics_tab_id: state.currentTabId,
                 }),
             });
-
-            if (!res.success) {
-                showToast(res.error || 'Gagal menyimpan diagram', 'error');
-                return;
-            }
-
-            await loadAnalyticsTabs();
+            if (!res.success) { showToast(res.error || 'Gagal', 'error'); return; }
             await loadTabCharts(state.currentTabId);
-            showToast('Diagram berhasil ditambahkan', 'success');
+            showToast('Diagram ditambahkan', 'success');
         }
-
         closeModal('chartModal');
     }
 
-    function renderChartCard(config) {
-        const grid = $('chartsGrid');
-        if (!grid) return;
-        const emptyState = grid.querySelector('.empty-charts');
-        if (emptyState) emptyState.remove();
-
-        const card = document.createElement('div');
-        card.className = 'chart-card';
-        card.id = config.id;
-
-        const actualCols = getGridColumnCount(grid);
-        const requestedW = Math.max(config.gridW || 2, 1);
-        const spanW = Math.min(requestedW, Math.max(actualCols, 1));
-        card.style.gridColumn = `span ${spanW}`;
-        card.style.height = `${Math.max(config.gridH || 2, 1) * 175}px`;
-
-        const dataLabels = Object.entries(config.showData).filter(([_, v]) => v)
-            .map(([k]) => DATA_KEYS[k]?.label || k).join(', ');
-
-        card.innerHTML = `
-            <div class="chart-card-header">
-                <div class="chart-card-title">
-                    <i class="fa-solid fa-chart-line"></i> ${escapeHtml(config.title)}
-                    <span style="font-size:10px;color:var(--text-3);font-weight:500;">(${escapeHtml(config.deviceName)} - ${escapeHtml(dataLabels)})</span>
-                </div>
-                <div class="chart-actions">
-                    <button class="chart-edit-btn" data-action="download" data-chart-id="${config.id}"><i class="fa-solid fa-download"></i></button>
-                    <button class="chart-edit-btn" data-action="edit" data-chart-id="${config.id}"><i class="fa-solid fa-pen"></i></button>
-                    <button class="chart-remove-btn" data-action="remove" data-chart-id="${config.id}"><i class="fa-solid fa-trash"></i></button>
-                </div>
-            </div>
-            <div class="chart-card-body">
-                <div class="chart-canvas-container" style="position:relative;width:100%;height:100%;">
-                    <canvas id="${config.id}_canvas" style="width:100%!important;height:100%!important;display:block;"></canvas>
-                </div>
-            </div>
-            <div class="chart-resize-handle corner-se"></div>
-            <div class="chart-resize-handle corner-sw"></div>
-            <div class="chart-resize-handle corner-ne"></div>
-            <div class="chart-resize-handle corner-nw"></div>
-            <div class="chart-resize-handle edge-bottom"></div>
-            <div class="chart-resize-handle edge-top"></div>
-            <div class="chart-resize-handle edge-left"></div>
-            <div class="chart-resize-handle edge-right"></div>
-        `;
-
-        grid.appendChild(card);
-
-        const header = card.querySelector('.chart-card-header');
-        header.style.touchAction = 'none';
-        header.style.webkitUserSelect = 'none';
-        header.style.userSelect = 'none';
-
-        card.querySelector('[data-action="download"]').addEventListener('click', e => {
-            e.stopPropagation(); e.preventDefault();
-            downloadChartImage(config.id);
-        });
-        card.querySelector('[data-action="edit"]').addEventListener('click', e => {
-            e.stopPropagation(); e.preventDefault();
-            openEditChartModal(config.id);
-        });
-        card.querySelector('[data-action="remove"]').addEventListener('click', e => {
-            e.stopPropagation(); e.preventDefault();
-            removeChart(config.id);
-        });
-
-        const resizeObserver = new ResizeObserver(() => {
-            const chart = state.charts.find(c => c.id === config.id);
-            if (chart?.chartInstance) {
-                try { chart.chartInstance.resize(); } catch (e) {}
-            }
-        });
-        resizeObserver.observe(card);
-        state.resizeObservers.push(resizeObserver);
-
-        initializeDragResize(config.id);
-    }
-
-    function downloadChartImage(chartId) {
-        const chart = state.charts.find(c => c.id === chartId);
-        if (!chart || !chart.chartInstance) { showToast('Chart belum siap', 'error'); return; }
+    async function loadDynamicChartData(config) {
         try {
-            const url = chart.chartInstance.toBase64Image('image/png', 1.0);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `${chart.title.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.png`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            showToast('Chart diunduh', 'success');
-        } catch (e) {
-            showToast('Gagal mengunduh chart', 'error');
-        }
+            const hours = Math.max(1, Math.ceil(state.globalTimeMinutes / 60));
+            const limit = Math.min(Math.max(hours * 60, 500), 5000);
+            const result = await API.getDeviceHistory(config.deviceId, { hours, limit });
+            if (!result.success || !result.data.history?.length) { showChartEmpty(config.id, 'Menunggu data sensor...'); return; }
+            const now = Date.now();
+            const cutoff = now - state.globalTimeMinutes * 60 * 1000;
+            const filtered = result.data.history.filter(item => { const d = parseDate(item.timestamp); return d && d.getTime() >= cutoff; });
+            const data = filtered.length > 0 ? filtered : result.data.history;
+            renderChartDataSync(config, data);
+        } catch (e) { console.error('[Chart]', e); }
     }
 
-    function initializeDragResize(chartId) {
-        const el = document.getElementById(chartId);
-        if (!el || typeof interact === 'undefined') return;
-
-        interact(el)
-            .draggable({
-                allowFrom: '.chart-card-header',
-                ignoreFrom: '.chart-actions, .chart-resize-handle',
-                inertia: true,
-                modifiers: [interact.modifiers.restrictRect({ restriction: '#chartsGrid', endOnly: false })],
-                autoScroll: true,
-                listeners: {
-                    start() { el.classList.add('dragging'); },
-                    move(event) {
-                        const target = event.target;
-                        const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.dx;
-                        const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.dy;
-                        target.style.transform = `translate(${x}px, ${y}px)`;
-                        target.setAttribute('data-x', x);
-                        target.setAttribute('data-y', y);
-                    },
-                    end() {
-                        el.classList.remove('dragging');
-                        saveCurrentLayoutFromDOM();
-                    },
-                },
-            })
-            .resizable({
-                edges: { top: true, left: true, bottom: true, right: true },
-                inertia: true,
-                modifiers: [
-                    interact.modifiers.restrictSize({ min: { width: 280, height: 200 } }),
-                    interact.modifiers.restrictEdges({ outer: '#chartsGrid' }),
-                ],
-                listeners: {
-                    start() { el.classList.add('resizing'); },
-                    move(event) {
-                        const target = event.target;
-                        target.style.width = `${event.rect.width}px`;
-                        target.style.height = `${event.rect.height}px`;
-                        target.style.gridColumn = 'auto';
-
-                        const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.deltaRect.left;
-                        const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.deltaRect.top;
-                        target.style.transform = `translate(${x}px, ${y}px)`;
-                        target.setAttribute('data-x', x);
-                        target.setAttribute('data-y', y);
-
-                        const chart = state.charts.find(c => c.id === chartId);
-                        if (chart?.chartInstance) chart.chartInstance.resize();
-                    },
-                    end() {
-                        el.classList.remove('resizing');
-                        const chart = state.charts.find(c => c.id === chartId);
-                        if (chart?.chartInstance) chart.chartInstance.resize();
-                        saveCurrentLayoutFromDOM();
-                    },
-                },
-            });
-    }
-
-    function getGridColumnCount(grid) {
-        if (!grid) return 4;
-        const computed = window.getComputedStyle(grid);
-        const cols = computed.gridTemplateColumns || '';
-        const parts = cols.split(' ').filter(p => p && p !== 'none');
-        return Math.max(parts.length, 1);
-    }
-
-    function saveCurrentLayoutFromDOM() {
-        const store = window.DashboardStore;
-        if (!store) return;
-
-        const grid = $('chartsGrid');
-        if (!grid) return;
-
-        const gridWidth = grid.clientWidth;
-        const colCount = getGridColumnCount(grid);
-        const colWidth = gridWidth / colCount;
-
-        state.charts.forEach(chart => {
-            const el = document.getElementById(chart.id);
-            if (!el) return;
-
-            const x = parseFloat(el.getAttribute('data-x')) || 0;
-            const y = parseFloat(el.getAttribute('data-y')) || 0;
-            const w = el.offsetWidth;
-            const h = el.offsetHeight;
-
-            const gridX = Math.max(0, Math.round(x / colWidth));
-            const gridY = Math.max(0, Math.round(y / 175));
-            const gridW = Math.max(1, Math.round(w / colWidth));
-            const gridH = Math.max(1, Math.round(h / 175));
-
-            store.updateWidgetPositionLocal(chart.widgetId, gridX, gridY, gridW, gridH);
+    async function loadAllChartDataBatched() {
+        if (state.charts.length === 0) return;
+        const groups = new Map();
+        state.charts.forEach(c => {
+            const key = `${c.deviceId}|${state.globalTimeMinutes}`;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(c);
         });
-
-        store.scheduleLayoutSave();
+        const hours = Math.max(1, Math.ceil(state.globalTimeMinutes / 60));
+        const limit = Math.min(Math.max(hours * 60, 500), 5000);
+        const promises = [];
+        for (const [, charts] of groups.entries()) {
+            const deviceId = charts[0].deviceId;
+            promises.push(API.getDeviceHistory(deviceId, { hours, limit }).then(result => ({ charts, result })));
+        }
+        const results = await Promise.all(promises);
+        for (const { charts, result } of results) {
+            if (!result.success) { charts.forEach(c => showChartEmpty(c.id, 'Gagal memuat')); continue; }
+            const history = result.data.history || [];
+            const now = Date.now();
+            const cutoff = now - state.globalTimeMinutes * 60 * 1000;
+            const filtered = history.filter(item => { const d = parseDate(item.timestamp); return d && d.getTime() >= cutoff; });
+            const data = filtered.length > 0 ? filtered : history;
+            if (data.length === 0) { charts.forEach(c => showChartEmpty(c.id, 'Menunggu data...')); continue; }
+            charts.forEach(c => { try { renderChartDataSync(c, data); } catch (e) { console.error(e); } });
+        }
     }
 
-    async function removeChart(chartId) {
-        const idx = state.charts.findIndex(c => c.id === chartId);
-        if (idx === -1) return;
-
-        const chart = state.charts[idx];
-        if (!confirm(`Hapus diagram "${chart.title}"?`)) return;
-
-        await API.call(`/api/v1/widgets/${chart.widgetId}`, { method: 'DELETE' });
-
-        if (chart.chartInstance) {
-            try { chart.chartInstance.destroy(); } catch (e) {}
-        }
-        state.charts.splice(idx, 1);
-
-        const card = document.getElementById(chartId);
-        if (card) {
-            try { interact(card).unset(); } catch (e) {}
-            card.remove();
-        }
-
-        if (state.charts.length === 0) {
-            const grid = $('chartsGrid');
-            if (grid) grid.innerHTML = `
-                <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
-                    <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i>
-                    <p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p>
-                </div>`;
-        }
-
-        await loadAnalyticsTabs();
-        showToast('Diagram dihapus', 'success');
-    }
-
-    async function resetChartLayout() {
-        if (!confirm('Reset layout semua diagram ke posisi awal?')) return;
-
-        const store = window.DashboardStore;
-        state.charts.forEach(chart => {
-            const el = document.getElementById(chart.id);
-            if (el) {
-                el.style.transform = '';
-                el.setAttribute('data-x', 0);
-                el.setAttribute('data-y', 0);
-                el.style.width = '';
-                el.style.height = '350px';
-                el.style.gridColumn = `span ${Math.min(chart.gridW || 4, 4)}`;
-                if (chart.chartInstance) chart.chartInstance.resize();
-            }
-            store.updateWidgetPositionLocal(chart.widgetId, 0, 0, 4, 2);
-        });
-
-        await store.saveLayoutNow();
-        showToast('Layout diagram direset', 'success');
-    }
-
-    // ✅ v4.1: sync render (dipakai oleh batch loader)
     function renderChartDataSync(config, historyData) {
         const canvas = document.getElementById(`${config.id}_canvas`);
         if (!canvas) return;
-
+        historyData = downsampleHistory(historyData, 500);
         const ctx = canvas.getContext('2d');
         const colors = getChartColors();
-
-        if (config.chartInstance) {
-            try { config.chartInstance.destroy(); } catch (e) {}
-            config.chartInstance = null;
-        }
-
+        if (config.chartInstance) { try { config.chartInstance.destroy(); } catch (e) {} config.chartInstance = null; }
         const labels = historyData.map(item => {
-            const d = parseDate(item.timestamp);
-            if (!d) return '';
-            try {
-                return d.toLocaleTimeString('id-ID', {
-                    hour: '2-digit', minute: '2-digit', second: '2-digit',
-                    timeZone: 'Asia/Jakarta',
-                });
-            } catch (e) { return ''; }
+            const d = parseDate(item.timestamp); if (!d) return '';
+            try { return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' }); } catch (e) { return ''; }
         });
-
         const activeKeys = Object.entries(config.showData).filter(([_, v]) => v).map(([k]) => k);
         const datasets = [];
-
         for (let i = 0; i < activeKeys.length; i++) {
-            const key = activeKeys[i];
-            const info = DATA_KEYS[key];
-            if (!info) continue;
-
-            const values = historyData.map(item => {
-                const d = item.data || {};
-                return d[key] ?? d[key.toLowerCase()] ?? d[key.toUpperCase()] ?? null;
-            });
-
+            const key = activeKeys[i]; const info = DATA_KEYS[key]; if (!info) continue;
+            const values = historyData.map(item => { const d = item.data || {}; return d[key] ?? d[key.toLowerCase()] ?? d[key.toUpperCase()] ?? null; });
             if (!values.some(v => v !== null && v !== undefined)) continue;
-
             const color = CHART_COLORS[i % CHART_COLORS.length];
             const isArea = config.chartType === 'area' || config.chartType === 'stackedArea';
             const isStacked = config.chartType === 'stackedBar' || config.chartType === 'stackedArea';
-
             datasets.push({
-                label: `${info.label} (${info.unit})`,
-                data: values,
-                borderColor: color,
-                backgroundColor: isArea ? color + '30' : color + '80',
+                label: `${info.label} (${info.unit})`, data: values,
+                borderColor: color, backgroundColor: isArea ? color + '30' : color + '80',
                 fill: isArea, tension: 0.35, pointRadius: 2, pointHoverRadius: 5,
                 pointBackgroundColor: color, pointBorderColor: colors.pointBorderColor,
                 pointBorderWidth: 1, borderWidth: 2,
                 stack: isStacked ? 'stack1' : undefined,
             });
         }
-
-        if (datasets.length === 0) {
-            showChartEmpty(config.id, 'Tidak ada data sensor yang cocok');
-            return;
-        }
-
+        if (datasets.length === 0) { showChartEmpty(config.id, 'Tidak ada data cocok'); return; }
         if (['doughnut', 'pie', 'polarArea', 'radar'].includes(config.chartType)) {
             const latest = historyData[historyData.length - 1];
-            const gaugeLabels = [], gaugeValues = [];
-            activeKeys.forEach(key => {
-                const info = DATA_KEYS[key];
-                if (!info) return;
-                const val = latest.data?.[key];
-                if (val !== null && val !== undefined) {
-                    gaugeLabels.push(info.label);
-                    gaugeValues.push(val);
-                }
-            });
-            if (gaugeValues.length === 0) { showChartEmpty(config.id, 'Tidak ada data terbaru'); return; }
-
+            const gl = [], gv = [];
+            activeKeys.forEach(key => { const info = DATA_KEYS[key]; if (!info) return; const val = latest.data?.[key]; if (val !== null && val !== undefined) { gl.push(info.label); gv.push(val); } });
+            if (gv.length === 0) { showChartEmpty(config.id, 'Tidak ada data terbaru'); return; }
             config.chartInstance = new Chart(ctx, {
                 type: config.chartType,
-                data: {
-                    labels: gaugeLabels,
-                    datasets: [{
-                        data: gaugeValues,
-                        backgroundColor: gaugeValues.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + '80'),
-                        borderColor: gaugeValues.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
-                        borderWidth: 2,
-                    }],
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { color: colors.legendColor, font: { size: 11, family: CHART_FONT }, usePointStyle: true, padding: 12 },
-                        },
-                    },
-                },
+                data: { labels: gl, datasets: [{ data: gv, backgroundColor: gv.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + '80'), borderColor: gv.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]), borderWidth: 2 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: colors.legendColor, font: { size: 11, family: CHART_FONT }, usePointStyle: true, padding: 12 } } } },
             });
             return;
         }
-
         let type = config.chartType;
         if (type === 'area' || type === 'stackedArea') type = 'line';
         if (type === 'horizontalBar' || type === 'stackedBar') type = 'bar';
-
         config.chartInstance = new Chart(ctx, {
             type,
             data: { labels, datasets },
@@ -2184,53 +1535,27 @@
                 indexAxis: config.chartType === 'horizontalBar' ? 'y' : 'x',
                 animation: { duration: 400, easing: 'easeOutQuart' },
                 plugins: {
-                    legend: {
-                        labels: {
-                            color: colors.legendColor, font: { size: 11, family: CHART_FONT },
-                            usePointStyle: true, pointStyle: 'circle', padding: 12,
-                        },
-                    },
-                    tooltip: {
-                        backgroundColor: colors.tooltipBg, titleColor: colors.tooltipTitleColor,
-                        bodyColor: colors.tooltipBodyColor, borderColor: colors.tooltipBorder,
-                        borderWidth: 1, padding: 12, cornerRadius: 10, displayColors: true, boxPadding: 5,
-                    },
+                    legend: { labels: { color: colors.legendColor, font: { size: 11, family: CHART_FONT }, usePointStyle: true, pointStyle: 'circle', padding: 12 } },
+                    tooltip: { backgroundColor: colors.tooltipBg, titleColor: colors.tooltipTitleColor, bodyColor: colors.tooltipBodyColor, borderColor: colors.tooltipBorder, borderWidth: 1, padding: 12, cornerRadius: 10, displayColors: true, boxPadding: 5 },
                 },
                 scales: {
-                    x: {
-                        grid: { color: colors.gridColor },
-                        ticks: { color: colors.labelColor, font: { family: CHART_FONT }, maxTicksLimit: 10, maxRotation: 45, autoSkip: true },
-                        stacked: config.chartType === 'stackedBar' || config.chartType === 'stackedArea',
-                    },
-                    y: {
-                        grid: { color: colors.gridColor },
-                        ticks: { color: colors.labelColor, font: { family: CHART_FONT } },
-                        stacked: config.chartType === 'stackedBar' || config.chartType === 'stackedArea',
-                        beginAtZero: true,
-                    },
+                    x: { grid: { color: colors.gridColor }, ticks: { color: colors.labelColor, font: { family: CHART_FONT }, maxTicksLimit: 10, maxRotation: 45, autoSkip: true }, stacked: config.chartType === 'stackedBar' || config.chartType === 'stackedArea' },
+                    y: { grid: { color: colors.gridColor }, ticks: { color: colors.labelColor, font: { family: CHART_FONT } }, stacked: config.chartType === 'stackedBar' || config.chartType === 'stackedArea', beginAtZero: true },
                 },
             },
         });
     }
 
     function showChartEmpty(chartId, message) {
-        const container = document.querySelector(`#${chartId} .chart-canvas-container`);
-        if (!container) return;
-        container.innerHTML = `
-            <div style="text-align:center;padding:40px;color:var(--text-3);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:10px;">
-                <i class="fa-solid fa-satellite-dish" style="font-size:24px;opacity:0.5;"></i>
-                <span>${escapeHtml(message)}</span>
-                <span style="font-size:11px;">Data akan muncul otomatis saat tersedia</span>
-            </div>`;
+        const card = document.getElementById(chartId); if (!card) return;
+        const container = card.querySelector('.chart-canvas-container'); if (!container) return;
+        container.innerHTML = `<div style="text-align:center;padding:20px;color:var(--text-3);font-size:12px;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:center;"><i class="fa-solid fa-satellite-dish" style="font-size:20px;opacity:0.5;"></i><span>${escapeHtml(message)}</span></div>`;
     }
 
     function refreshAllCharts() {
         if (state.refreshTimeout) clearTimeout(state.refreshTimeout);
-        state.refreshTimeout = setTimeout(() => {
-            loadAllChartDataBatched();
-        }, 300);
+        state.refreshTimeout = setTimeout(() => { loadAllChartDataBatched(); }, 300);
     }
-
     function startAutoRefresh() {
         if (state.autoRefreshInterval) clearInterval(state.autoRefreshInterval);
         state.autoRefreshInterval = setInterval(() => {
@@ -2238,126 +1563,119 @@
             if (graph && graph.style.display !== 'none') refreshAllCharts();
         }, 15000);
     }
-
     function setGlobalTimeRange(minutes) {
         state.globalTimeMinutes = minutes;
         localStorage.setItem(STORAGE_KEYS.GLOBAL_TIME, minutes);
-
-        $$('.time-range-item').forEach(item =>
-            item.classList.toggle('active', parseInt(item.dataset.minutes) === minutes)
-        );
-
-        const labelEl = $('timeRangeLabel');
-        if (labelEl) labelEl.textContent = formatTimeRange(minutes);
-
+        $$('.time-range-item').forEach(item => item.classList.toggle('active', parseInt(item.dataset.minutes) === minutes));
+        const labelEl = $('timeRangeLabel'); if (labelEl) labelEl.textContent = formatTimeRange(minutes);
         refreshAllCharts();
     }
-
     function loadGlobalTimeRange() {
         const saved = localStorage.getItem(STORAGE_KEYS.GLOBAL_TIME);
         if (saved) state.globalTimeMinutes = parseInt(saved);
+        $$('.time-range-item').forEach(item => item.classList.toggle('active', parseInt(item.dataset.minutes) === state.globalTimeMinutes));
+        const labelEl = $('timeRangeLabel'); if (labelEl) labelEl.textContent = formatTimeRange(state.globalTimeMinutes);
+    }
 
-        $$('.time-range-item').forEach(item =>
-            item.classList.toggle('active', parseInt(item.dataset.minutes) === state.globalTimeMinutes)
-        );
+    async function removeChart(chartId) {
+        const idx = state.charts.findIndex(c => c.id === chartId); if (idx === -1) return;
+        const chart = state.charts[idx];
+        if (!confirm(`Hapus diagram "${chart.title}"?`)) return;
+        await API.call(`/api/v1/widgets/${chart.widgetId}`, { method: 'DELETE' });
+        if (chart.chartInstance) try { chart.chartInstance.destroy(); } catch (e) {}
+        state.charts.splice(idx, 1);
+        const card = document.getElementById(chartId);
+        if (card) { try { interact(card).unset(); } catch (e) {} card.remove(); }
+        if (state.charts.length === 0) {
+            const grid = $('chartsGrid');
+            if (grid) grid.innerHTML = `<div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);"><i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i><p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p></div>`;
+        }
+        resolveCollisions();
+        applyAllGeom();
+        saveChartLayout();
+        showToast('Diagram dihapus', 'success');
+    }
 
-        const labelEl = $('timeRangeLabel');
-        if (labelEl) labelEl.textContent = formatTimeRange(state.globalTimeMinutes);
+    function resetChartLayout() {
+        state.charts.forEach((c, i) => {
+            const col = i % 2;
+            const row = Math.floor(i / 2);
+            c.x = PADDING + col * (DEFAULT_W + GAP);
+            c.y = PADDING + row * (DEFAULT_H + GAP);
+            c.w = DEFAULT_W;
+            c.h = DEFAULT_H;
+        });
+        state.canvasHeight = 720;
+        const grid = $('chartsGrid');
+        if (grid) grid.style.height = '720px';
+        clampChartsToCanvas();
+        resolveCollisions();
+        applyAllGeom();
+        state.charts.forEach(c => { if (c.chartInstance) try { c.chartInstance.resize(); } catch (e) {} });
+        try { localStorage.removeItem(layoutKey()); localStorage.removeItem(STORAGE_KEYS.CANVAS_HEIGHT); } catch (e) {}
+        showToast('Layout direset', 'success');
     }
 
     // ==========================================
-    // EVENT BINDING
+    // DROPDOWNS & BINDINGS
     // ==========================================
     function bindTimeRangeDropdown() {
-        const trigger = $('timeRangeTrigger');
-        const menu = $('timeRangeMenu');
+        const trigger = $('timeRangeTrigger'); const menu = $('timeRangeMenu');
         if (!trigger || !menu) return;
-
-        trigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            menu.classList.toggle('active');
-        });
-
+        trigger.addEventListener('click', e => { e.stopPropagation(); menu.classList.toggle('active'); });
         menu.querySelectorAll('.time-range-item').forEach(item => {
-            item.addEventListener('click', () => {
-                const minutes = parseInt(item.dataset.minutes);
-                setGlobalTimeRange(minutes);
-                menu.classList.remove('active');
-            });
+            item.addEventListener('click', () => { setGlobalTimeRange(parseInt(item.dataset.minutes)); menu.classList.remove('active'); });
         });
-
-        document.addEventListener('click', (e) => {
+        document.addEventListener('click', e => {
             if (!menu.classList.contains('active')) return;
-            if (!menu.contains(e.target) && !trigger.contains(e.target)) {
-                menu.classList.remove('active');
-            }
+            if (!menu.contains(e.target) && !trigger.contains(e.target)) menu.classList.remove('active');
         });
     }
-
     function bindTabDropdown() {
-        const trigger = $('tabDropdownTrigger');
-        const menu = $('tabDropdownMenu');
+        const trigger = $('tabDropdownTrigger'); const menu = $('tabDropdownMenu');
         if (!trigger || !menu) return;
-
-        trigger.addEventListener('click', (e) => {
-            e.stopPropagation();
-            menu.classList.toggle('active');
-        });
-
-        document.addEventListener('click', (e) => {
+        trigger.addEventListener('click', e => { e.stopPropagation(); menu.classList.toggle('active'); });
+        document.addEventListener('click', e => {
             if (!menu.classList.contains('active')) return;
-            if (!menu.contains(e.target) && !trigger.contains(e.target)) {
-                menu.classList.remove('active');
-            }
+            if (!menu.contains(e.target) && !trigger.contains(e.target)) menu.classList.remove('active');
         });
     }
-
     function bindSidebarNav() {
-        document.querySelectorAll('.sidebar-nav .nav-item').forEach((item) => {
-            item.addEventListener('click', (e) => {
+        document.querySelectorAll('.sidebar-nav .nav-item').forEach(item => {
+            item.addEventListener('click', e => {
                 const href = (item.getAttribute('href') || '').trim();
                 if (href.startsWith('#')) {
                     e.preventDefault();
                     const targetSection = href.replace('#', '');
-                    if (DASHBOARD_SECTIONS.includes(targetSection)) {
-                        showSection(targetSection);
-                    }
+                    if (DASHBOARD_SECTIONS.includes(targetSection)) showSection(targetSection);
                 }
             });
         });
     }
-
     function bindLogout() {
         const logoutBtn = $('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', (e) => {
-                e.preventDefault();
-                window.location.href = '/logout';
-            });
-        }
+        if (logoutBtn) logoutBtn.addEventListener('click', e => { e.preventDefault(); window.location.href = '/logout'; });
     }
-
     function bindModals() {
         document.querySelectorAll('.modal-close').forEach(btn => {
             btn.addEventListener('click', () => {
-                const modal = btn.closest('.modal');
-                if (modal) modal.classList.remove('active');
+                const modal = btn.closest('.modal'); if (modal) modal.classList.remove('active');
                 unlockBodyScrollIfNoModal();
             });
         });
-
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', e => {
-                if (e.target === modal) {
-                    modal.classList.remove('active');
-                    unlockBodyScrollIfNoModal();
-                }
+                if (e.target === modal) { modal.classList.remove('active'); unlockBodyScrollIfNoModal(); }
             });
         });
+        const deleteInput = $('deleteConfirmInput');
+        if (deleteInput) {
+            deleteInput.addEventListener('input', updateDeleteButtonState);
+            deleteInput.addEventListener('keydown', e => { if (e.key === 'Enter') { const btn = $('confirmDeleteBtn'); if (btn && !btn.disabled) btn.click(); } });
+        }
     }
-
     function bindActionButtons() {
-        const actionMap = {
+        const map = {
             'open-cardholder-modal': openCardholderModal,
             'capture-last-tap': captureLastTap,
             'submit-cardholder': submitCardholder,
@@ -2372,199 +1690,123 @@
             'save-chart': saveChart,
             'save-analytics-tab': saveAnalyticsTab,
             'delete-analytics-tab': deleteAnalyticsTab,
-            'goto-map': () => showSection('map'),
         };
-
-        Object.entries(actionMap).forEach(([action, handler]) => {
-            document.querySelectorAll(`[data-action="${action}"]`).forEach(btn => {
-                btn.addEventListener('click', handler);
-            });
+        Object.entries(map).forEach(([action, handler]) => {
+            document.querySelectorAll(`[data-action="${action}"]`).forEach(btn => btn.addEventListener('click', handler));
         });
-
         const delTabBtn = $('analyticsTabDeleteBtn');
         if (delTabBtn) delTabBtn.addEventListener('click', deleteAnalyticsTab);
-
         document.querySelectorAll('.stat-card.clickable[data-stat-type]').forEach(card => {
             card.addEventListener('click', () => openStatDetailModal(card.dataset.statType));
         });
-
-        // ✅ v4.1: stat card click → navigate
         document.querySelectorAll('.stat-card.clickable[data-goto]').forEach(card => {
             card.addEventListener('click', () => {
-                const target = card.dataset.goto;
-                const filter = card.dataset.filter;
-                if (filter && target === 'devices') {
-                    state.deviceFilter = filter;
-                    setDeviceFilter(filter);
-                }
+                const target = card.dataset.goto; const filter = card.dataset.filter;
+                if (filter && target === 'devices') { state.deviceFilter = filter; setDeviceFilter(filter); }
                 showSection(target);
             });
         });
-
-        // ✅ v4.1: activity refresh button
         const activityRefresh = $('activityRefreshBtn');
-        if (activityRefresh) {
-            activityRefresh.addEventListener('click', loadActivityFeed);
-        }
+        if (activityRefresh) activityRefresh.addEventListener('click', loadActivityFeed);
+        document.querySelectorAll('.attendance-tab').forEach(btn => btn.addEventListener('click', () => setAttendanceView(btn.dataset.tab)));
     }
-
     function bindFilters() {
         const searchInput = $('searchInput');
         if (searchInput) {
             searchInput.addEventListener('input', () => {
                 state.deviceSearchTerm = searchInput.value;
-                if (state.currentSection === 'attendance') filterAttendance();
+                if (state.currentSection === 'attendance') loadAttendance();
                 else filterDevices();
             });
         }
-
-        document.querySelectorAll('#deviceFilterBar .filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => setDeviceFilter(btn.dataset.filter));
-        });
-        document.querySelectorAll('#deviceFilterBarFull .filter-btn').forEach(btn => {
-            btn.addEventListener('click', () => setDeviceFilterFull(btn.dataset.filter));
-        });
+        document.querySelectorAll('#deviceFilterBar .filter-btn').forEach(btn => btn.addEventListener('click', () => setDeviceFilter(btn.dataset.filter)));
+        document.querySelectorAll('#deviceFilterBarFull .filter-btn').forEach(btn => btn.addEventListener('click', () => setDeviceFilterFull(btn.dataset.filter)));
     }
-
     function bindMapControls() {
-        const saveBtn = $('saveLocationBtn');
-        if (saveBtn) saveBtn.addEventListener('click', saveLocation);
-
-        const clearBtn = $('clearMapSelectionBtn');
-        if (clearBtn) clearBtn.addEventListener('click', clearMapSelection);
-
-        const resetMapBtn = $('resetMapViewBtn');
-        if (resetMapBtn) {
-            resetMapBtn.addEventListener('click', () => {
-                if (state.mapFull) {
-                    state.mapFull.flyTo([-2.5489, 118.0149], 5, { duration: 1 });
-                }
-            });
-        }
-
+        const saveBtn = $('saveLocationBtn'); if (saveBtn) saveBtn.addEventListener('click', saveLocation);
+        const clearBtn = $('clearMapSelectionBtn'); if (clearBtn) clearBtn.addEventListener('click', clearMapSelection);
+        const resetBtn = $('resetMapViewBtn'); if (resetBtn) resetBtn.addEventListener('click', () => { if (state.mapFull) state.mapFull.flyTo([-2.5489, 118.0149], 5, { duration: 1 }); });
         const searchInput = $('mapSearchInput');
         if (searchInput) {
             let t;
-            searchInput.addEventListener('input', (e) => {
+            searchInput.addEventListener('input', e => {
                 clearTimeout(t);
-                t = setTimeout(() => {
-                    state.mapSearchTerm = e.target.value.trim();
-                    renderMapDeviceList();
-                }, 150);
+                t = setTimeout(() => { state.mapSearchTerm = e.target.value.trim(); renderMapDeviceList(); }, 150);
             });
         }
-
         const chips = $('mapFilterChips');
-        if (chips) {
-            chips.querySelectorAll('.map-chip').forEach(chip => {
-                chip.addEventListener('click', () => {
-                    chips.querySelectorAll('.map-chip').forEach(c => c.classList.remove('active'));
-                    chip.classList.add('active');
-                    state.mapFilter = chip.dataset.filter;
-                    renderMapDeviceList();
-                });
+        if (chips) chips.querySelectorAll('.map-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                chips.querySelectorAll('.map-chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                state.mapFilter = chip.dataset.filter;
+                renderMapDeviceList();
             });
-        }
+        });
     }
-
     function bindKeyboard() {
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
                 unlockBodyScrollIfNoModal();
-                const trMenu = $('timeRangeMenu');
-                if (trMenu) trMenu.classList.remove('active');
-                const tabMenu = $('tabDropdownMenu');
-                if (tabMenu) tabMenu.classList.remove('active');
+                const trMenu = $('timeRangeMenu'); if (trMenu) trMenu.classList.remove('active');
+                const tabMenu = $('tabDropdownMenu'); if (tabMenu) tabMenu.classList.remove('active');
             }
         });
     }
-
     function bindNavigation() {
-        window.addEventListener('popstate', () => {
-            const section = getSectionFromHash();
-            showSection(section, true);
-        });
-
-        window.addEventListener('hashchange', () => {
-            const section = getSectionFromHash();
-            if (state.currentSection !== section) {
-                showSection(section, true);
-            }
-        });
+        window.addEventListener('popstate', () => { const s = getSectionFromHash(); showSection(s, true); });
+        window.addEventListener('hashchange', () => { const s = getSectionFromHash(); if (state.currentSection !== s) showSection(s, true); });
     }
-
     function bindEvents() {
-        bindSidebarNav();
-        bindLogout();
-        bindModals();
-        bindActionButtons();
-        bindFilters();
-        bindMapControls();
-        bindTimeRangeDropdown();
-        bindTabDropdown();
-        bindKeyboard();
-        bindNavigation();
-
+        bindSidebarNav(); bindLogout(); bindModals(); bindActionButtons();
+        bindFilters(); bindMapControls(); bindTimeRangeDropdown(); bindTabDropdown();
+        bindGridResize();
+        bindKeyboard(); bindNavigation();
         const themeBtn = $('themeToggleBtn');
-        if (themeBtn) {
-            themeBtn.addEventListener('click', () => {
-                const newTheme = window.ThemeManager.toggle();
-                updateThemeUI(newTheme);
-                setTimeout(refreshAllCharts, 100);
-            });
-        }
-
+        if (themeBtn) themeBtn.addEventListener('click', () => { const t = window.ThemeManager.toggle(); updateThemeUI(t); setTimeout(refreshAllCharts, 100); });
         window.addEventListener('sidebar-toggle', () => {
             setTimeout(() => {
-                if (window.__nexusMaps) {
-                    window.__nexusMaps.forEach(m => {
-                        try { m.invalidateSize(); } catch (e) {}
-                    });
-                }
+                if (window.__nexusMaps) window.__nexusMaps.forEach(m => { try { m.invalidateSize(); } catch (e) {} });
             }, 400);
+        });
+
+        // Auto-clamp saat window resize
+        window.addEventListener('resize', () => {
+            clearTimeout(window.__nexusResizeTO);
+            window.__nexusResizeTO = setTimeout(() => {
+                clampChartsToCanvas();
+                resolveCollisions();
+                applyAllGeom();
+                state.charts.forEach(c => {
+                    if (c.chartInstance) try { c.chartInstance.resize(); } catch (e) {}
+                });
+            }, 150);
         });
 
         window.ThemeManager.onChange(() => setTimeout(refreshAllCharts, 100));
     }
-
     function updateThemeUI(theme) {
-        const icon = $('themeIcon');
-        const label = $('themeLabel');
+        const icon = $('themeIcon'); const label = $('themeLabel');
         if (icon) icon.className = theme === 'light' ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
         if (label) label.textContent = theme === 'light' ? 'Tema Terang' : 'Tema Gelap';
     }
-
     function bindCleanup() {
         window.addEventListener('beforeunload', () => {
             if (state.dashboardInterval) clearInterval(state.dashboardInterval);
             if (state.autoRefreshInterval) clearInterval(state.autoRefreshInterval);
             if (state.attendanceInterval) clearInterval(state.attendanceInterval);
             if (state.activityRefreshInterval) clearInterval(state.activityRefreshInterval);
-            state.resizeObservers.forEach(obs => {
-                try { obs.disconnect(); } catch (e) {}
-            });
-            state.charts.forEach(c => {
-                if (c.chartInstance) {
-                    try { c.chartInstance.destroy(); } catch (e) {}
-                }
-            });
+            state.charts.forEach(c => { if (c.chartInstance) try { c.chartInstance.destroy(); } catch (e) {} });
         });
     }
-
     function readDashboardSlug() {
         const meta = document.querySelector('meta[name="dashboard-slug"]');
         if (meta && meta.content) return meta.content.trim() || null;
-
         const body = document.body;
-        if (body && body.dataset && body.dataset.dashboardSlug) {
-            return body.dataset.dashboardSlug.trim() || null;
-        }
-
-        const pathMatch = window.location.pathname.match(/^\/d\/([a-z0-9\-]+)/i);
-        if (pathMatch) return pathMatch[1];
-
-        return null;
+        if (body && body.dataset && body.dataset.dashboardSlug) return body.dataset.dashboardSlug.trim() || null;
+        const m = window.location.pathname.match(/^\/d\/([a-z0-9\-]+)/i);
+        return m ? m[1] : null;
     }
 
     // ==========================================
@@ -2573,48 +1815,33 @@
     async function init() {
         if (state.isInitialized) return;
         state.isInitialized = true;
-
         state.dashboardSlug = readDashboardSlug();
-
-        bindEvents();
-        bindCleanup();
+        loadCanvasHeight();
+        bindEvents(); bindCleanup();
         updateThemeUI(window.ThemeManager.get());
         loadGlobalTimeRange();
-        updateDateTime();
-        setInterval(updateDateTime, 1000);
-
+        updateDateTime(); setInterval(updateDateTime, 1000);
         let initialSection = getSectionFromHash();
-
         if (!window.location.hash) {
             try {
-                const savedSection = sessionStorage.getItem(STORAGE_KEYS.LAST_SECTION);
-                if (savedSection && DASHBOARD_SECTIONS.includes(savedSection)) {
-                    initialSection = savedSection;
-                    history.replaceState(null, '', `#${savedSection}`);
-                }
+                const saved = sessionStorage.getItem(STORAGE_KEYS.LAST_SECTION);
+                if (saved && DASHBOARD_SECTIONS.includes(saved)) { initialSection = saved; history.replaceState(null, '', `#${saved}`); }
             } catch (e) {}
         }
-
         state.currentSection = initialSection;
-
         initMapPreview();
         await loadDashboard();
         await loadAnalyticsTabs();
-
         showSection(initialSection, true);
-
         state.dashboardInterval = setInterval(loadDashboard, 30000);
         startAutoRefresh();
-
-        // Activity refresh tiap 60 detik (kalau di section dashboard)
-        state.activityRefreshInterval = setInterval(() => {
-            if (state.currentSection === 'dashboard') loadActivityFeed();
-        }, 60000);
-
-        console.log('[Dashboard] Ready v4.1, section:', initialSection);
+        state.activityRefreshInterval = setInterval(() => { if (state.currentSection === 'dashboard') loadActivityFeed(); }, 60000);
+        console.log('[Dashboard] Ready v4.8');
     }
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else init();
+    window.__nexusRefreshAttendance = () => loadAttendance();
+    window.__nexusLoadAttendance = () => loadAttendance();
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
 })();

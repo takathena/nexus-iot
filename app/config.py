@@ -19,13 +19,13 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = timedelta(hours=int(os.getenv('SESSION_LIFETIME_HOURS', 24)))
-    # ✅ FIX Tier 3 #12: session lifetime absolut, tidak refresh tiap request
     SESSION_REFRESH_EACH_REQUEST = False
-    # Idle timeout (menit) — session invalid kalau idle > N menit
     SESSION_IDLE_TIMEOUT_MINUTES = int(os.getenv('SESSION_IDLE_TIMEOUT_MINUTES', 120))
 
     WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = 3600
+    # CSRF token ikut lifetime session, bukan fixed 1 jam.
+    # Tab yang dibiarkan terbuka lama tidak akan gagal save.
+    WTF_CSRF_TIME_LIMIT = None
 
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 2 * 1024 * 1024))
     ENABLE_HSTS = os.getenv('ENABLE_HSTS', 'False').lower() == 'true'

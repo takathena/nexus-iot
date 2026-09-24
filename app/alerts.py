@@ -15,9 +15,6 @@ SEVERITY_ORDER = ['healthy', 'warning', 'danger']
 VALID_SEVERITIES = ['healthy', 'info', 'warning', 'danger']
 DEFAULT_HYSTERESIS = 0.5
 
-# Skip re-trigger window setelah user acknowledge alert (menit)
-ACK_SKIP_WINDOW_MINUTES = 5
-
 SENSOR_LABELS = {
     'temperature': ('Suhu', '°C'),
     'humidity': ('Kelembaban', '%'),
@@ -92,23 +89,15 @@ def _severity_rank(sev):
 
 
 def _apply_hysteresis(new_severity, old_severity, value, rule):
-    """Hysteresis: cegah flapping di sekitar batas.
-
-    - Severity memburuk → langsung transition
-    - Severity membaik → cek apakah value sudah masuk range BARU
-      dengan margin hysteresis (deep enough)
-    """
     if not old_severity or old_severity == new_severity:
         return new_severity
 
     old_rank = _severity_rank(old_severity)
     new_rank = _severity_rank(new_severity)
 
-    # Memburuk → langsung transition
     if new_rank > old_rank:
         return new_severity
 
-    # Membaik → cek range BARU
     offset = float(rule.get('_hysteresis', DEFAULT_HYSTERESIS))
     new_range = rule.get(new_severity)
     if not new_range:
@@ -120,7 +109,6 @@ def _apply_hysteresis(new_severity, old_severity, value, rule):
     except (TypeError, ValueError):
         return new_severity
 
-    # Value harus di dalam range baru dengan margin offset dari tepi
     if (n_min + offset) <= value <= (n_max - offset):
         return new_severity
     return old_severity
@@ -186,32 +174,26 @@ def _build_notify_event(conn, device_id, alert_type, severity, message, value,
         return None
 
 
-def _was_recently_acknowledged(conn, device_id, alert_type, severity):
-    """Cek apakah alert ini baru saja di-acknowledge dengan severity sama.
+def _is_alert_acknowledged_and_not_recovered(conn, device_id, alert_type):
+    """Return True jika alert terakhir untuk (device, type) di-ack user
+    DAN belum ada 'cleared' setelahnya.
 
-    Return True jika: 
-      - Last history entry (dalam window X menit) adalah 'acknowledged'
-      - Severity-nya sama
-    Ini mencegah alert yang sudah di-ack kembali trigger dengan value sama.
+    Artinya user sudah acknowledge, tapi kondisi belum pulih ke healthy.
+    Jangan re-trigger sampai device kirim nilai healthy (yang akan tercatat
+    sebagai action='cleared').
     """
-    cutoff = get_wib_time() - timedelta(minutes=ACK_SKIP_WINDOW_MINUTES)
-    row = conn.execute('''
-        SELECT action, severity FROM alert_history
+    last = conn.execute('''
+        SELECT action FROM alert_history
         WHERE device_id = ? AND alert_type = ?
-          AND created_at >= ?
-        ORDER BY created_at DESC LIMIT 1
-    ''', (device_id, alert_type, cutoff)).fetchone()
+        ORDER BY created_at DESC, id DESC LIMIT 1
+    ''', (device_id, alert_type)).fetchone()
 
-    if not row:
+    if not last:
         return False
-
-    return row['action'] == 'acknowledged' and row['severity'] == severity
+    return last['action'] == 'acknowledged'
 
 
 def _log_implicit_recovery_if_needed(conn, device_id, alert_type, value):
-    """Kalau value kembali healthy tapi alert sudah di-ack sebelumnya,
-    log 'cleared' sekali supaya history cycle lengkap.
-    """
     last = conn.execute('''
         SELECT action FROM alert_history
         WHERE device_id = ? AND alert_type = ?
@@ -276,7 +258,7 @@ def check_and_create_alerts(device_id, sensor_data):
             old_severity = existing['severity'] if existing else None
             final_severity = _apply_hysteresis(new_severity, old_severity, value, rule)
 
-            # ── RECOVERY: healthy ──
+            # RECOVERY
             if final_severity == 'healthy':
                 if existing:
                     conn.execute('''
@@ -297,15 +279,13 @@ def check_and_create_alerts(device_id, sensor_data):
                     if evt:
                         pending_notifications.append(evt)
                 else:
-                    # No active alert but maybe there's an acked one pending clear
                     _log_implicit_recovery_if_needed(conn, device_id, key, value)
                 continue
 
-            # ── ALERT: warning / danger ──
+            # ALERT
             message = _format_alert_message(key, value, final_severity, rule)
 
             if existing:
-                # Update existing active alert
                 if existing['severity'] != final_severity:
                     conn.execute('''
                         UPDATE alerts
@@ -331,11 +311,10 @@ def check_and_create_alerts(device_id, sensor_data):
                         WHERE id = ?
                     ''', (message, value, get_wib_time(), existing['id']))
             else:
-                # ✅ Skip create jika alert sama baru saja di-acknowledge
-                if _was_recently_acknowledged(conn, device_id, key, final_severity):
+                # ✅ FIX: skip kalau sudah di-ack dan belum pulih
+                if _is_alert_acknowledged_and_not_recovered(conn, device_id, key):
                     continue
 
-                # Create new alert
                 conn.execute('''
                     INSERT INTO alerts
                     (device_id, alert_type, severity, message, value,
@@ -403,8 +382,8 @@ def create_offline_alert(device_id, severity='danger'):
                 return True
             return False
 
-        # ✅ Skip jika baru saja di-ack
-        if _was_recently_acknowledged(conn, device_id, 'offline', severity):
+        # ✅ FIX: skip kalau sudah di-ack dan belum pulih
+        if _is_alert_acknowledged_and_not_recovered(conn, device_id, 'offline'):
             return False
 
         message = "Perangkat tidak mengirim data melebihi batas waktu"
@@ -507,13 +486,44 @@ def get_alert_history(device_id=None, limit=200):
 
 
 def acknowledge_alert(alert_id):
+    """Acknowledge alert.
+
+    Menerima ID dari tabel `alerts` ATAU dari tabel `alert_history`
+    (fallback, karena frontend lama mengirim history.id).
+    """
+    if alert_id is None:
+        return False
+
+    try:
+        alert_id_int = int(alert_id)
+    except (ValueError, TypeError):
+        return False
+
     with get_db_context() as conn:
-        alert = conn.execute('SELECT * FROM alerts WHERE id = ?', (alert_id,)).fetchone()
+        alert = conn.execute(
+            'SELECT * FROM alerts WHERE id = ?', (alert_id_int,)
+        ).fetchone()
+
+        # Fallback: mungkin ini history.id
+        if not alert:
+            hist = conn.execute(
+                'SELECT device_id, alert_type FROM alert_history WHERE id = ?',
+                (alert_id_int,)
+            ).fetchone()
+            if hist:
+                alert = conn.execute('''
+                    SELECT * FROM alerts
+                    WHERE device_id = ? AND alert_type = ? AND is_active = 1
+                    ORDER BY created_at DESC LIMIT 1
+                ''', (hist['device_id'], hist['alert_type'])).fetchone()
+
         if not alert or not alert['is_active']:
             return False
 
-        conn.execute('UPDATE alerts SET is_active = 0, updated_at = ? WHERE id = ?',
-                     (get_wib_time(), alert_id))
+        conn.execute(
+            'UPDATE alerts SET is_active = 0, updated_at = ? WHERE id = ?',
+            (get_wib_time(), alert['id'])
+        )
         _log_history(conn, alert['device_id'], alert['alert_type'],
                      alert['severity'], alert['message'],
                      alert['value'], 'acknowledged')
@@ -528,14 +538,36 @@ def bulk_acknowledge_alerts(alert_ids):
     count = 0
     with get_db_context() as conn:
         now = get_wib_time()
-        for alert_id in alert_ids:
+        for raw_id in alert_ids:
+            try:
+                alert_id = int(raw_id)
+            except (ValueError, TypeError):
+                continue
+
             alert = conn.execute(
                 'SELECT * FROM alerts WHERE id = ? AND is_active = 1', (alert_id,)
             ).fetchone()
+
+            # Fallback via history
+            if not alert:
+                hist = conn.execute(
+                    'SELECT device_id, alert_type FROM alert_history WHERE id = ?',
+                    (alert_id,)
+                ).fetchone()
+                if hist:
+                    alert = conn.execute('''
+                        SELECT * FROM alerts
+                        WHERE device_id = ? AND alert_type = ? AND is_active = 1
+                        ORDER BY created_at DESC LIMIT 1
+                    ''', (hist['device_id'], hist['alert_type'])).fetchone()
+
             if not alert:
                 continue
-            conn.execute('UPDATE alerts SET is_active = 0, updated_at = ? WHERE id = ?',
-                         (now, alert_id))
+
+            conn.execute(
+                'UPDATE alerts SET is_active = 0, updated_at = ? WHERE id = ?',
+                (now, alert['id'])
+            )
             _log_history(conn, alert['device_id'], alert['alert_type'],
                          alert['severity'], alert['message'],
                          alert['value'], 'acknowledged')
