@@ -798,26 +798,34 @@ def get_all_alerts():
     limit = min(request.args.get('limit', 200, type=int), 1000)
 
     with get_db_context() as conn:
+        # ✅ FIX: group per (device_id, alert_type) → hanya event terbaru.
+        # Sebelumnya semua event history ditampilkan (bikin numpuk: 1 siklus
+        # alert = 4 baris: created + severity_changed + acknowledged + cleared).
         base_query = '''
-            SELECT h.id, h.device_id, h.alert_type, h.severity, h.message,
-                   h.value, h.action, h.created_at,
-                   d.device_name, d.location,
-                   active_alerts.id AS alert_id,
-                   CASE
-                       WHEN h.action IN ('cleared', 'acknowledged') THEN 0
-                       WHEN active_alerts.device_id IS NOT NULL THEN 1
-                       ELSE 0
-                   END as is_still_active
-            FROM alert_history h
-            LEFT JOIN devices d ON h.device_id = d.device_id
-            LEFT JOIN (
-                SELECT id, device_id, alert_type
-                FROM alerts
-                WHERE is_active = 1
-            ) active_alerts
-                ON active_alerts.device_id = h.device_id
-               AND active_alerts.alert_type = h.alert_type
-            WHERE h.alert_type != 'uid'
+            SELECT * FROM (
+                SELECT h.id, h.device_id, h.alert_type, h.severity, h.message,
+                       h.value, h.action, h.created_at,
+                       d.device_name, d.location,
+                       active_alerts.id AS alert_id,
+                       CASE
+                           WHEN h.action IN ('cleared', 'acknowledged') THEN 0
+                           WHEN active_alerts.device_id IS NOT NULL THEN 1
+                           ELSE 0
+                       END as is_still_active,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY h.device_id, h.alert_type
+                           ORDER BY h.created_at DESC, h.id DESC
+                       ) AS rn
+                FROM alert_history h
+                LEFT JOIN devices d ON h.device_id = d.device_id
+                LEFT JOIN (
+                    SELECT id, device_id, alert_type
+                    FROM alerts
+                    WHERE is_active = 1
+                ) active_alerts
+                    ON active_alerts.device_id = h.device_id
+                   AND active_alerts.alert_type = h.alert_type
+                WHERE h.alert_type != 'uid'
         '''
         params = []
 
@@ -829,14 +837,18 @@ def get_all_alerts():
             base_query += ' AND h.device_id = ?'
             params.append(device_id)
 
-        if status == 'active':
-            base_query += ''' AND h.action NOT IN ('cleared', 'acknowledged')
-                              AND active_alerts.device_id IS NOT NULL'''
-        elif status == 'resolved':
-            base_query += ''' AND (h.action IN ('cleared', 'acknowledged')
-                                   OR active_alerts.device_id IS NULL)'''
+        # Tutup subquery — hanya ambil event terbaru per (device, type)
+        base_query += '''
+            ) sub
+            WHERE rn = 1
+        '''
 
-        base_query += ' ORDER BY h.created_at DESC LIMIT ?'
+        if status == 'active':
+            base_query += ' AND is_still_active = 1'
+        elif status == 'resolved':
+            base_query += ' AND is_still_active = 0'
+
+        base_query += ' ORDER BY created_at DESC LIMIT ?'
         params.append(limit)
 
         rows = conn.execute(base_query, params).fetchall()
@@ -844,6 +856,7 @@ def get_all_alerts():
     alerts = []
     for r in rows:
         d = dict(r)
+        d.pop('rn', None)  # hapus kolom internal
         d['label'] = _alert_label(d['alert_type'], d['severity'])
         alerts.append(d)
 

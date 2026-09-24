@@ -1,6 +1,12 @@
 """
 NEXUS IoT - Alert System
 State machine: healthy → warning → danger → warning → healthy
+
+Fix v4.9:
+  - Ack dengan severity-aware skip: alert baru di-skip hanya jika severity
+    baru <= severity yang di-ack. Kalau severity memburuk (warning→danger),
+    alert baru tetap di-trigger.
+  - Setelah suhu pulih ke healthy, log 'cleared' → siap trigger lagi.
 """
 import json
 import logging
@@ -14,6 +20,9 @@ logger = logging.getLogger('nexus')
 SEVERITY_ORDER = ['healthy', 'warning', 'danger']
 VALID_SEVERITIES = ['healthy', 'info', 'warning', 'danger']
 DEFAULT_HYSTERESIS = 0.5
+
+# Rank untuk perbandingan severity (makin tinggi makin bahaya)
+SEVERITY_RANK = {'healthy': 0, 'info': 1, 'warning': 2, 'danger': 3}
 
 SENSOR_LABELS = {
     'temperature': ('Suhu', '°C'),
@@ -85,7 +94,7 @@ def _evaluate_severity(value, rule):
 
 
 def _severity_rank(sev):
-    return {'healthy': 0, 'info': 1, 'warning': 2, 'danger': 3}.get(sev, 0)
+    return SEVERITY_RANK.get(sev, 0)
 
 
 def _apply_hysteresis(new_severity, old_severity, value, rule):
@@ -174,36 +183,64 @@ def _build_notify_event(conn, device_id, alert_type, severity, message, value,
         return None
 
 
-def _is_alert_acknowledged_and_not_recovered(conn, device_id, alert_type):
-    """Return True jika alert terakhir untuk (device, type) di-ack user
-    DAN belum ada 'cleared' setelahnya.
-
-    Artinya user sudah acknowledge, tapi kondisi belum pulih ke healthy.
-    Jangan re-trigger sampai device kirim nilai healthy (yang akan tercatat
-    sebagai action='cleared').
-    """
-    last = conn.execute('''
-        SELECT action FROM alert_history
+def _get_last_history_action(conn, device_id, alert_type):
+    """Ambil action + severity dari entry terakhir di alert_history."""
+    return conn.execute('''
+        SELECT action, severity FROM alert_history
         WHERE device_id = ? AND alert_type = ?
         ORDER BY created_at DESC, id DESC LIMIT 1
     ''', (device_id, alert_type)).fetchone()
 
+
+def _should_skip_alert(conn, device_id, alert_type, new_severity):
+    """Return True kalau alert baru harus di-skip.
+
+    Aturan:
+      1. Tidak ada history → trigger
+      2. History terakhir 'cleared' → trigger (user sudah pulih, siap re-alert)
+      3. History terakhir 'acknowledged':
+         - new_severity <= severity_ack  → SKIP (kondisi sama/membaik)
+         - new_severity >  severity_ack  → trigger (kondisi memburuk)
+      4. Action lain → trigger
+    """
+    last = _get_last_history_action(conn, device_id, alert_type)
     if not last:
         return False
-    return last['action'] == 'acknowledged'
+
+    action = last['action']
+
+    if action == 'cleared':
+        return False
+
+    if action == 'acknowledged':
+        last_rank = SEVERITY_RANK.get(last['severity'], 0)
+        new_rank = SEVERITY_RANK.get(new_severity, 0)
+        if new_rank <= last_rank:
+            logger.debug(
+                f"[Alert] Skip {device_id}/{alert_type}: ack severity "
+                f"{last['severity']} >= new {new_severity}"
+            )
+            return True
+        logger.info(
+            f"[Alert] Re-trigger {device_id}/{alert_type}: severity memburuk "
+            f"dari {last['severity']} ke {new_severity}"
+        )
+        return False
+
+    return False
 
 
 def _log_implicit_recovery_if_needed(conn, device_id, alert_type, value):
-    last = conn.execute('''
-        SELECT action FROM alert_history
-        WHERE device_id = ? AND alert_type = ?
-        ORDER BY created_at DESC LIMIT 1
-    ''', (device_id, alert_type)).fetchone()
+    """Kalau user pernah ack tapi belum log 'cleared' (device pulih), log sekarang.
 
+    Dipanggil saat data masuk dengan severity healthy dan tidak ada alert aktif.
+    """
+    last = _get_last_history_action(conn, device_id, alert_type)
     if last and last['action'] == 'acknowledged':
         _log_history(conn, device_id, alert_type, 'healthy',
                      _format_recovery_message(alert_type, value),
                      value, 'cleared')
+        logger.info(f"[Alert] Log implicit 'cleared' for {device_id}/{alert_type}")
 
 
 def get_device_alert_rules(conn, device_id):
@@ -258,9 +295,10 @@ def check_and_create_alerts(device_id, sensor_data):
             old_severity = existing['severity'] if existing else None
             final_severity = _apply_hysteresis(new_severity, old_severity, value, rule)
 
-            # RECOVERY
+            # ========= RECOVERY (healthy) =========
             if final_severity == 'healthy':
                 if existing:
+                    # Alert masih aktif → tutup + log 'cleared'
                     conn.execute('''
                         UPDATE alerts SET is_active = 0, updated_at = ?, value = ?
                         WHERE id = ?
@@ -279,13 +317,16 @@ def check_and_create_alerts(device_id, sensor_data):
                     if evt:
                         pending_notifications.append(evt)
                 else:
+                    # Tidak ada alert aktif, tapi mungkin user pernah ack
+                    # → log 'cleared' supaya siap re-trigger
                     _log_implicit_recovery_if_needed(conn, device_id, key, value)
                 continue
 
-            # ALERT
+            # ========= ALERT (warning / danger) =========
             message = _format_alert_message(key, value, final_severity, rule)
 
             if existing:
+                # Alert masih aktif — update severity/message
                 if existing['severity'] != final_severity:
                     conn.execute('''
                         UPDATE alerts
@@ -306,13 +347,14 @@ def check_and_create_alerts(device_id, sensor_data):
                     if evt:
                         pending_notifications.append(evt)
                 else:
+                    # Sama severity, update message saja
                     conn.execute('''
                         UPDATE alerts SET message = ?, value = ?, updated_at = ?
                         WHERE id = ?
                     ''', (message, value, get_wib_time(), existing['id']))
             else:
-                # ✅ FIX: skip kalau sudah di-ack dan belum pulih
-                if _is_alert_acknowledged_and_not_recovered(conn, device_id, key):
+                # Tidak ada alert aktif — cek apakah perlu trigger baru
+                if _should_skip_alert(conn, device_id, key, final_severity):
                     continue
 
                 conn.execute('''
@@ -363,7 +405,8 @@ def create_offline_alert(device_id, severity='danger'):
                     UPDATE alerts SET severity = ?, updated_at = ? WHERE id = ?
                 ''', (severity, get_wib_time(), existing['id']))
                 _log_history(conn, device_id, 'offline', severity,
-                             f"Severity offline berubah ke {severity}", None, 'severity_changed')
+                             f"Severity offline berubah ke {severity}", None,
+                             'severity_changed')
 
                 evt = _build_notify_event(
                     conn, device_id, 'offline', severity,
@@ -382,8 +425,8 @@ def create_offline_alert(device_id, severity='danger'):
                 return True
             return False
 
-        # ✅ FIX: skip kalau sudah di-ack dan belum pulih
-        if _is_alert_acknowledged_and_not_recovered(conn, device_id, 'offline'):
+        # Cek apakah perlu skip (user sudah ack, belum pulih)
+        if _should_skip_alert(conn, device_id, 'offline', severity):
             return False
 
         message = "Perangkat tidak mengirim data melebihi batas waktu"
