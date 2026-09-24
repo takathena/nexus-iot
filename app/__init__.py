@@ -1,6 +1,7 @@
 """
 NEXUS IoT - Application Factory
 """
+import os
 import sys
 import signal
 import logging
@@ -29,6 +30,17 @@ def create_app(config_override=None):
     if config_override:
         app.config.update(config_override)
 
+    # ✅ FIX Tier 1 #5: ProxyFix — dapat IP device asli di belakang Nginx
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    if not app.config.get('TESTING'):
+        app.wsgi_app = ProxyFix(
+            app.wsgi_app,
+            x_for=1,
+            x_proto=1,
+            x_host=1,
+            x_port=1,
+        )
+
     # CORS
     cors.init_app(app, resources={
         r"/api/*": {
@@ -39,13 +51,26 @@ def create_app(config_override=None):
         }
     })
 
-    # Rate limiter SEBELUM CSRF (supaya POST tanpa CSRF tetap kena limit)
     limiter.init_app(app)
     csrf.init_app(app)
 
     app.teardown_appcontext(close_db)
 
-    # Register blueprints
+    # Cache-busting: Nginx menyajikan /static/ dengan "immutable 30d". Tanpa versi di URL,
+    # browser terus memakai JS/CSS lama setelah update. Tambahkan ?v=<mtime> otomatis
+    # ke setiap url_for('static', ...) supaya URL berubah saat file berubah.
+    @app.url_defaults
+    def _static_cache_bust(endpoint, values):
+        if endpoint == 'static' and 'v' not in values:
+            filename = values.get('filename')
+            if filename:
+                try:
+                    values['v'] = int(os.path.getmtime(
+                        os.path.join(app.static_folder, filename)
+                    ))
+                except OSError:
+                    pass
+
     from app.auth import auth_bp
     from app.api import api_bp
     from app.views import views_bp
@@ -58,9 +83,6 @@ def create_app(config_override=None):
 
     logger.info("CSRF: only /api/v1/data is exempt (device endpoint)")
 
-    # ==========================================
-    # Security headers
-    # ==========================================
     @app.after_request
     def add_security_headers(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
@@ -95,13 +117,8 @@ def create_app(config_override=None):
 
         return response
 
-    # ==========================================
-    # Error handlers
-    # ==========================================
     @app.errorhandler(400)
     def bad_request(e):
-        if request.path.startswith('/api/'):
-            return jsonify({'success': False, 'error': 'Bad request'}), 400
         return jsonify({'success': False, 'error': 'Bad request'}), 400
 
     @app.errorhandler(401)
@@ -161,9 +178,6 @@ def create_app(config_override=None):
             }), 500
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
 
-    # ==========================================
-    # Health check
-    # ==========================================
     @app.route('/health')
     @limiter.exempt
     def health_check():
@@ -175,7 +189,7 @@ def create_app(config_override=None):
                 'status': 'healthy',
                 'timestamp': get_wib_time().isoformat(),
                 'database': 'connected',
-                'version': '4.0',
+                'version': '4.1',
             }), 200
         except Exception as e:
             logger.error(f"Health check failed: {e}", exc_info=True)

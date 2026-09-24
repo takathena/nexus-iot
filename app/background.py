@@ -15,9 +15,11 @@ from app.alerts import create_offline_alert, clear_offline_alert
 
 logger = logging.getLogger('nexus')
 
+# ✅ FIX #5: shutdown_event dibuat fresh setiap start, tidak global mutable
 shutdown_event = threading.Event()
 _bg_lock_file = None
 _bg_lock_acquired = False
+_bg_lock = threading.Lock()
 
 
 def _log_status_change(conn, device_id, status, reason=''):
@@ -38,6 +40,13 @@ def check_device_status():
     while not shutdown_event.is_set():
         try:
             current_time = get_wib_time()
+            # Alert dibuat SETELAH koneksi ini commit & tutup. Sebelumnya
+            # create_offline_alert() membuka koneksi kedua saat koneksi ini masih
+            # menahan write-lock -> "database is locked" setelah 30 detik, dan alert
+            # offline tidak pernah terbuat.
+            to_offline = []   # (device_id, severity)
+            to_online = []    # device_id
+
             with get_db_context() as conn:
                 devices = conn.execute('''
                     SELECT device_id, last_seen, status,
@@ -72,22 +81,43 @@ def check_device_status():
                         _log_status_change(conn, device_id, 'offline',
                                            f'timeout_{int(time_diff)}s')
                         logger.info(f"Device {device_id} OFFLINE")
-                        try:
-                            create_offline_alert(device_id, severity)
-                        except Exception as e:
-                            logger.error(f"Failed to create offline alert: {e}", exc_info=True)
+                        to_offline.append((device_id, severity))
 
                     elif time_diff <= timeout and current_status == 'offline':
                         conn.execute('UPDATE devices SET status = ? WHERE device_id = ?',
                                      ('online', device_id))
                         _log_status_change(conn, device_id, 'online', 'recovered')
                         logger.info(f"Device {device_id} back online")
-                        try:
-                            clear_offline_alert(device_id)
-                        except Exception as e:
-                            logger.error(f"Failed to clear offline alert: {e}", exc_info=True)
+                        to_online.append(device_id)
+
+                    elif current_status == 'offline' and time_diff > timeout:
+                        # Self-healing: device sudah offline tapi alert untuk outage ini
+                        # belum pernah dibuat (mis. gagal karena bug lock sebelumnya).
+                        # Tidak membuat ulang alert yang sudah di-ack pada outage yang sama.
+                        raised = conn.execute('''
+                            SELECT 1 FROM alert_history
+                            WHERE device_id = ? AND alert_type = 'offline'
+                              AND action IN ('created', 'acknowledged')
+                              AND created_at >= ?
+                            LIMIT 1
+                        ''', (device_id, last_seen)).fetchone()
+                        if not raised:
+                            to_offline.append((device_id, severity))
 
                 conn.commit()
+
+            # Koneksi sudah ditutup -> aman menulis alert lewat koneksi lain.
+            for device_id, severity in to_offline:
+                try:
+                    create_offline_alert(device_id, severity)
+                except Exception as e:
+                    logger.error(f"Failed to create offline alert: {e}", exc_info=True)
+
+            for device_id in to_online:
+                try:
+                    clear_offline_alert(device_id)
+                except Exception as e:
+                    logger.error(f"Failed to clear offline alert: {e}", exc_info=True)
 
         except Exception as e:
             logger.error(f"Status checker error: {e}", exc_info=True)
@@ -98,8 +128,18 @@ def check_device_status():
 
 
 def cleanup_old_data():
+    """Cleanup data lama di 5 tabel dengan retention berbeda."""
     config = get_config()
-    logger.info(f"Data cleanup started (retention={config.DATA_RETENTION_DAYS} days)")
+    retention_sensor = config.DATA_RETENTION_DAYS
+    retention_history = config.ALERT_HISTORY_RETENTION_DAYS
+    retention_log = config.STATUS_LOG_RETENTION_DAYS
+    retention_attendance = config.ATTENDANCE_RETENTION_DAYS
+
+    logger.info(
+        f"Data cleanup started "
+        f"(sensor={retention_sensor}d, history={retention_history}d, "
+        f"status_log={retention_log}d, attendance={retention_attendance}d)"
+    )
 
     if shutdown_event.wait(300):
         logger.info("Data cleanup stopped (early shutdown)")
@@ -107,15 +147,70 @@ def cleanup_old_data():
 
     while not shutdown_event.is_set():
         try:
-            cutoff = get_wib_time() - timedelta(days=config.DATA_RETENTION_DAYS)
+            now = get_wib_time()
+            cutoff_sensor = now - timedelta(days=retention_sensor)
+            cutoff_history = now - timedelta(days=retention_history)
+            cutoff_log = now - timedelta(days=retention_log)
+            cutoff_attendance = now - timedelta(days=retention_attendance)
+
             with get_db_context() as conn:
-                result = conn.execute('DELETE FROM sensor_data WHERE timestamp < ?', (cutoff,))
-                deleted = result.rowcount
+                total_deleted = 0
+                results = {}
+
+                r = conn.execute(
+                    'DELETE FROM sensor_data WHERE timestamp < ?',
+                    (cutoff_sensor,)
+                )
+                results['sensor_data'] = r.rowcount
+                total_deleted += r.rowcount
+
+                r = conn.execute(
+                    'DELETE FROM alert_history WHERE created_at < ?',
+                    (cutoff_history,)
+                )
+                results['alert_history'] = r.rowcount
+                total_deleted += r.rowcount
+
+                r = conn.execute(
+                    'DELETE FROM device_status_log WHERE created_at < ?',
+                    (cutoff_log,)
+                )
+                results['device_status_log'] = r.rowcount
+                total_deleted += r.rowcount
+
+                r = conn.execute(
+                    'DELETE FROM attendance WHERE timestamp < ?',
+                    (cutoff_attendance,)
+                )
+                results['attendance'] = r.rowcount
+                total_deleted += r.rowcount
+
+                r = conn.execute(
+                    '''DELETE FROM alerts
+                       WHERE is_active = 0
+                       AND updated_at IS NOT NULL
+                       AND updated_at < ?''',
+                    (cutoff_history,)
+                )
+                results['alerts_inactive'] = r.rowcount
+                total_deleted += r.rowcount
+
                 conn.commit()
-                if deleted > 0:
-                    logger.info(f"Cleaned up {deleted} old sensor records")
+
+                if total_deleted > 0:
+                    details = ', '.join(
+                        f"{k}={v}" for k, v in results.items() if v > 0
+                    )
+                    logger.info(f"Cleaned up {total_deleted} records: {details}")
+
+                if total_deleted > 1000:
+                    logger.info("Running VACUUM to reclaim space...")
+                    conn.execute('VACUUM')
+                    logger.info("VACUUM complete")
+
         except Exception as e:
             logger.error(f"Cleanup error: {e}", exc_info=True)
+
         shutdown_event.wait(86400)
 
     logger.info("Data cleanup stopped")
@@ -167,43 +262,51 @@ def _acquire_background_lock():
     global _bg_lock_file, _bg_lock_acquired
     import fcntl
 
-    if _bg_lock_acquired:
-        logger.info("Background lock already held by this process")
-        return False
+    with _bg_lock:
+        if _bg_lock_acquired:
+            logger.info("Background lock already held by this process")
+            return False
 
-    config = get_config()
-    if not config.BACKGROUND_TASKS_ENABLED:
-        logger.info("Background tasks disabled via BACKGROUND_TASKS_ENABLED=False")
-        return False
+        config = get_config()
+        if not config.BACKGROUND_TASKS_ENABLED:
+            logger.info("Background tasks disabled via BACKGROUND_TASKS_ENABLED=False")
+            return False
 
-    lock_dir = os.environ.get('NEXUS_LOCK_DIR', '/tmp')
-    try:
-        os.makedirs(lock_dir, exist_ok=True)
-    except Exception:
-        lock_dir = '/tmp'
+        lock_dir = os.environ.get('NEXUS_LOCK_DIR', '/tmp')
+        try:
+            os.makedirs(lock_dir, exist_ok=True)
+        except Exception:
+            lock_dir = '/tmp'
 
-    lock_path = os.path.join(lock_dir, 'nexus-background.lock')
+        lock_path = os.path.join(lock_dir, 'nexus-background.lock')
 
-    try:
-        _bg_lock_file = open(lock_path, 'w')
-        fcntl.flock(_bg_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        _bg_lock_file.write(f"pid={os.getpid()}\n")
-        _bg_lock_file.flush()
-        _bg_lock_acquired = True
-        logger.info(f"Background lock acquired (pid={os.getpid()})")
-        return True
-    except (IOError, OSError):
-        if _bg_lock_file is not None:
-            try:
-                _bg_lock_file.close()
-            except Exception:
-                pass
-            _bg_lock_file = None
-        logger.info("Background lock held by another worker, skipping")
-        return False
+        try:
+            _bg_lock_file = open(lock_path, 'w')
+            fcntl.flock(_bg_lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            _bg_lock_file.write(f"pid={os.getpid()}\n")
+            _bg_lock_file.flush()
+            _bg_lock_acquired = True
+            logger.info(f"Background lock acquired (pid={os.getpid()})")
+            return True
+        except (IOError, OSError):
+            if _bg_lock_file is not None:
+                try:
+                    _bg_lock_file.close()
+                except Exception:
+                    pass
+                _bg_lock_file = None
+            logger.info("Background lock held by another worker, skipping")
+            return False
 
 
+# ✅ FIX #5: reset shutdown_event sebelum start, dan guard double-start
 def start_background_tasks():
+    global shutdown_event
+
+    with _bg_lock:
+        # Reset event setiap start — fix untuk reload Gunicorn
+        shutdown_event = threading.Event()
+
     if not _acquire_background_lock():
         return []
 
@@ -222,19 +325,20 @@ def start_background_tasks():
 
 
 def stop_background_tasks():
+    global _bg_lock_file, _bg_lock_acquired
     logger.info("Stopping background tasks...")
     shutdown_event.set()
 
-    global _bg_lock_file, _bg_lock_acquired
-    if _bg_lock_file is not None:
-        try:
-            import fcntl
-            fcntl.flock(_bg_lock_file, fcntl.LOCK_UN)
-        except Exception:
-            pass
-        try:
-            _bg_lock_file.close()
-        except Exception:
-            pass
-        _bg_lock_file = None
-    _bg_lock_acquired = False
+    with _bg_lock:
+        if _bg_lock_file is not None:
+            try:
+                import fcntl
+                fcntl.flock(_bg_lock_file, fcntl.LOCK_UN)
+            except Exception:
+                pass
+            try:
+                _bg_lock_file.close()
+            except Exception:
+                pass
+            _bg_lock_file = None
+        _bg_lock_acquired = False

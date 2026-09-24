@@ -1,6 +1,6 @@
 /* ==========================================
-   NEXUS IoT - API Helper
-   ✅ P0 FIX: handle 401 (session expired) dengan redirect ke login
+   NEXUS IoT - API Helper (v2 FIXED)
+   Fix: 401 clear session + redirect
    ========================================== */
 
 (function() {
@@ -31,15 +31,23 @@
         });
     }
 
+    // ✅ FIX: clear sessionStorage saat 401
+    function clearClientSession() {
+        try {
+            sessionStorage.removeItem('nexus_back_url');
+            sessionStorage.removeItem('nexus-last-section');
+        } catch (e) {}
+    }
+
     async function apiCall(url, options = {}) {
         try {
             const response = await apiFetch(url, options);
 
-            // ✅ P0 FIX: 401 → session expired, redirect ke login
             if (response.status === 401) {
                 const path = window.location.pathname || '';
                 if (!path.startsWith('/login')) {
                     console.warn('[API] 401 Unauthorized, redirecting to login');
+                    clearClientSession();
                     window.location.href = '/login';
                 }
                 return {
@@ -91,6 +99,7 @@
         updateDeviceAlertRules: (deviceId, rules) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/alert-rules`, { method: 'PUT', body: JSON.stringify(rules) }),
 
         getDashboard: () => apiCall('/api/v1/dashboard'),
+        getDashboardBySlug: (slug) => apiCall(`/api/v1/dashboards/slug/${encodeURIComponent(slug)}`),
 
         getAlerts: () => apiCall('/api/v1/alerts'),
         getAlertsAll: (params = {}) => {

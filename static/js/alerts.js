@@ -1,5 +1,8 @@
 /* ==========================================
-   NEXUS IoT - Alert Center (Section Module)
+   NEXUS IoT - Alert Center (v4.1)
+   + Sound notification untuk danger/warning baru
+   + Mark All Read
+   + Auto-pulse alert baru
    ========================================== */
 
 (function() {
@@ -12,11 +15,18 @@
         severity: '',
         search: '',
         selectedIds: new Set(),
+        newlyAdded: new Set(),
+        refreshInterval: null,
+        isInitialized: false,
     };
 
     const STORAGE_KEYS = {
         BACK_URL: 'nexus_back_url',
+        SOUND: 'nexus-alerts-sound',
     };
+
+    const _seenAlertIds = new Set();
+    let _audioCtx = null;
 
     function $(id) { return document.getElementById(id); }
 
@@ -41,6 +51,10 @@
             const d = new Date(s + '+07:00');
             return isNaN(d.getTime()) ? null : d;
         }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            const d = new Date(s + 'T00:00:00+07:00');
+            return isNaN(d.getTime()) ? null : d;
+        }
         const d = new Date(s);
         return isNaN(d.getTime()) ? null : d;
     }
@@ -50,12 +64,13 @@
         if (!d) return '-';
         try {
             const diff = (Date.now() - d.getTime()) / 1000;
+            if (diff < 0) return 'baru saja';
             if (diff < 60) return 'baru saja';
-            if (diff < 3600) return `${Math.floor(diff / 60)} menit lalu`;
-            if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
-            if (diff < 604800) return `${Math.floor(diff / 86400)} hari lalu`;
+            if (diff < 3600) return `${Math.floor(diff / 60)}m lalu`;
+            if (diff < 86400) return `${Math.floor(diff / 3600)}j lalu`;
+            if (diff < 604800) return `${Math.floor(diff / 86400)}h lalu`;
             return d.toLocaleString('id-ID', {
-                day: '2-digit', month: 'short', year: 'numeric',
+                day: '2-digit', month: 'short',
                 hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta',
             });
         } catch (e) { return '-'; }
@@ -82,20 +97,105 @@
 
     function severityLabel(sev) {
         return {
-            danger: 'BAHAYA', warning: 'PERINGATAN',
-            info: 'INFO', healthy: 'NORMAL',
+            danger: 'Bahaya', warning: 'Peringatan',
+            info: 'Info', healthy: 'Normal',
         }[sev] || String(sev).toUpperCase();
     }
 
     function alertTypeLabel(type) {
         const map = {
-            temperature: 'Suhu', humidity: 'Kelembaban', gas_level: 'Level Gas',
-            offline: 'Perangkat Offline', smoke: 'Asap', motion: 'Gerakan',
-            co2: 'CO2', moisture: 'Kelembaban Tanah', lux: 'Cahaya',
+            temperature: 'Suhu', humidity: 'Kelembaban', gas_level: 'Gas',
+            offline: 'Offline', smoke: 'Asap', motion: 'Gerakan',
+            co2: 'CO2', moisture: 'K. Tanah', lux: 'Cahaya',
+            voc: 'VOC', air_quality: 'Kualitas Udara',
         };
         return map[type] || String(type).replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
     }
 
+    const SENSOR_UNITS = {
+        temperature: '°C', humidity: '%', gas_level: 'ppm',
+        smoke: 'ppm', moisture: '%', lux: 'lux',
+        co2: 'ppm', voc: 'ppb', air_quality: 'AQI',
+        motion: '', rfid: '',
+    };
+
+    function formatValue(alertType, value) {
+        if (value === null || value === undefined) return null;
+        const unit = SENSOR_UNITS[alertType] ?? '';
+        const num = parseFloat(value);
+        if (isNaN(num)) return String(value);
+        const trimmed = parseFloat(num.toFixed(2));
+        return `${trimmed}${unit}`;
+    }
+
+    // ==========================================
+    // SOUND
+    // ==========================================
+    function _getAudioCtx() {
+        if (_audioCtx) return _audioCtx;
+        try {
+            _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch (e) {
+            console.warn('[Alerts] AudioContext tidak didukung');
+        }
+        return _audioCtx;
+    }
+
+    function _playBeep(severity) {
+        if (localStorage.getItem(STORAGE_KEYS.SOUND) === 'off') return;
+        if (severity !== 'danger' && severity !== 'warning') return;
+
+        const ctx = _getAudioCtx();
+        if (!ctx) return;
+
+        const now = ctx.currentTime;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(severity === 'danger' ? 880 : 660, now);
+
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.exponentialRampToValueAtTime(0.15, now + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        osc.start(now);
+        osc.stop(now + 0.16);
+
+        if (severity === 'danger') {
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(880, now + 0.18);
+
+            gain2.gain.setValueAtTime(0.001, now + 0.18);
+            gain2.gain.exponentialRampToValueAtTime(0.15, now + 0.2);
+            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.33);
+
+            osc2.start(now + 0.18);
+            osc2.stop(now + 0.34);
+        }
+    }
+
+    function _updateSoundToggleUI() {
+        const btn = document.getElementById('alertSoundToggle');
+        const icon = document.getElementById('alertSoundIcon');
+        const label = document.getElementById('alertSoundLabel');
+        if (!btn) return;
+
+        const enabled = localStorage.getItem(STORAGE_KEYS.SOUND) !== 'off';
+        btn.classList.toggle('muted', !enabled);
+        if (icon) icon.className = enabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark';
+        if (label) label.textContent = enabled ? 'Suara: ON' : 'Suara: OFF';
+    }
+
+    // ==========================================
+    // LOAD
+    // ==========================================
     async function loadStats() {
         try {
             const res = await fetch('/api/v1/alerts/stats');
@@ -120,9 +220,43 @@
             const res = await fetch(`/api/v1/alerts/all?${params}`);
             const data = await res.json();
             if (!data.success) { showError('Gagal memuat alert'); return; }
-            state.alerts = Array.isArray(data.alerts) ? data.alerts : [];
+
+            const freshAlerts = Array.isArray(data.alerts) ? data.alerts : [];
+            const freshIds = new Set(freshAlerts.map(a => a.id));
+
+            const newOnes = [];
+            const wasFirstLoad = _seenAlertIds.size === 0;
+
+            freshAlerts.forEach(a => {
+                if (!_seenAlertIds.has(a.id)) {
+                    if (!wasFirstLoad) newOnes.push(a);
+                    _seenAlertIds.add(a.id);
+                }
+            });
+
+            const activeNew = newOnes.filter(a => a.is_still_active === 1);
+            if (activeNew.length > 0) {
+                const worst = activeNew.some(a => a.severity === 'danger') ? 'danger' : 'warning';
+                _playBeep(worst);
+            }
+
+            for (const id of Array.from(_seenAlertIds)) {
+                if (!freshIds.has(id)) _seenAlertIds.delete(id);
+            }
+
+            state.alerts = freshAlerts;
+            state.newlyAdded = new Set(newOnes.map(a => a.id));
+
             applyFilter();
             loadStats();
+
+            if (newOnes.length > 0) {
+                setTimeout(() => {
+                    state.newlyAdded = new Set();
+                    document.querySelectorAll('.alert-row.is-new').forEach(el =>
+                        el.classList.remove('is-new'));
+                }, 5000);
+            }
         } catch (e) { showError('Koneksi gagal'); }
     }
 
@@ -182,7 +316,7 @@
                 currentGroup = group;
                 groupOpened = true;
             }
-            html += renderAlertItem(a);
+            html += renderAlertRow(a);
         });
         if (groupOpened) html += '</div>';
 
@@ -190,7 +324,7 @@
         bindItemEvents();
     }
 
-    function renderAlertItem(a) {
+    function renderAlertRow(a) {
         const isActive = a.is_still_active === 1;
         const severity = a.severity || 'info';
         const icon = severityIcon(severity);
@@ -199,38 +333,45 @@
         const isHealthy = severity === 'healthy';
         const itemClass = isHealthy ? 'resolved' : (isActive ? severity : 'resolved');
         const isChecked = state.selectedIds.has(a.id);
+        const isNew = state.newlyAdded && state.newlyAdded.has(a.id);
+
+        const valueDisplay = formatValue(a.alert_type, a.value);
+        const timeStr = formatTime(a.created_at);
+        const statusText = isActive && !isHealthy ? 'Aktif' : 'Selesai';
 
         return `
-            <div class="alert-item ${itemClass}" data-alert-id="${a.id}">
+            <div class="alert-row ${itemClass}${isNew ? ' is-new' : ''}" data-alert-id="${a.id}">
                 ${isActive && !isHealthy ? `
-                    <label class="alert-item-checkbox" onclick="event.stopPropagation();">
+                    <label class="alert-row-check" onclick="event.stopPropagation();">
                         <input type="checkbox" class="alert-checkbox" data-alert-id="${a.id}" ${isChecked ? 'checked' : ''}>
                     </label>
-                ` : '<div style="width:24px;flex-shrink:0;"></div>'}
-                <div class="alert-item-icon"><i class="fa-solid ${icon}"></i></div>
-                <div class="alert-item-content">
-                    <div class="alert-item-header">
-                        <span class="alert-item-title">${escapeHtml(typeLabel)}</span>
-                        <span class="severity-badge ${severity}">${sevLabel}</span>
-                        ${isActive && !isHealthy
-                            ? '<span class="status-pill active"><i class="fa-solid fa-circle" style="font-size:6px;"></i> AKTIF</span>'
-                            : '<span class="status-pill resolved"><i class="fa-solid fa-check"></i> SELESAI</span>'}
+                ` : '<div style="width:20px;flex-shrink:0;"></div>'}
+
+                <span class="alert-icon"><i class="fa-solid ${icon}"></i></span>
+
+                <div class="alert-body">
+                    <div class="alert-line-1">
+                        <strong>${escapeHtml(typeLabel)}</strong>
+                        ${valueDisplay ? `<span class="alert-val">${escapeHtml(valueDisplay)}</span>` : ''}
+                        <span class="alert-msg">${escapeHtml(a.message || '-')}</span>
                     </div>
-                    <div class="alert-item-message">${escapeHtml(a.message || '-')}</div>
-                    <div class="alert-item-meta">
-                        <span><i class="fa-solid fa-microchip"></i> <span class="device-ref">${escapeHtml(a.device_name || a.device_id)}</span></span>
-                        ${a.location ? `<span><i class="fa-solid fa-location-dot"></i> ${escapeHtml(a.location)}</span>` : ''}
-                        <span title="${formatFullTime(a.created_at)}"><i class="fa-regular fa-clock"></i> ${formatTime(a.created_at)}</span>
+                    <div class="alert-line-2">
+                        <span class="alert-sev ${severity}">${sevLabel}</span>
+                        <span class="alert-st ${isActive && !isHealthy ? 'active' : 'done'}">${statusText}</span>
+                        <span class="alert-dev"><i class="fa-solid fa-microchip"></i> ${escapeHtml(a.device_name || a.device_id)}</span>
+                        <span class="alert-time" title="${formatFullTime(a.created_at)}">${timeStr}</span>
                     </div>
                 </div>
-                <div class="alert-item-actions">
-                    <button class="alert-action-btn view" data-action="view-device" data-device-id="${escapeHtml(a.device_id)}">
-                        <i class="fa-solid fa-eye"></i> Device
+
+                <div class="alert-acts">
+                    <button class="alert-act-btn view" data-action="view-device" data-device-id="${escapeHtml(a.device_id)}" title="Lihat Device">
+                        <i class="fa-solid fa-eye"></i>
                     </button>
                     ${isActive && !isHealthy ? `
-                        <button class="alert-action-btn ack" data-action="acknowledge" data-alert-id="${a.id}">
-                            <i class="fa-solid fa-check"></i> Selesai
-                        </button>` : ''}
+                        <button class="alert-act-btn ack" data-action="acknowledge" data-alert-id="${a.id}" title="Tandai Selesai">
+                            <i class="fa-solid fa-check"></i>
+                        </button>
+                    ` : ''}
                 </div>
             </div>`;
     }
@@ -265,7 +406,7 @@
                 updateBulkBar();
             });
         });
-        document.querySelectorAll('.alert-item').forEach(item => {
+        document.querySelectorAll('.alert-row').forEach(item => {
             item.addEventListener('click', (e) => {
                 if (e.target.closest('button') || e.target.closest('label')) return;
                 const viewBtn = item.querySelector('[data-action="view-device"]');
@@ -323,6 +464,36 @@
         } catch (e) { window.showToast('Koneksi gagal', 'error'); }
     }
 
+    async function markAllVisible() {
+        const visibleActive = state.filtered.filter(a =>
+            a.is_still_active === 1 && a.severity !== 'healthy');
+
+        if (visibleActive.length === 0) {
+            window.showToast('Tidak ada alert aktif di filter ini', 'info');
+            return;
+        }
+
+        if (!confirm(`Tandai ${visibleActive.length} alert sebagai selesai?`)) return;
+
+        const ids = visibleActive.map(a => a.id);
+        try {
+            const res = await fetch('/api/v1/alerts/bulk-acknowledge', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+                body: JSON.stringify({ ids }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                window.showToast(`${data.acknowledged} alert ditandai selesai`, 'success');
+                loadAlerts();
+            } else {
+                window.showToast(data.error || 'Gagal', 'error');
+            }
+        } catch (e) {
+            window.showToast('Koneksi gagal', 'error');
+        }
+    }
+
     function getCsrfToken() {
         const meta = document.querySelector('meta[name="csrf-token"]');
         return meta ? meta.content : '';
@@ -375,6 +546,19 @@
         const refreshBtn = $('refreshAlertsBtn');
         if (refreshBtn) refreshBtn.addEventListener('click', loadAlerts);
 
+        const soundBtn = $('alertSoundToggle');
+        if (soundBtn) {
+            soundBtn.addEventListener('click', () => {
+                const enabled = localStorage.getItem(STORAGE_KEYS.SOUND) !== 'off';
+                localStorage.setItem(STORAGE_KEYS.SOUND, enabled ? 'off' : 'on');
+                _updateSoundToggleUI();
+                if (!enabled) _playBeep('warning');
+            });
+        }
+
+        const markAllBtn = $('markAllReadBtn');
+        if (markAllBtn) markAllBtn.addEventListener('click', markAllVisible);
+
         const selectAll = $('selectAllCheckbox');
         if (selectAll) {
             selectAll.addEventListener('change', e => {
@@ -400,20 +584,26 @@
         });
     }
 
-    let initialized = false;
-
     function init() {
-        if (initialized) return;
-        initialized = true;
+        if (state.isInitialized) return;
+        state.isInitialized = true;
+        _updateSoundToggleUI();
         bindEvents();
         loadAlerts();
-        setInterval(() => {
+        state.refreshInterval = setInterval(() => {
             const alertsSection = $('alertsSection');
             if (alertsSection && alertsSection.style.display !== 'none') {
                 loadAlerts();
             }
         }, 20000);
     }
+
+    window.addEventListener('beforeunload', () => {
+        if (state.refreshInterval) {
+            clearInterval(state.refreshInterval);
+            state.refreshInterval = null;
+        }
+    });
 
     window.NexusAlerts = {
         init,
@@ -427,5 +617,5 @@
         init();
     }
 
-    console.log('[Alerts] Initialized');
+    console.log('[Alerts] Initialized v4.1');
 })();

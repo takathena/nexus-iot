@@ -14,14 +14,14 @@ import gc
 import ntptime
 
 # ============ KONFIGURASI ============
-WIFI_SSID = ""
-WIFI_PASSWORD = ""
-API_URL = "http://nexus.takathena.my.id/api/v1/data"
-DEVICE_ID = "110"
-API_KEY = ""
+WIFI_SSID = "peo"
+WIFI_PASSWORD = "12345678"
+API_URL = "http://192.168.1.6:5008/api/v1/data"
+DEVICE_ID = "1"
+API_KEY = "01394efb170d74fae7ea5d424aac98e5a6c67f20e9b265636b354c2acac4f660"
 SENSOR_TYPE = "DHT22"
 DHT_PIN = 4
-SEND_INTERVAL = 20
+SEND_INTERVAL = 5
 TIMEZONE_OFFSET = 7 * 3600
 
 # ============ INISIALISASI ============

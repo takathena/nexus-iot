@@ -13,46 +13,53 @@
 
 <style>
 :root{
-  --bg:#09090b;
-  --surface: #131316;
-  --surface-2: #1c1c1f;
-  --surface-3: #27272a;
-  --hairline: #27272a;
-  --hairline-soft: #1c1c1f;
-  --text:#fafafa;
-  --text-2:#a1a1aa;
-  --text-3:#52525b;
-  --primary: #fafafa;
-  --primary-fg: #09090b;
-  --accent-ok:#22c55e;
-  --accent-warn:#f97316;
-  --accent-crit:#ef4444;
-  --accent-info:#3b82f6;
-  --accent-ok-bg: rgba(34,197,94,.12);
-  --accent-warn-bg: rgba(249,115,22,.12);
-  --accent-crit-bg: rgba(239,68,68,.12);
-  --accent-info-bg: rgba(59,130,246,.12);
+  --bg: #14171c;
+  --surface: #1c2027;
+  --surface-2: #232830;
+  --surface-3: #2c323c;
+  --hairline: #2c323c;
+  --hairline-soft: #232830;
+  --text: #e8ebef;
+  --text-2: #a8b0bc;
+  --text-3: #6f7885;
+  --primary: #e8ebef;
+  --primary-fg: #14171c;
+
+  --accent-ok:#5fbb86;
+  --accent-warn:#e0a45c;
+  --accent-crit:#e08080;
+  --accent-info:#7fa8d9;
+
+  --accent-ok-bg: rgba(95,187,134,.14);
+  --accent-warn-bg: rgba(224,164,92,.14);
+  --accent-crit-bg: rgba(224,128,128,.14);
+  --accent-info-bg: rgba(127,168,217,.14);
+
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+
   --font: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
   --mono: 'JetBrains Mono', monospace;
   --ease: cubic-bezier(.4,0,.2,1);
 }
 
 [data-theme="light"] {
-  --bg: #fafafa;
+  --bg: #f7f8fa;
   --surface: #ffffff;
-  --surface-2: #f4f4f5;
-  --surface-3: #e4e4e7;
-  --hairline: #e4e4e7;
-  --hairline-soft: #f0f0f2;
-  --text: #09090b;
-  --text-2: #52525b;
-  --text-3: #a1a1aa;
-  --primary: #09090b;
+  --surface-2: #f1f3f7;
+  --surface-3: #e4e7ee;
+  --hairline: #dfe3ea;
+  --hairline-soft: #ebeff4;
+  --text: #1a1d23;
+  --text-2: #4a5462;
+  --text-3: #7a8494;
+  --primary: #2b3340;
   --primary-fg: #ffffff;
-  --accent-ok:#16a34a;
-  --accent-warn:#ea580c;
-  --accent-crit:#dc2626;
-  --accent-info:#2563eb;
+  --accent-ok:#3d8b5f;
+  --accent-warn:#b8752a;
+  --accent-crit:#b54848;
+  --accent-info:#3f6ba0;
+
+  --overlay-bg: rgba(15, 18, 25, 0.35);
 }
 
 *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
@@ -64,6 +71,14 @@ body{
   overflow-x:hidden;
   -webkit-tap-highlight-color:transparent;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+body.modal-open {
+  overflow: hidden;
+  touch-action: none;
+}
+body:has(.mobile-modal.active) {
+  overflow: hidden;
 }
 
 .leaflet-pane,.leaflet-tile-pane,.leaflet-overlay-pane,.leaflet-shadow-pane,.leaflet-marker-pane,.leaflet-tooltip-pane,.leaflet-popup-pane{z-index:1 !important;}
@@ -222,12 +237,23 @@ body{
 }
 .fab.open { transform: rotate(45deg); }
 
-.mobile-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:flex-end;justify-content:center;}
+.mobile-modal{
+  display:none;position:fixed;inset:0;
+  background:var(--overlay-bg);
+  z-index:9999;align-items:flex-end;justify-content:center;
+  overscroll-behavior:contain;
+  transition: background 0.25s ease;
+}
 .mobile-modal.active{display:flex;}
 .mobile-modal-content{
   background:var(--surface);
-  border:1px solid var(--hairline);border-top-left-radius:24px;border-top-right-radius:24px;
-  padding:22px 20px calc(22px + env(safe-area-inset-bottom));width:100%;max-width:520px;max-height:82vh;overflow-y:auto;
+  color: var(--text);
+  border:1px solid var(--hairline);
+  border-top-left-radius:24px;border-top-right-radius:24px;
+  padding:22px 20px calc(22px + env(safe-area-inset-bottom));
+  width:100%;max-width:520px;max-height:82vh;overflow-y:auto;
+  overscroll-behavior: contain;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 .sheet-handle-area{padding:12px 0 16px;}
 .sheet-handle{width:36px;height:4px;border-radius:3px;background:var(--hairline);margin:0 auto;}
@@ -238,8 +264,23 @@ body{
 .form-group input::placeholder{color:var(--text-3);}
 .form-group select option{background:var(--surface);color:var(--text);}
 
-.modal-actions{display:flex;gap:9px;margin-top:18px;}
-.btn{flex:1;padding:13px;border:none;border-radius:12px;font-size:13.5px;font-weight:600;cursor:pointer;font-family:inherit;}
+.modal-actions{display:flex;gap:10px;margin-top:18px;}
+.btn{
+  flex:1;
+  padding:14px 16px;
+  border:none;
+  border-radius:12px;
+  font-size:14px;
+  font-weight:600;
+  cursor:pointer;
+  font-family:inherit;
+  min-height:46px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  line-height:1.2;
+}
 .btn-primary{background:var(--primary);color:var(--primary-fg);}
 .btn-secondary{background:var(--surface-2);color:var(--text-2);border:1px solid var(--hairline);}
 .btn-success{background:var(--accent-ok);color:#fff;}
@@ -398,11 +439,22 @@ body{
       <div class="form-group">
         <label>Tipe Diagram</label>
         <select id="mChartTypeSelect">
-          <option value="line">Line Chart</option>
-          <option value="bar">Bar Chart</option>
-          <option value="area">Area Chart</option>
-          <option value="doughnut">Doughnut Chart</option>
-          <option value="pie">Pie Chart</option>
+          <optgroup label="Dasar">
+            <option value="line">Line Chart</option>
+            <option value="bar">Bar Chart</option>
+            <option value="area">Area Chart</option>
+          </optgroup>
+          <optgroup label="Statistik">
+            <option value="doughnut">Doughnut Chart</option>
+            <option value="pie">Pie Chart</option>
+            <option value="polarArea">Polar Area</option>
+            <option value="radar">Radar Chart</option>
+          </optgroup>
+          <optgroup label="Khusus">
+            <option value="horizontalBar">Horizontal Bar</option>
+            <option value="stackedBar">Stacked Bar</option>
+            <option value="stackedArea">Stacked Area</option>
+          </optgroup>
         </select>
       </div>
       <div class="form-group">
@@ -423,7 +475,7 @@ body{
       <p style="font-size:12px;color:var(--text-2);margin-bottom:10px;">Simpan API Key ini - hanya muncul sekali:</p>
       <div class="api-key-box">
         <code id="mApiKeyDisplay"></code>
-        <button class="btn btn-primary" style="flex:0 0 auto;padding:8px 12px;font-size:11px;" onclick="copyMApiKey()">Copy</button>
+        <button class="btn btn-primary" style="flex:0 0 auto;padding:8px 12px;font-size:11px;min-height:auto;" onclick="copyMApiKey()">Copy</button>
       </div>
       <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="closeApiKeyModal()">Saya Sudah Simpan</button>
     </div>
@@ -456,6 +508,7 @@ body{
     let mCurrentFilter = 'all';
     let mCurrentFilterFull = 'all';
     let mCurrentDashboardId = null;
+    let mDashboardInterval = null;
 
     const M_CHART_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f97316', '#a855f7', '#06b6d4', '#eab308', '#84cc16'];
     const M_DATA_KEYS = {
@@ -469,6 +522,15 @@ body{
       lux: { label: 'Cahaya', unit: 'lux', color: '#eab308' },
       co2: { label: 'CO2', unit: 'ppm', color: '#22c55e' }
     };
+
+    function lockBodyScroll() {
+      document.body.classList.add('modal-open');
+    }
+    function unlockBodyScrollIfNoModal() {
+      if (!document.querySelector('.mobile-modal.active')) {
+        document.body.classList.remove('modal-open');
+      }
+    }
 
     function setMFilter(filter) {
       mCurrentFilter = filter;
@@ -487,15 +549,14 @@ body{
     }
 
     function getMDeviceDisplayStatus(device) {
-      if (device.has_alert && device.top_alert_severity) {
-        return device.top_alert_severity;
-      }
+      if (device.status === 'offline') return 'offline';
+      if (device.has_alert && device.top_alert_severity) return device.top_alert_severity;
       return device.status || 'offline';
     }
 
     function filterMDevicesByStatus(devices, filter) {
       switch(filter) {
-        case 'online': return devices.filter(d => d.status === 'online' && !d.has_alert);
+        case 'online': return devices.filter(d => d.status === 'online');
         case 'offline': return devices.filter(d => d.status === 'offline');
         case 'alert': return devices.filter(d => d.has_alert === true);
         default: return devices;
@@ -513,7 +574,7 @@ body{
     }
 
     function updateMFilterCounts() {
-      const onlineCount = mDevices.filter(d => d.status === 'online' && !d.has_alert).length;
+      const onlineCount = mDevices.filter(d => d.status === 'online').length;
       const offlineCount = mDevices.filter(d => d.status === 'offline').length;
       const alertCount = mDevices.filter(d => d.has_alert === true).length;
 
@@ -579,12 +640,13 @@ body{
       });
       mDevices.forEach(d => {
         if (d.latitude && d.longitude) {
-          let color = '#ef4444';
-          if (d.status === 'online') color = '#22c55e';
+          let color = '#e08080';
+          if (d.status === 'offline') color = '#e08080';
+          else if (d.status === 'online') color = '#5fbb86';
           if (d.has_alert) {
-            if (d.top_alert_severity === 'danger') color = '#ef4444';
-            else if (d.top_alert_severity === 'warning') color = '#f97316';
-            else if (d.top_alert_severity === 'info') color = '#3b82f6';
+            if (d.top_alert_severity === 'danger') color = '#e08080';
+            else if (d.top_alert_severity === 'warning') color = '#e0a45c';
+            else if (d.top_alert_severity === 'info') color = '#7fa8d9';
           }
           L.circleMarker([d.latitude, d.longitude], { radius: 7, color, fillColor: color, fillOpacity: 0.75, weight: 2 })
             .addTo(mMap).bindPopup(`<b>${escapeMHtml(d.device_name)}</b><br>${escapeMHtml(d.device_id)}`);
@@ -630,12 +692,13 @@ body{
     function renderMDeviceList(devices, elementId) {
       const container = document.getElementById(elementId);
       if (!container) return;
-      if (devices.length === 0) {
+      const list = Array.isArray(devices) ? devices : [];
+      if (list.length === 0) {
         container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);font-size:12.5px;">Tidak ada perangkat</div>';
         return;
       }
       container.innerHTML = '';
-      devices.forEach(d => {
+      list.forEach(d => {
         const uptime = formatMUptime(d.latest_uptime_seconds || 0);
         const wifi = d.latest_wifi_ssid || '-';
         const displayStatus = getMDeviceDisplayStatus(d);
@@ -681,71 +744,82 @@ body{
     async function loadMCharts() {
       const container = document.getElementById('mChartsList');
 
-      const res = await apiRequest('/api/v1/dashboards');
-      const listData = await res.json();
-      if (!listData.success || !listData.dashboards.length) {
-        container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);">Tidak ada dashboard</div>';
-        return;
-      }
+      try {
+        const res = await apiRequest('/api/v1/dashboards');
+        const listData = await res.json();
+        if (!listData.success || !listData.dashboards.length) {
+          container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);">Tidak ada dashboard</div>';
+          return;
+        }
 
-      const defaultDash = listData.dashboards.find(d => d.is_default) || listData.dashboards[0];
-      mCurrentDashboardId = defaultDash.id;
+        const defaultDash = listData.dashboards.find(d => d.is_default) || listData.dashboards[0];
+        mCurrentDashboardId = defaultDash.id;
 
-      const detailRes = await apiRequest(`/api/v1/dashboards/${defaultDash.id}`);
-      const detailData = await detailRes.json();
-      if (!detailData.success) {
-        container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);">Gagal memuat</div>';
-        return;
-      }
+        const detailRes = await apiRequest(`/api/v1/dashboards/${defaultDash.id}`);
+        const detailData = await detailRes.json();
+        if (!detailData.success) {
+          container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);">Gagal memuat</div>';
+          return;
+        }
 
-      mCharts = detailData.widgets.map(w => ({
-        id: `mchart_${w.id}`,
-        widgetId: w.id,
-        title: w.title,
-        deviceId: w.device_id,
-        chartType: mapMWidgetTypeToChartType(w.widget_type),
-        showData: (w.config && w.config.show_data) || {},
-        chartInstance: null,
-      }));
+        mCharts = detailData.widgets.map(w => ({
+          id: `mchart_${w.id}`,
+          widgetId: w.id,
+          title: w.title,
+          deviceId: w.device_id,
+          chartType: mapMWidgetTypeToChartType(w.widget_type),
+          showData: (w.config && w.config.show_data) || {},
+          chartInstance: null,
+        }));
 
-      if (mCharts.length === 0) {
-        container.innerHTML = `
-          <div style="text-align:center;padding:30px;color:var(--text-3);">
-            <i class="fa-solid fa-chart-column" style="font-size:30px;margin-bottom:10px;display:block;"></i>
-            <p style="font-size:13px;font-weight:600;">Belum ada diagram</p>
-            <p style="font-size:11px;margin-top:4px;">Klik tombol + untuk menambahkan diagram</p>
-          </div>
-        `;
-        return;
-      }
-
-      container.innerHTML = '';
-      mCharts.forEach(chart => {
-        const card = document.createElement('div');
-        card.className = 'mobile-chart-card';
-        card.id = chart.id;
-        card.innerHTML = `
-          <div class="mobile-chart-header">
-            <div class="mobile-chart-title">${escapeMHtml(chart.title)}</div>
-            <div class="mobile-chart-actions">
-              <button class="mobile-chart-btn edit" data-action="edit" data-chart-id="${chart.id}"><i class="fa-solid fa-pen"></i></button>
-              <button class="mobile-chart-btn delete" data-action="delete" data-chart-id="${chart.id}"><i class="fa-solid fa-trash"></i></button>
+        if (mCharts.length === 0) {
+          container.innerHTML = `
+            <div style="text-align:center;padding:30px;color:var(--text-3);">
+              <i class="fa-solid fa-chart-column" style="font-size:30px;margin-bottom:10px;display:block;"></i>
+              <p style="font-size:13px;font-weight:600;">Belum ada diagram</p>
+              <p style="font-size:11px;margin-top:4px;">Klik tombol + untuk menambahkan diagram</p>
             </div>
-          </div>
-          <div class="mobile-chart-canvas">
-            <canvas id="${chart.id}_canvas"></canvas>
-          </div>
-        `;
-        container.appendChild(card);
+          `;
+          return;
+        }
 
-        const editBtn = card.querySelector('.edit');
-        const deleteBtn = card.querySelector('.delete');
+        mCharts.forEach(c => {
+          if (c.chartInstance) {
+            try { c.chartInstance.destroy(); } catch (e) {}
+          }
+        });
 
-        if (editBtn) editBtn.addEventListener('click', function(e) { e.stopPropagation(); openMEditChart(chart.id); });
-        if (deleteBtn) deleteBtn.addEventListener('click', function(e) { e.stopPropagation(); removeMChart(chart.id); });
+        container.innerHTML = '';
+        mCharts.forEach(chart => {
+          const card = document.createElement('div');
+          card.className = 'mobile-chart-card';
+          card.id = chart.id;
+          card.innerHTML = `
+            <div class="mobile-chart-header">
+              <div class="mobile-chart-title">${escapeMHtml(chart.title)}</div>
+              <div class="mobile-chart-actions">
+                <button class="mobile-chart-btn edit" data-action="edit" data-chart-id="${chart.id}"><i class="fa-solid fa-pen"></i></button>
+                <button class="mobile-chart-btn delete" data-action="delete" data-chart-id="${chart.id}"><i class="fa-solid fa-trash"></i></button>
+              </div>
+            </div>
+            <div class="mobile-chart-canvas">
+              <canvas id="${chart.id}_canvas"></canvas>
+            </div>
+          `;
+          container.appendChild(card);
 
-        loadMChartData(chart);
-      });
+          const editBtn = card.querySelector('.edit');
+          const deleteBtn = card.querySelector('.delete');
+
+          if (editBtn) editBtn.addEventListener('click', function(e) { e.stopPropagation(); openMEditChart(chart.id); });
+          if (deleteBtn) deleteBtn.addEventListener('click', function(e) { e.stopPropagation(); removeMChart(chart.id); });
+
+          loadMChartData(chart);
+        });
+      } catch (e) {
+        console.error('[Mobile] loadMCharts error:', e);
+        container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--accent-crit);">Koneksi gagal. Coba muat ulang.</div>';
+      }
     }
 
     function mapMWidgetTypeToChartType(widgetType) {
@@ -784,6 +858,7 @@ body{
       document.getElementById('mChartTypeSelect').value = 'line';
       generateMDataCheckboxes({ temperature: true });
       document.getElementById('mChartModal').classList.add('active');
+      lockBodyScroll();
     }
 
     function openMEditChart(chartId) {
@@ -804,9 +879,13 @@ body{
       document.getElementById('mChartTypeSelect').value = chart.chartType;
       generateMDataCheckboxes(chart.showData);
       document.getElementById('mChartModal').classList.add('active');
+      lockBodyScroll();
     }
 
-    function closeMChartModal() { document.getElementById('mChartModal').classList.remove('active'); }
+    function closeMChartModal() {
+      document.getElementById('mChartModal').classList.remove('active');
+      unlockBodyScrollIfNoModal();
+    }
 
     function generateMDataCheckboxes(selectedData = {}) {
       const container = document.getElementById('mChartDataCheckboxes');
@@ -890,7 +969,8 @@ body{
     async function loadMChartData(chart) {
       try {
         const hours = Math.max(1, Math.ceil(mGlobalTimeMinutes / 60));
-        const res = await apiRequest(`/api/v1/devices/${encodeURIComponent(chart.deviceId)}/history?hours=${hours}`);
+        const limit = Math.min(Math.max(hours * 60, 500), 5000);
+        const res = await apiRequest(`/api/v1/devices/${encodeURIComponent(chart.deviceId)}/history?hours=${hours}&limit=${limit}`);
         const data = await res.json();
 
         if (!data.success || !data.history || data.history.length === 0) return;
@@ -925,7 +1005,8 @@ body{
           datasets.push({
             label: info.label, data: values,
             borderColor: color, backgroundColor: color + '30',
-            fill: chart.chartType === 'area', tension: 0.35,
+            fill: chart.chartType === 'area' || chart.chartType === 'stackedArea',
+            tension: 0.35,
             pointRadius: 2, pointHoverRadius: 5,
             pointBackgroundColor: color, pointBorderColor: color,
             pointBorderWidth: 1, borderWidth: 2
@@ -935,15 +1016,20 @@ body{
         if (datasets.length === 0) return;
 
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-        const gridColor = isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.15)';
-        const labelColor = isLight ? 'rgba(60,60,67,0.60)' : 'rgba(235,235,245,0.60)';
-        const tooltipBg = isLight ? 'rgba(255,255,255,0.95)' : 'rgba(28,28,30,0.95)';
-        const tooltipBorder = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.2)';
-        const tooltipTitleColor = isLight ? '#1c1c1e' : '#f5f5f7';
-        const tooltipBodyColor = isLight ? 'rgba(60,60,67,0.75)' : 'rgba(235,235,245,0.8)';
+        const gridColor = isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)';
+        const labelColor = isLight ? 'rgba(74,84,98,0.75)' : 'rgba(168,176,188,0.7)';
+        const tooltipBg = isLight ? 'rgba(255,255,255,0.98)' : 'rgba(28,32,39,0.98)';
+        const tooltipBorder = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
+        const tooltipTitleColor = isLight ? '#1a1d23' : '#e8ebef';
+        const tooltipBodyColor = isLight ? 'rgba(74,84,98,0.9)' : 'rgba(168,176,188,0.9)';
 
         let chartType = chart.chartType;
-        if (chartType === 'area') chartType = 'line';
+        if (chartType === 'area' || chartType === 'stackedArea') chartType = 'line';
+        if (chartType === 'horizontalBar' || chartType === 'stackedBar') chartType = 'bar';
+
+        if (chart.chartInstance) {
+          try { chart.chartInstance.destroy(); } catch (e) {}
+        }
 
         const chartInstance = new Chart(ctx, {
           type: chartType,
@@ -977,10 +1063,22 @@ body{
       } catch (e) { console.error('Error loading mobile chart:', e); }
     }
 
-    function openAddModal() { document.getElementById('mAddModal').classList.add('active'); }
-    function closeAddModal() { document.getElementById('mAddModal').classList.remove('active'); }
-    function openApiKeyModal() { document.getElementById('mApiKeyModal').classList.add('active'); }
-    function closeApiKeyModal() { document.getElementById('mApiKeyModal').classList.remove('active'); }
+    function openAddModal() {
+      document.getElementById('mAddModal').classList.add('active');
+      lockBodyScroll();
+    }
+    function closeAddModal() {
+      document.getElementById('mAddModal').classList.remove('active');
+      unlockBodyScrollIfNoModal();
+    }
+    function openApiKeyModal() {
+      document.getElementById('mApiKeyModal').classList.add('active');
+      lockBodyScroll();
+    }
+    function closeApiKeyModal() {
+      document.getElementById('mApiKeyModal').classList.remove('active');
+      unlockBodyScrollIfNoModal();
+    }
 
     async function addMobileDevice() {
       const deviceId = document.getElementById('mAddId').value.trim();
@@ -1058,10 +1156,35 @@ body{
       updateMobileThemeUI(savedTheme);
     }
 
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        document.querySelectorAll('.mobile-modal.active').forEach(m => m.classList.remove('active'));
+        unlockBodyScrollIfNoModal();
+      }
+    });
+
+    document.querySelectorAll('.mobile-modal').forEach(modal => {
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          modal.classList.remove('active');
+          unlockBodyScrollIfNoModal();
+        }
+      });
+    });
+
+    window.addEventListener('beforeunload', () => {
+      if (mDashboardInterval) clearInterval(mDashboardInterval);
+      mCharts.forEach(c => {
+        if (c.chartInstance) {
+          try { c.chartInstance.destroy(); } catch (e) {}
+        }
+      });
+    });
+
     loadMobileTheme();
     initMobileMap();
     loadMDashboard();
-    setInterval(loadMDashboard, 30000);
+    mDashboardInterval = setInterval(loadMDashboard, 30000);
   </script>
 </body>
 </html>

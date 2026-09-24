@@ -16,9 +16,14 @@
     {% block extra_css %}{% endblock %}
 
     <script>
+        // ✅ FIX #17: try/catch supaya localStorage error tidak bikin stuck
         (function() {
-            const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
-            document.documentElement.setAttribute('data-theme', savedTheme);
+            try {
+                var savedTheme = localStorage.getItem('nexus-theme') || 'dark';
+                document.documentElement.setAttribute('data-theme', savedTheme);
+            } catch (e) {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
         })();
     </script>
 </head>

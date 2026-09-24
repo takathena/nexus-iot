@@ -63,9 +63,16 @@ def parse_datetime(value):
     return dt.astimezone(WIB).replace(tzinfo=None)
 
 
+# ✅ FIX #10: process_lock tidak swallow exception
+# Kalau lock gagal karena error sistem (bukan karena lock dipegang proses lain),
+# kita raise supaya caller tahu.
 @contextmanager
 def process_lock(name, blocking=True):
-    """Cross-process file lock."""
+    """Cross-process file lock.
+
+    Yield True jika lock didapat, False jika lock dipegang proses lain.
+    Raise OSError jika ada error sistem (permission, disk, dll).
+    """
     lock_dir = os.environ.get('NEXUS_LOCK_DIR', '/tmp')
     try:
         os.makedirs(lock_dir, exist_ok=True)
@@ -78,6 +85,12 @@ def process_lock(name, blocking=True):
 
     try:
         lock_file = open(lock_path, 'w')
+    except OSError as e:
+        # Tidak bisa buka file lock → error sistem, raise
+        logger.error(f"process_lock({name}): cannot open lock file: {e}")
+        raise
+
+    try:
         flags = fcntl.LOCK_EX
         if not blocking:
             flags |= fcntl.LOCK_NB
@@ -85,11 +98,10 @@ def process_lock(name, blocking=True):
             fcntl.flock(lock_file, flags)
             acquired = True
         except (IOError, OSError):
+            # Lock dipegang proses lain → yield False, bukan raise
             acquired = False
+
         yield acquired
-    except Exception as e:
-        logger.warning(f"process_lock({name}) error: {e}")
-        yield False
     finally:
         if lock_file is not None:
             try:

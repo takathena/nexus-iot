@@ -1,10 +1,10 @@
 /* ==========================================
-   NEXUS IoT - Shared Styles
-   Palet lembut, kontras terjaga (WCAG AA)
+   NEXUS IoT - Shared Styles (v2)
+   + Overlay variable dinamis per theme
    ========================================== */
 
 :root {
-    /* ========== LIGHT THEME ========== */
+    /* ========== LIGHT THEME (default) ========== */
     --bg: #f7f8fa;
     --bg-subtle: #eef0f4;
     --surface: #ffffff;
@@ -42,6 +42,10 @@
     --sidebar-w: 240px;
     --sidebar-w-collapsed: 72px;
 
+    /* ✅ Overlay dinamis per theme */
+    --overlay-bg: rgba(15, 18, 25, 0.35);
+    --overlay-blur: 4px;
+
     --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     --mono: 'JetBrains Mono', 'SF Mono', monospace;
     --ease: cubic-bezier(0.4, 0, 0.2, 1);
@@ -71,6 +75,23 @@
     --purple-light: var(--surface-2);
     --teal: #3f8a8a;
     --yellow: #a08a2a;
+}
+
+[data-theme="light"] {
+    /* Eksplisit — untuk clarity & safety */
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --surface-2: #f1f3f7;
+    --surface-3: #e4e7ee;
+    --hairline: #dfe3ea;
+    --hairline-soft: #ebeff4;
+    --text: #1a1d23;
+    --text-2: #4a5462;
+    --text-3: #7a8494;
+    --primary: #2b3340;
+    --primary-hover: #3a4453;
+    --primary-fg: #ffffff;
+    --overlay-bg: rgba(15, 18, 25, 0.35);
 }
 
 [data-theme="dark"] {
@@ -109,6 +130,9 @@
     --sidebar-bg: #181c22;
     --topbar-bg: rgba(20, 23, 28, 0.78);
 
+    /* ✅ Overlay dark — lebih gelap */
+    --overlay-bg: rgba(0, 0, 0, 0.7);
+
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
     --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
     --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
@@ -136,6 +160,10 @@ body {
     line-height: 1.5;
 }
 
+body.modal-open {
+    overflow: hidden;
+}
+
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
@@ -145,7 +173,7 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
 /* ==========================================
-   BUTTONS — kontras terjaga
+   BUTTONS
    ========================================== */
 .btn {
     padding: 8px 14px;

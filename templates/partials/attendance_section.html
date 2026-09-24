@@ -2,12 +2,16 @@
     <div class="section-card">
         <div class="section-header">
             <div class="section-title"><i class="fa-solid fa-id-card"></i> Absensi</div>
-            <button class="btn btn-primary" data-action="open-cardholder-modal">
-                <i class="fa-solid fa-plus"></i> Daftarkan Kartu
-            </button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn btn-secondary" id="attendanceExportBtn">
+                    <i class="fa-solid fa-download"></i> Export CSV
+                </button>
+                <button class="btn btn-primary" data-action="open-cardholder-modal">
+                    <i class="fa-solid fa-plus"></i> Daftarkan Kartu
+                </button>
+            </div>
         </div>
 
-        <!-- Stats -->
         <div class="section-body" style="padding:16px 20px;border-bottom:1px solid var(--hairline-soft);">
             <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);gap:12px;">
                 <div class="stat-card clickable" data-stat-type="hadir" style="cursor:pointer;padding:14px;">
@@ -43,7 +47,27 @@
             </div>
         </div>
 
-        <!-- Table -->
+        <!-- ✅ v4.1: filter tanggal -->
+        <div class="attendance-filter-bar" id="attendanceFilterBar">
+            <div class="attendance-filter-group">
+                <label for="attendanceStartDate">Dari:</label>
+                <input type="date" id="attendanceStartDate">
+            </div>
+            <div class="attendance-filter-group">
+                <label for="attendanceEndDate">Sampai:</label>
+                <input type="date" id="attendanceEndDate">
+            </div>
+            <div class="attendance-filter-actions">
+                <button class="btn btn-secondary" id="attendanceApplyFilter">
+                    <i class="fa-solid fa-filter"></i> Terapkan
+                </button>
+                <button class="btn btn-secondary" id="attendanceClearFilter">
+                    <i class="fa-solid fa-xmark"></i> Reset
+                </button>
+            </div>
+            <span class="attendance-filter-info" id="attendanceFilterInfo"></span>
+        </div>
+
         <div class="section-body" style="padding:0;">
             <div class="table-wrapper">
                 <table class="device-table">

@@ -2,29 +2,66 @@
     <div class="section-card">
         <div class="section-header">
             <div class="section-title"><i class="fa-solid fa-globe"></i> Peta Interaktif</div>
-            <button class="btn btn-secondary" id="resetMapViewBtn">
-                <i class="fa-solid fa-arrows-to-circle"></i> Reset View
-            </button>
+            <div class="map-header-actions">
+                <button class="btn btn-secondary" id="resetMapViewBtn">
+                    <i class="fa-solid fa-arrows-to-circle"></i> Reset View
+                </button>
+            </div>
         </div>
         <div class="section-body">
-            <!-- ✅ REVISI: responsive grid — desktop: map | list, mobile: map / list (stack) -->
             <div class="map-layout">
                 <div class="map-layout-map">
-                    <div id="mapFull"></div>
-                    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
-                        <button class="btn btn-success" id="saveLocationBtn" style="display:none;">
-                            <i class="fa-solid fa-floppy-disk"></i> Simpan Lokasi
-                        </button>
-                        <span id="mapSelectedInfo" style="font-size:12px;color:var(--text-3);display:flex;align-items:center;"></span>
+                    <div class="map-selected-banner" id="mapSelectedBanner" style="display:none;">
+                        <div class="map-selected-banner-left">
+                            <span class="map-selected-dot" id="mapSelectedDot"></span>
+                            <div>
+                                <div class="map-selected-name" id="mapSelectedName">—</div>
+                                <div class="map-selected-coord" id="mapSelectedCoord">Belum ada koordinat</div>
+                            </div>
+                        </div>
+                        <div class="map-selected-banner-right">
+                            <button class="btn btn-secondary" id="clearMapSelectionBtn" title="Batal">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                            <button class="btn btn-success" id="saveLocationBtn" disabled>
+                                <i class="fa-solid fa-floppy-disk"></i> Simpan Lokasi
+                            </button>
+                        </div>
                     </div>
+
+                    <p class="map-hint">
+                        <i class="fa-solid fa-circle-info"></i>
+                        <span>
+                            <b>Klik device di list</b> → peta zoom ke lokasinya.
+                            <b>Drag marker</b> atau <b>klik peta</b> untuk atur posisi, lalu klik <b>Simpan Lokasi</b>.
+                        </span>
+                    </p>
+
+                    <div id="mapFull"></div>
                 </div>
 
                 <div class="map-layout-list">
-                    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text-3);margin-bottom:8px;">
-                        Semua Device
+                    <div class="map-list-header">
+                        <div class="map-list-label">
+                            <i class="fa-solid fa-list"></i> Perangkat
+                            <span class="map-list-count" id="mapListCount">0</span>
+                        </div>
+                        <div class="map-list-search">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                            <input type="text" id="mapSearchInput" placeholder="Cari device...">
+                        </div>
                     </div>
+
+                    <div class="map-filter-chips" id="mapFilterChips">
+                        <button class="map-chip active" data-filter="all">Semua</button>
+                        <button class="map-chip" data-filter="online">Online</button>
+                        <button class="map-chip" data-filter="offline">Offline</button>
+                        <button class="map-chip" data-filter="alert">Alert</button>
+                        <button class="map-chip" data-filter="located">📍 Ada Lokasi</button>
+                    </div>
+
                     <div class="map-device-list" id="mapDeviceList">
-                        <div style="text-align:center;padding:20px;color:var(--text-3);font-size:12px;">Memuat...</div>
+                        <div class="map-empty-list">Memuat...</div>
                     </div>
                 </div>
             </div>

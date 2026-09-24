@@ -1,15 +1,16 @@
 /* ==========================================
-   NEXUS IoT - Dashboard Logic (v11 FINAL)
-   Single Dashboard + Analytics Tabs + Widget + Map
-   Fix: section visibility, multi-edge resize, color contrast
+   NEXUS IoT - Dashboard Logic (v4.1 FULL)
+   Perubahan dari v17:
+     ✅ Map redesign — selectMapDevice, placeMarkerAt, unsaved-change guard
+     ✅ Activity Feed — timeline alert + device status
+     ✅ N+1 fix — batch chart fetch per (device, timeRange)
+     ✅ Stat card click → navigate ke section + filter
+     ✅ Session idle handling (401 SESSION_IDLE)
    ========================================== */
 
 (function() {
     'use strict';
 
-    // ==========================================
-    // 1. KONSTANTA & STATE
-    // ==========================================
     const state = {
         devices: [],
         attendance: [],
@@ -21,6 +22,7 @@
         deviceFilterFull: 'all',
         mapPreview: null,
         mapFull: null,
+        markerCluster: null,
         marker: null,
         selectedLat: null,
         selectedLng: null,
@@ -33,6 +35,15 @@
         deviceSearchTerm: '',
         analyticsTabs: [],
         currentTabId: null,
+        resizeObservers: [],
+        isInitialized: false,
+        dashboardSlug: null,
+        // ✅ v4.1: map redesign
+        mapFilter: 'all',
+        mapSearchTerm: '',
+        mapHasUnsavedChange: false,
+        // ✅ v4.1: activity feed
+        activityRefreshInterval: null,
     };
 
     const CHART_FONT = "'Inter', -apple-system, sans-serif";
@@ -51,6 +62,8 @@
         moisture: { label: 'K. Tanah', unit: '%', color: '#6aa8c4' },
         lux: { label: 'Cahaya', unit: 'lux', color: '#b8a85a' },
         co2: { label: 'CO2', unit: 'ppm', color: '#5fb587' },
+        voc: { label: 'VOC', unit: 'ppb', color: '#a855f7' },
+        air_quality: { label: 'Kualitas Udara', unit: 'AQI', color: '#3b82f6' },
     };
 
     const STORAGE_KEYS = {
@@ -63,12 +76,12 @@
     const DASHBOARD_SECTIONS = ['dashboard', 'map', 'graph', 'attendance', 'devices', 'alerts'];
     const ALL_SECTIONS = DASHBOARD_SECTIONS;
 
-    // ==========================================
-    // 2. UTILITIES
-    // ==========================================
     const $ = (id) => document.getElementById(id);
     const $$ = (sel) => document.querySelectorAll(sel);
 
+    // ==========================================
+    // HELPERS
+    // ==========================================
     function escapeHtml(str) {
         const div = document.createElement('div');
         div.textContent = String(str ?? '');
@@ -88,6 +101,10 @@
         }
         if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/.test(s)) {
             const d = new Date(s + '+07:00');
+            return isNaN(d.getTime()) ? null : d;
+        }
+        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+            const d = new Date(s + 'T00:00:00+07:00');
             return isNaN(d.getTime()) ? null : d;
         }
         const d = new Date(s);
@@ -127,11 +144,24 @@
         } catch (e) { return { date: '-', time: '-' }; }
     }
 
+    function formatRelativeTime(date) {
+        if (!(date instanceof Date)) return '-';
+        const diff = (Date.now() - date.getTime()) / 1000;
+        if (diff < 0) return 'baru saja';
+        if (diff < 60) return 'baru saja';
+        if (diff < 3600) return `${Math.floor(diff / 60)} mnt lalu`;
+        if (diff < 86400) return `${Math.floor(diff / 3600)} jam lalu`;
+        if (diff < 604800) return `${Math.floor(diff / 86400)} hari lalu`;
+        return date.toLocaleDateString('id-ID', { day: '2-digit', month: 'short' });
+    }
+
     function formatTimeRange(minutes) {
+        if (minutes <= 0) return '0 menit';
         if (minutes < 60) return `${minutes} menit`;
-        if (minutes < 1440) return `${minutes / 60} jam`;
-        if (minutes < 10080) return `${minutes / 1440} hari`;
-        return `${minutes / 10080} minggu`;
+        if (minutes < 1440) return `${Math.round(minutes / 60)} jam`;
+        if (minutes < 10080) return `${Math.round(minutes / 1440)} hari`;
+        if (minutes < 43200) return `${Math.round(minutes / 10080)} minggu`;
+        return `${Math.round(minutes / 43200)} bulan`;
     }
 
     function getChartColors() {
@@ -152,19 +182,31 @@
         if (window.showToast) window.showToast(message, type);
     }
 
-    function openModal(id) { const el = $(id); if (el) el.classList.add('active'); }
-    function closeModal(id) { const el = $(id); if (el) el.classList.remove('active'); }
-
-    function registerMapInstance(map) {
-        if (!window.__nexusMaps) window.__nexusMaps = [];
-        if (!window.__nexusMaps.includes(map)) {
-            window.__nexusMaps.push(map);
+    function lockBodyScroll() {
+        document.body.classList.add('modal-open');
+    }
+    function unlockBodyScrollIfNoModal() {
+        if (!document.querySelector('.modal.active')) {
+            document.body.classList.remove('modal-open');
         }
     }
 
-    // ==========================================
-    // 3. NAVIGATION
-    // ==========================================
+    function openModal(id) {
+        const el = $(id);
+        if (el) { el.classList.add('active'); lockBodyScroll(); }
+    }
+
+    function closeModal(id) {
+        const el = $(id);
+        if (el) el.classList.remove('active');
+        unlockBodyScrollIfNoModal();
+    }
+
+    function registerMapInstance(map) {
+        if (!window.__nexusMaps) window.__nexusMaps = [];
+        if (!window.__nexusMaps.includes(map)) window.__nexusMaps.push(map);
+    }
+
     function getSectionFromHash() {
         const hash = (window.location.hash || '').replace('#', '').trim();
         return DASHBOARD_SECTIONS.includes(hash) ? hash : 'dashboard';
@@ -174,21 +216,18 @@
         if (!DASHBOARD_SECTIONS.includes(section)) return;
         const newHash = `#${section}`;
         if (window.location.hash === newHash) return;
-        if (replace) {
-            history.replaceState(null, '', newHash);
-        } else {
-            history.pushState(null, '', newHash);
-        }
+        if (replace) history.replaceState(null, '', newHash);
+        else history.pushState(null, '', newHash);
     }
 
-    // ✅ FIX: set display untuk SEMUA section secara eksplisit (block/none).
-    // Tidak ada section yang "nyangkut" dari sebelumnya.
+    // ==========================================
+    // SECTION NAVIGATION
+    // ==========================================
     function showSection(section, skipHistory = false) {
         if (!DASHBOARD_SECTIONS.includes(section)) section = 'dashboard';
 
         state.currentSection = section;
 
-        // Set display eksplisit untuk semua section
         ALL_SECTIONS.forEach(s => {
             const el = $(s + 'Section');
             if (!el) return;
@@ -201,7 +240,6 @@
             }
         });
 
-        // Cleanup: buang sisa style#nexus-section-style dari versi lama
         const staleStyle = document.getElementById('nexus-section-style');
         if (staleStyle) staleStyle.remove();
 
@@ -232,10 +270,7 @@
                 : 'Cari perangkat...';
         }
 
-        // Stop polling section yang tidak aktif
-        if (section !== 'attendance') {
-            stopAttendancePolling();
-        }
+        if (section !== 'attendance') stopAttendancePolling();
 
         if (section === 'attendance') {
             loadAttendance();
@@ -248,19 +283,24 @@
                 loadMarkers(state.mapFull, true);
                 renderMapDeviceList();
                 if (state.mapFull) state.mapFull.invalidateSize();
+                updateMapSelectedBanner();
             }, 100);
         }
+
         if (section === 'dashboard') {
             setTimeout(() => {
                 if (state.mapPreview) state.mapPreview.invalidateSize();
+                loadActivityFeed();
             }, 100);
         }
+
         if (section === 'graph') {
             setTimeout(() => {
                 loadAnalyticsTabs();
                 refreshAllCharts();
             }, 100);
         }
+
         if (section === 'alerts') {
             if (window.NexusAlerts && typeof window.NexusAlerts.load === 'function') {
                 window.NexusAlerts.load();
@@ -268,7 +308,6 @@
         }
 
         try { sessionStorage.setItem(STORAGE_KEYS.LAST_SECTION, section); } catch (e) {}
-
         if (!skipHistory) updateHash(section);
     }
 
@@ -285,7 +324,674 @@
     }
 
     // ==========================================
-    // 4. ATTENDANCE
+    // DASHBOARD MAIN LOAD
+    // ==========================================
+    async function loadDashboard() {
+        const result = await API.getDashboard();
+
+        if (!result.success) {
+            // ✅ Session idle handling
+            if (result.status === 401) {
+                showToast('Session expired, silakan login lagi', 'warning');
+                setTimeout(() => window.location.href = '/login', 1500);
+                return;
+            }
+
+            console.error('[Dashboard] Load failed:', result.error);
+
+            const tbody = $('deviceTableBody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--accent-crit);">
+                    <i class="fa-solid fa-triangle-exclamation" style="font-size:24px;display:block;margin-bottom:8px;"></i>
+                    Gagal memuat data. <button onclick="location.reload()" style="color:var(--accent-info);text-decoration:underline;background:none;border:none;cursor:pointer;font-family:inherit;">Muat ulang</button>
+                </td></tr>`;
+            }
+
+            const tbodyFull = $('deviceTableBodyFull');
+            if (tbodyFull) {
+                tbodyFull.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--accent-crit);">Gagal memuat data</td></tr>`;
+            }
+
+            const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+            setText('totalDevices', '-');
+            setText('onlineDevices', '-');
+            setText('offlineDevices', '-');
+            setText('activeAlerts', '-');
+            return;
+        }
+
+        const { summary, devices } = result.data;
+        state.devices = Array.isArray(devices) ? devices : [];
+
+        const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+        setText('totalDevices', summary.total_devices);
+        setText('onlineDevices', summary.online_devices);
+        setText('offlineDevices', summary.offline_devices);
+        setText('activeAlerts', summary.active_alerts || 0);
+        setText('deviceBadge', summary.total_devices);
+        setText('alertBadge', summary.active_alerts || 0);
+
+        updateHealthRing(summary);
+        loadMarkers(state.mapPreview);
+        if (state.mapFull) loadMarkers(state.mapFull, true);
+        updateFilterCounts();
+        renderFilteredDevices();
+        renderFilteredDevicesFull();
+        renderMapDeviceList();
+        loadActivityFeed();
+    }
+
+    function updateHealthRing(summary) {
+        const healthy = summary.healthy_devices ?? summary.online_devices ?? 0;
+        const total = summary.total_devices ?? 0;
+        const pct = total > 0 ? Math.round((healthy / total) * 100) : 0;
+        const circumference = 2 * Math.PI * 63;
+        const offset = circumference - (pct / 100) * circumference;
+
+        const ring = $('healthRingProgress');
+        if (!ring) return;
+        ring.setAttribute('stroke-dasharray', circumference.toFixed(1));
+        ring.style.strokeDashoffset = offset;
+
+        const pctEl = $('ringPct');
+        if (pctEl) pctEl.textContent = pct + '%';
+
+        const captionEl = $('ringCaption');
+        if (captionEl) captionEl.textContent = `${healthy} / ${total} perangkat sehat`;
+    }
+
+    // ==========================================
+    // ACTIVITY FEED
+    // ==========================================
+    async function loadActivityFeed() {
+        const container = $('activityList');
+        if (!container) return;
+
+        try {
+            const alertsRes = await API.getAlertsAll({ limit: 20 });
+            const events = [];
+
+            if (alertsRes.success && Array.isArray(alertsRes.data.alerts)) {
+                alertsRes.data.alerts.slice(0, 15).forEach(a => {
+                    events.push({
+                        type: 'alert',
+                        severity: a.severity || 'info',
+                        title: a.device_name || a.device_id,
+                        message: a.message || a.alert_type,
+                        timestamp: a.created_at,
+                        deviceId: a.device_id,
+                        isActive: a.is_still_active === 1,
+                    });
+                });
+            }
+
+            state.devices.forEach(d => {
+                if (!d.last_seen) return;
+                events.push({
+                    type: d.status === 'online' ? 'online' : 'offline',
+                    severity: d.status === 'online' ? 'online' : 'offline',
+                    title: d.device_name,
+                    message: d.status === 'online' ? 'Baru saja online' : 'Terakhir terlihat',
+                    timestamp: d.last_seen,
+                    deviceId: d.device_id,
+                });
+            });
+
+            events.sort((a, b) => {
+                const da = parseDate(a.timestamp);
+                const db = parseDate(b.timestamp);
+                if (!da || !db) return 0;
+                return db - da;
+            });
+
+            const top = events.slice(0, 12);
+
+            if (top.length === 0) {
+                container.innerHTML = `<div class="activity-empty">Belum ada aktivitas</div>`;
+                return;
+            }
+
+            const iconMap = {
+                danger: 'fa-fire',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info',
+                online: 'fa-circle-check',
+                offline: 'fa-power-off',
+            };
+
+            container.innerHTML = top.map(ev => {
+                const sev = ev.severity || 'info';
+                const icon = iconMap[sev] || 'fa-bell';
+                const dt = parseDate(ev.timestamp);
+                const timeStr = dt ? formatRelativeTime(dt) : '-';
+                const shortMsg = ev.type === 'alert'
+                    ? escapeHtml(String(ev.message).slice(0, 80))
+                    : escapeHtml(ev.message);
+
+                return `
+                    <div class="activity-item" data-device-id="${escapeHtml(ev.deviceId)}">
+                        <div class="activity-icon ${sev}">
+                            <i class="fa-solid ${icon}"></i>
+                        </div>
+                        <div class="activity-body">
+                            <div class="activity-text">
+                                <strong>${escapeHtml(ev.title)}</strong> — ${shortMsg}
+                            </div>
+                            <div class="activity-time">${timeStr}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.querySelectorAll('.activity-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const deviceId = item.dataset.deviceId;
+                    if (deviceId) viewDevice(deviceId);
+                });
+            });
+
+        } catch (e) {
+            console.error('[Activity] Failed to load:', e);
+            container.innerHTML = `<div class="activity-empty">Gagal memuat aktivitas</div>`;
+        }
+    }
+
+    // ==========================================
+    // MAP PREVIEW (dashboard)
+    // ==========================================
+    function initMapPreview() {
+        if (state.mapPreview) return;
+        const el = $('mapPreview');
+        if (!el) return;
+        state.mapPreview = L.map('mapPreview', {
+            zoomControl: true, attributionControl: false,
+        }).setView([-2.5489, 118.0149], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
+            .addTo(state.mapPreview);
+        registerMapInstance(state.mapPreview);
+    }
+
+    // ==========================================
+    // MAP FULL (v4.1 REDESIGN)
+    // ==========================================
+    function initFullMap() {
+        if (state.mapFull) return;
+        const el = $('mapFull');
+        if (!el) return;
+
+        state.mapFull = L.map('mapFull').setView([-2.5489, 118.0149], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
+            .addTo(state.mapFull);
+
+        if (typeof L.markerClusterGroup === 'function') {
+            state.markerCluster = L.markerClusterGroup();
+            state.mapFull.addLayer(state.markerCluster);
+        }
+
+        state.mapFull.on('click', (e) => {
+            if (!state.selectedMapDeviceId) {
+                showToast('Pilih device di list terlebih dahulu', 'warning');
+                return;
+            }
+            placeMarkerAt(e.latlng.lat, e.latlng.lng);
+        });
+
+        registerMapInstance(state.mapFull);
+    }
+
+    function placeMarkerAt(lat, lng) {
+        if (!state.mapFull) return;
+
+        state.selectedLat = lat;
+        state.selectedLng = lng;
+
+        if (state.marker) {
+            state.marker.setLatLng([lat, lng]);
+        } else {
+            state.marker = L.marker([lat, lng], { draggable: true }).addTo(state.mapFull);
+            state.marker.on('dragstart', () => {
+                state.mapHasUnsavedChange = true;
+            });
+            state.marker.on('dragend', (e) => {
+                const pos = e.target.getLatLng();
+                state.selectedLat = pos.lat;
+                state.selectedLng = pos.lng;
+                state.mapHasUnsavedChange = true;
+                updateMapSelectedBanner();
+            });
+        }
+
+        state.mapHasUnsavedChange = true;
+        updateMapSelectedBanner();
+    }
+
+    function getDeviceMapStyle(d) {
+        let color = '#6c7580';
+        let label = (d.status || 'offline').toUpperCase();
+
+        if (d.status === 'offline') {
+            color = '#c97a7a';
+            label = 'OFFLINE';
+        } else if (d.has_alert && d.top_alert_severity) {
+            if (d.top_alert_severity === 'danger') color = '#c97a7a';
+            else if (d.top_alert_severity === 'warning') color = '#d99a56';
+            else if (d.top_alert_severity === 'info') color = '#7a9dc4';
+            label = d.top_alert_severity.toUpperCase();
+        } else if (d.status === 'online') {
+            color = '#5fb587';
+            label = 'ONLINE';
+        }
+        return { color, label };
+    }
+
+    function loadMarkers(map, useCluster = false) {
+        if (!map) return;
+
+        // ✅ FIX Tier 1 #1: jangan hapus marker manual kalau ada unsaved change
+        if (state.marker && !state.mapHasUnsavedChange) {
+            map.removeLayer(state.marker);
+            state.marker = null;
+        }
+
+        if (useCluster && state.markerCluster) {
+            state.markerCluster.clearLayers();
+        }
+
+        map.eachLayer(layer => {
+            if (layer === state.markerCluster) return;
+            if (layer === state.marker) return;
+            if (layer instanceof L.CircleMarker || layer instanceof L.Marker) {
+                map.removeLayer(layer);
+            }
+        });
+
+        state.devices.forEach(d => {
+            if (d.latitude == null || d.longitude == null) return;
+            if (d.latitude === 0 && d.longitude === 0) return;
+
+            const style = getDeviceMapStyle(d);
+
+            const popup = `
+                <div style="font-family:Inter,sans-serif;min-width:200px;">
+                    <div style="font-weight:700;margin-bottom:4px;font-size:13px;">${escapeHtml(d.device_name)}</div>
+                    <div style="font-size:11px;color:#888;margin-bottom:6px;font-family:monospace;">${escapeHtml(d.device_id)}</div>
+                    ${d.location ? `<div style="font-size:11px;color:#888;margin-bottom:4px;">📍 ${escapeHtml(d.location)}</div>` : ''}
+                    <div style="font-size:11px;margin-bottom:8px;">Status: <b style="color:${style.color};">${style.label}</b></div>
+                    <div style="display:flex;gap:6px;">
+                        <button onclick="window.__nexusMapSelect('${escapeHtml(d.device_id)}')"
+                                style="flex:1;padding:6px 10px;background:#e8ebef;color:#14171c;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">
+                            Pilih
+                        </button>
+                        <button onclick="window.__nexusMapView('${escapeHtml(d.device_id)}')"
+                                style="flex:1;padding:6px 10px;background:#5fbb86;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;">
+                            Detail
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            const marker = L.circleMarker([d.latitude, d.longitude], {
+                radius: 8, color: style.color, fillColor: style.color,
+                fillOpacity: 0.8, weight: 2,
+            }).bindPopup(popup);
+
+            marker.on('click', () => {
+                selectMapDevice(d.device_id, { zoom: false, placeMarker: false });
+            });
+
+            if (useCluster && state.markerCluster) {
+                state.markerCluster.addLayer(marker);
+            } else {
+                marker.addTo(map);
+            }
+        });
+    }
+
+    function selectMapDevice(deviceId, opts = {}) {
+        const device = state.devices.find(d => d.device_id === deviceId);
+        if (!device) return;
+
+        // Konfirmasi kalau ganti device & ada unsaved change
+        if (state.selectedMapDeviceId && state.selectedMapDeviceId !== deviceId && state.mapHasUnsavedChange) {
+            if (!confirm('Ada perubahan lokasi yang belum disimpan. Lanjutkan pindah device?')) return;
+        }
+
+        state.selectedMapDeviceId = deviceId;
+        state.mapHasUnsavedChange = false;
+        state.selectedLat = null;
+        state.selectedLng = null;
+
+        // Update list highlight
+        const list = $('mapDeviceList');
+        if (list) {
+            list.querySelectorAll('.map-device-item').forEach(el => {
+                el.classList.toggle('selected', el.dataset.deviceId === deviceId);
+            });
+        }
+
+        const hasLoc = device.latitude && device.longitude &&
+                       !(device.latitude === 0 && device.longitude === 0);
+
+        if (hasLoc) {
+            state.selectedLat = device.latitude;
+            state.selectedLng = device.longitude;
+            if (state.mapFull) {
+                state.mapFull.flyTo([device.latitude, device.longitude],
+                    Math.max(state.mapFull.getZoom(), 14), { duration: 1 });
+            }
+        } else if (opts.placeMarker && state.mapFull) {
+            const center = state.mapFull.getCenter();
+            placeMarkerAt(center.lat, center.lng);
+        }
+
+        if (opts.zoom && hasLoc && state.mapFull) {
+            state.mapFull.flyTo([device.latitude, device.longitude], 15, { duration: 1.2 });
+        }
+
+        updateMapSelectedBanner();
+    }
+
+    function updateMapSelectedBanner() {
+        const banner = $('mapSelectedBanner');
+        const nameEl = $('mapSelectedName');
+        const coordEl = $('mapSelectedCoord');
+        const dotEl = $('mapSelectedDot');
+        const saveBtn = $('saveLocationBtn');
+
+        if (!state.selectedMapDeviceId) {
+            if (banner) banner.style.display = 'none';
+            return;
+        }
+
+        const device = state.devices.find(d => d.device_id === state.selectedMapDeviceId);
+        if (!device) {
+            if (banner) banner.style.display = 'none';
+            return;
+        }
+
+        const style = getDeviceMapStyle(device);
+
+        if (banner) banner.style.display = 'flex';
+        if (nameEl) nameEl.textContent = device.device_name;
+        if (dotEl) dotEl.style.background = style.color;
+
+        if (coordEl) {
+            if (state.selectedLat != null && state.selectedLng != null) {
+                const hasUnsaved = state.mapHasUnsavedChange;
+                coordEl.innerHTML = `${state.selectedLat.toFixed(5)}, ${state.selectedLng.toFixed(5)}` +
+                    (hasUnsaved ? ' <span style="color:var(--accent-warn);font-weight:700;">• belum disimpan</span>' : '');
+            } else {
+                coordEl.textContent = 'Belum ada koordinat — klik peta untuk atur';
+            }
+        }
+
+        if (saveBtn) {
+            saveBtn.disabled = !(state.selectedLat != null && state.selectedLng != null && state.mapHasUnsavedChange);
+        }
+    }
+
+    function renderMapDeviceList() {
+        const container = $('mapDeviceList');
+        if (!container) return;
+
+        const filter = state.mapFilter || 'all';
+        const term = (state.mapSearchTerm || '').toLowerCase().trim();
+
+        let list = state.devices.slice();
+
+        if (filter === 'online') list = list.filter(d => d.status === 'online');
+        else if (filter === 'offline') list = list.filter(d => d.status === 'offline');
+        else if (filter === 'alert') list = list.filter(d => d.has_alert === true);
+        else if (filter === 'located') list = list.filter(d =>
+            d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0)
+        );
+
+        if (term) {
+            list = list.filter(d =>
+                (d.device_name || '').toLowerCase().includes(term) ||
+                (d.device_id || '').toLowerCase().includes(term) ||
+                (d.location || '').toLowerCase().includes(term)
+            );
+        }
+
+        const countEl = $('mapListCount');
+        if (countEl) countEl.textContent = list.length;
+
+        if (list.length === 0) {
+            container.innerHTML = `<div class="map-empty-list">
+                ${term ? 'Tidak ada device yang cocok' : 'Tidak ada device di filter ini'}
+            </div>`;
+            return;
+        }
+
+        container.innerHTML = list.map(d => {
+            const style = getDeviceMapStyle(d);
+            const hasLoc = d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0);
+            const isSelected = state.selectedMapDeviceId === d.device_id;
+
+            return `
+                <button class="map-device-item ${isSelected ? 'selected' : ''}"
+                        data-device-id="${escapeHtml(d.device_id)}">
+                    <span class="device-dot" style="background:${style.color};"></span>
+                    <div class="device-info">
+                        <div class="device-name">${escapeHtml(d.device_name)}</div>
+                        <div class="device-id">
+                            ${escapeHtml(d.device_id)}
+                            ${!hasLoc ? '<span style="color:var(--accent-warn);margin-left:4px;font-size:9px;">• belum ada lokasi</span>' : ''}
+                        </div>
+                    </div>
+                    <span class="device-status" style="background:${style.color}20;color:${style.color};">${escapeHtml(style.label)}</span>
+                </button>
+            `;
+        }).join('');
+
+        container.querySelectorAll('.map-device-item').forEach(item => {
+            item.addEventListener('click', () => {
+                selectMapDevice(item.dataset.deviceId, { zoom: true, placeMarker: true });
+            });
+        });
+    }
+
+    async function saveLocation() {
+        const deviceId = state.selectedMapDeviceId;
+        if (!deviceId) { showToast('Pilih perangkat dulu', 'error'); return; }
+        if (!Number.isFinite(state.selectedLat) || !Number.isFinite(state.selectedLng)) {
+            showToast('Atur lokasi dulu di peta', 'error'); return;
+        }
+
+        const result = await API.updateDevice(deviceId, {
+            latitude: state.selectedLat,
+            longitude: state.selectedLng,
+        });
+
+        if (result.success) {
+            showToast(`Lokasi ${deviceId} tersimpan`, 'success');
+
+            const device = state.devices.find(d => d.device_id === deviceId);
+            if (device) {
+                device.latitude = state.selectedLat;
+                device.longitude = state.selectedLng;
+            }
+
+            state.mapHasUnsavedChange = false;
+            updateMapSelectedBanner();
+            loadDashboard();
+        } else {
+            showToast(result.error || 'Gagal menyimpan lokasi', 'error');
+        }
+    }
+
+    function clearMapSelection() {
+        if (state.mapHasUnsavedChange) {
+            if (!confirm('Ada perubahan yang belum disimpan. Yakin batal?')) return;
+        }
+        state.selectedMapDeviceId = null;
+        state.selectedLat = null;
+        state.selectedLng = null;
+        state.mapHasUnsavedChange = false;
+
+        if (state.marker && state.mapFull) {
+            state.mapFull.removeLayer(state.marker);
+            state.marker = null;
+        }
+
+        const list = $('mapDeviceList');
+        if (list) {
+            list.querySelectorAll('.map-device-item').forEach(el => el.classList.remove('selected'));
+        }
+        updateMapSelectedBanner();
+    }
+
+    // Expose ke popup marker
+    window.__nexusMapSelect = function(deviceId) {
+        if (state.mapFull) state.mapFull.closePopup();
+        selectMapDevice(deviceId, { zoom: false, placeMarker: true });
+    };
+    window.__nexusMapView = function(deviceId) {
+        viewDevice(deviceId);
+    };
+
+    // ==========================================
+    // DEVICE FILTERS & TABLE
+    // ==========================================
+    function setDeviceFilter(filter) {
+        state.deviceFilter = filter;
+        $$('#deviceFilterBar .filter-btn').forEach(btn =>
+            btn.classList.toggle('active', btn.dataset.filter === filter)
+        );
+        renderFilteredDevices();
+    }
+
+    function setDeviceFilterFull(filter) {
+        state.deviceFilterFull = filter;
+        $$('#deviceFilterBarFull .filter-btn').forEach(btn =>
+            btn.classList.toggle('active', btn.dataset.filter === filter)
+        );
+        renderFilteredDevicesFull();
+    }
+
+    function filterDevicesByStatus(devices, filter) {
+        switch (filter) {
+            case 'online': return devices.filter(d => d.status === 'online');
+            case 'offline': return devices.filter(d => d.status === 'offline');
+            case 'alert': return devices.filter(d => d.has_alert === true);
+            default: return devices;
+        }
+    }
+
+    function renderFilteredDevices() {
+        const filtered = filterDevicesByStatus(state.devices, state.deviceFilter);
+        renderTable(filtered, 'deviceTableBody', false);
+    }
+
+    function renderFilteredDevicesFull() {
+        const filtered = filterDevicesByStatus(state.devices, state.deviceFilterFull);
+        renderTable(filtered, 'deviceTableBodyFull', true);
+    }
+
+    function updateFilterCounts() {
+        const onlineCount = state.devices.filter(d => d.status === 'online').length;
+        const offlineCount = state.devices.filter(d => d.status === 'offline').length;
+        const alertCount = state.devices.filter(d => d.has_alert === true).length;
+
+        const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
+        setText('filterCountAll', state.devices.length);
+        setText('filterCountOnline', onlineCount);
+        setText('filterCountOffline', offlineCount);
+        setText('filterCountAlert', alertCount);
+    }
+
+    function renderTable(devices, tbodyId, full) {
+        const tbody = $(tbodyId);
+        if (!tbody) return;
+
+        if (devices.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="${full ? 9 : 7}" style="text-align:center;padding:40px;color:var(--text-3);">Tidak ada perangkat</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = devices.map(d => {
+            const lastSeen = formatTime(d.last_seen);
+            const uptime = formatUptime(d.latest_uptime_seconds || 0);
+            const wifi = escapeHtml(d.latest_wifi_ssid || '-');
+
+            let statusClass, statusLabel;
+            if (d.status === 'offline') {
+                statusClass = 'offline';
+                statusLabel = 'OFFLINE';
+            } else if (d.has_alert && d.top_alert_severity) {
+                statusClass = d.top_alert_severity;
+                statusLabel = d.top_alert_severity === 'danger' ? 'BAHAYA'
+                            : d.top_alert_severity === 'warning' ? 'PERINGATAN'
+                            : d.top_alert_severity.toUpperCase();
+            } else {
+                statusClass = d.status || 'online';
+                statusLabel = (d.status || 'online').toUpperCase();
+            }
+
+            const intervalInfo = d.expected_interval
+                ? `<span style="font-size:10px;color:var(--text-3);margin-left:6px;">${formatUptime(d.expected_interval)}</span>`
+                : '';
+
+            const alertCount = d.total_active_alerts > 1
+                ? `<span style="font-size:10px;background:var(--accent-crit-bg);color:var(--accent-crit);padding:2px 6px;border-radius:8px;margin-left:6px;">${d.total_active_alerts} alert</span>`
+                : '';
+
+            return `
+                <tr data-device-id="${escapeHtml(d.device_id)}">
+                    <td><span class="status-badge ${statusClass}"><span class="status-dot-inline"></span>${escapeHtml(statusLabel)}</span></td>
+                    <td><span class="device-id">${escapeHtml(d.device_id)}</span></td>
+                    <td>
+                        <span class="device-name">${escapeHtml(d.device_name)}</span>
+                        ${intervalInfo}
+                        ${alertCount}
+                    </td>
+                    ${full ? `<td>${escapeHtml(d.device_type || '-')}</td>` : ''}
+                    <td>${wifi}</td>
+                    <td>${uptime}</td>
+                    ${full ? `<td>${escapeHtml(d.location || '-')}</td>` : ''}
+                    <td>${lastSeen}</td>
+                    <td>
+                        <div class="device-actions">
+                            <button class="action-btn view" data-action="view" data-device-id="${escapeHtml(d.device_id)}" title="Detail"><i class="fa-solid fa-eye"></i></button>
+                            <button class="action-btn config" data-action="config" data-device-id="${escapeHtml(d.device_id)}" title="Konfigurasi"><i class="fa-solid fa-sliders"></i></button>
+                            <button class="action-btn regenerate" data-action="regenerate-key" data-device-id="${escapeHtml(d.device_id)}" title="Regenerate API Key"><i class="fa-solid fa-key"></i></button>
+                            <button class="action-btn delete" data-action="delete" data-device-id="${escapeHtml(d.device_id)}" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                        </div>
+                    </td>
+                </tr>`;
+        }).join('');
+
+        tbody.querySelectorAll('[data-action="view"]').forEach(btn =>
+            btn.addEventListener('click', () => viewDevice(btn.dataset.deviceId))
+        );
+        tbody.querySelectorAll('[data-action="config"]').forEach(btn =>
+            btn.addEventListener('click', () => openEditDeviceConfig(btn.dataset.deviceId))
+        );
+        tbody.querySelectorAll('[data-action="regenerate-key"]').forEach(btn =>
+            btn.addEventListener('click', () => regenerateApiKey(btn.dataset.deviceId))
+        );
+        tbody.querySelectorAll('[data-action="delete"]').forEach(btn =>
+            btn.addEventListener('click', () => openDeleteModal(btn.dataset.deviceId))
+        );
+    }
+
+    function filterDevices() {
+        const term = (state.deviceSearchTerm || '').toLowerCase().trim();
+        const searched = term
+            ? state.devices.filter(d =>
+                d.device_id.toLowerCase().includes(term) ||
+                d.device_name.toLowerCase().includes(term) ||
+                (d.location && d.location.toLowerCase().includes(term))
+              )
+            : state.devices;
+
+        renderTable(filterDevicesByStatus(searched, state.deviceFilter), 'deviceTableBody', false);
+        renderTable(filterDevicesByStatus(searched, state.deviceFilterFull), 'deviceTableBodyFull', true);
+    }
+
+    // ==========================================
+    // ATTENDANCE
     // ==========================================
     async function loadAttendanceStats() {
         const result = await API.getAttendanceStats();
@@ -347,7 +1053,7 @@
             const dt = formatDateTimeSplit(r.timestamp);
             const isNew = previousLastId > 0 && r.id > previousLastId;
             return `
-            <tr class="${isNew ? 'row-flash' : ''}">
+            <tr class="${isNew ? 'row-flash' : ''}" data-timestamp="${escapeHtml(String(r.timestamp))}">
                 <td>${escapeHtml(r.nama)}</td>
                 <td><span class="device-id">${escapeHtml(r.uid)}</span></td>
                 <td>${escapeHtml(r.device_id)}</td>
@@ -370,6 +1076,9 @@
         }
     }
 
+    // ==========================================
+    // CARDHOLDER / STAT DETAIL MODAL
+    // ==========================================
     function openCardholderModal() {
         const uidEl = $('cardholderUid');
         const namaEl = $('cardholderNama');
@@ -473,420 +1182,8 @@
     }
 
     // ==========================================
-    // 5. MAPS
+    // DEVICE CRUD
     // ==========================================
-    function initMapPreview() {
-        if (state.mapPreview) return;
-        const el = $('mapPreview');
-        if (!el) return;
-        state.mapPreview = L.map('mapPreview', {
-            zoomControl: true, attributionControl: false,
-        }).setView([-2.5489, 118.0149], 5);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
-            .addTo(state.mapPreview);
-        registerMapInstance(state.mapPreview);
-    }
-
-    function initFullMap() {
-        if (state.mapFull) return;
-        const el = $('mapFull');
-        if (!el) return;
-        state.mapFull = L.map('mapFull').setView([-2.5489, 118.0149], 5);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 })
-            .addTo(state.mapFull);
-
-        if (typeof L.markerClusterGroup === 'function') {
-            state.markerCluster = L.markerClusterGroup();
-            state.mapFull.addLayer(state.markerCluster);
-        }
-
-        state.mapFull.on('click', e => {
-            state.selectedLat = e.latlng.lat;
-            state.selectedLng = e.latlng.lng;
-
-            if (state.marker) state.marker.setLatLng(e.latlng);
-            else state.marker = L.marker(e.latlng).addTo(state.mapFull);
-
-            const btn = $('saveLocationBtn');
-            if (btn) {
-                btn.style.display = 'inline-flex';
-                btn.textContent = `Simpan Lokasi ke ${state.selectedMapDeviceId || 'perangkat'}`;
-            }
-
-            const info = $('mapSelectedInfo');
-            if (info && state.selectedMapDeviceId) {
-                info.textContent = `Klik peta untuk memilih lokasi untuk: ${state.selectedMapDeviceId}`;
-            }
-        });
-
-        registerMapInstance(state.mapFull);
-    }
-
-    function loadMarkers(map, useCluster = false) {
-        if (!map) return;
-
-        map.eachLayer(layer => {
-            if (layer instanceof L.CircleMarker || layer instanceof L.Marker) {
-                map.removeLayer(layer);
-            }
-        });
-
-        state.devices.forEach(d => {
-            if (!d.latitude || !d.longitude) return;
-
-            let color = '#c97a7a';
-            if (d.status === 'online' && !d.has_alert) color = '#5fb587';
-            if (d.has_alert) {
-                if (d.top_alert_severity === 'danger') color = '#c97a7a';
-                else if (d.top_alert_severity === 'warning') color = '#d99a56';
-                else if (d.top_alert_severity === 'info') color = '#7a9dc4';
-            }
-
-            const popup = `
-                <div style="font-family:Inter,sans-serif;min-width:180px;">
-                    <div style="font-weight:700;margin-bottom:4px;">${escapeHtml(d.device_name)}</div>
-                    <div style="font-size:11px;color:#666;margin-bottom:6px;">ID: ${escapeHtml(d.device_id)}</div>
-                    ${d.location ? `<div style="font-size:11px;color:#666;">${escapeHtml(d.location)}</div>` : ''}
-                    <div style="font-size:11px;color:#666;">Status: <b style="color:${color};">${escapeHtml(d.status)}</b></div>
-                    ${d.has_alert ? `<div style="font-size:11px;color:${color};margin-top:4px;">${escapeHtml(d.top_alert_message || '')}</div>` : ''}
-                </div>
-            `;
-
-            const marker = L.circleMarker([d.latitude, d.longitude], {
-                radius: 8, color, fillColor: color, fillOpacity: 0.75, weight: 2,
-            }).bindPopup(popup);
-
-            if (useCluster && state.markerCluster) {
-                state.markerCluster.addLayer(marker);
-            } else {
-                marker.addTo(map);
-            }
-        });
-    }
-
-    function renderMapDeviceList() {
-        const container = $('mapDeviceList');
-        if (!container) return;
-
-        if (state.devices.length === 0) {
-            container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-3);font-size:12px;">Belum ada device</div>';
-            return;
-        }
-
-        container.innerHTML = state.devices.map(d => {
-            let color = '#6c7580';
-            if (d.status === 'online' && !d.has_alert) color = '#5fb587';
-            if (d.has_alert) {
-                if (d.top_alert_severity === 'danger') color = '#c97a7a';
-                else if (d.top_alert_severity === 'warning') color = '#d99a56';
-                else if (d.top_alert_severity === 'info') color = '#7a9dc4';
-            }
-
-            let statusLabel = d.status || 'offline';
-            if (d.has_alert && d.top_alert_severity) statusLabel = d.top_alert_severity.toUpperCase();
-
-            return `
-                <button class="map-device-item" data-device-id="${escapeHtml(d.device_id)}">
-                    <span class="device-dot" style="background:${color};"></span>
-                    <div class="device-info">
-                        <div class="device-name">${escapeHtml(d.device_name)}</div>
-                        <div class="device-id">${escapeHtml(d.device_id)}</div>
-                    </div>
-                    <span class="device-status" style="background:${color}20;color:${color};">${escapeHtml(statusLabel)}</span>
-                </button>
-            `;
-        }).join('');
-
-        container.querySelectorAll('.map-device-item').forEach(item => {
-            item.addEventListener('click', () => {
-                zoomToDeviceOnMap(item.dataset.deviceId);
-            });
-        });
-    }
-
-    function zoomToDeviceOnMap(deviceId) {
-        const device = state.devices.find(d => d.device_id === deviceId);
-        if (!device) return;
-
-        if (!state.mapFull) {
-            initFullMap();
-            setTimeout(() => zoomToDeviceOnMap(deviceId), 300);
-            return;
-        }
-
-        if (device.latitude && device.longitude) {
-            state.mapFull.flyTo([device.latitude, device.longitude], 15, {
-                duration: 1.2,
-            });
-
-            setTimeout(() => {
-                state.mapFull.eachLayer(layer => {
-                    if (layer instanceof L.CircleMarker) {
-                        const latlng = layer.getLatLng();
-                        if (Math.abs(latlng.lat - device.latitude) < 0.0001 &&
-                            Math.abs(latlng.lng - device.longitude) < 0.0001) {
-                            layer.openPopup();
-                        }
-                    }
-                });
-            }, 1300);
-        } else {
-            showToast(`${device.device_name} belum punya lokasi`, 'warning');
-        }
-    }
-
-    function populateMapDeviceSelect() {
-        const select = $('mapDeviceSelect');
-        if (!select) return;
-
-        const currentValue = select.value || state.selectedMapDeviceId;
-
-        select.innerHTML = '<option value="">Pilih Perangkat...</option>';
-        state.devices.forEach(d => {
-            select.innerHTML += `<option value="${escapeHtml(d.device_id)}">${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`;
-        });
-
-        if (currentValue && state.devices.some(d => d.device_id === currentValue)) {
-            select.value = currentValue;
-            state.selectedMapDeviceId = currentValue;
-        } else if (state.devices.length > 0) {
-            select.value = state.devices[0].device_id;
-            state.selectedMapDeviceId = state.devices[0].device_id;
-        } else {
-            state.selectedMapDeviceId = null;
-        }
-        updateMapDeviceInfo();
-    }
-
-    function updateMapDeviceInfo() {
-        const info = $('mapSelectedInfo');
-        if (!info) return;
-        const btn = $('saveLocationBtn');
-        if (state.selectedMapDeviceId) {
-            info.textContent = `Perangkat terpilih: ${state.selectedMapDeviceId}`;
-            if (btn) btn.textContent = `Simpan Lokasi ke ${state.selectedMapDeviceId}`;
-        } else {
-            info.textContent = 'Pilih perangkat terlebih dahulu';
-            if (btn) btn.textContent = 'Simpan Lokasi';
-        }
-    }
-
-    async function saveLocation() {
-        const deviceId = state.selectedMapDeviceId;
-        if (!deviceId) { showToast('Pilih perangkat terlebih dahulu!', 'error'); return; }
-        if (!Number.isFinite(state.selectedLat) || !Number.isFinite(state.selectedLng)) {
-            showToast('Klik peta untuk memilih lokasi!', 'error');
-            return;
-        }
-
-        const result = await API.updateDevice(deviceId, {
-            latitude: state.selectedLat,
-            longitude: state.selectedLng,
-        });
-
-        if (result.success) {
-            showToast(`Lokasi untuk ${deviceId} berhasil disimpan!`, 'success');
-            loadDashboard();
-            if (state.marker) { state.marker.remove(); state.marker = null; }
-            state.selectedLat = null;
-            state.selectedLng = null;
-            const btn = $('saveLocationBtn');
-            if (btn) btn.style.display = 'none';
-        } else {
-            showToast(result.error || 'Gagal menyimpan lokasi', 'error');
-        }
-    }
-
-    // ==========================================
-    // 6. DEVICES (Table + Filter)
-    // ==========================================
-    function setDeviceFilter(filter) {
-        state.deviceFilter = filter;
-        $$('#deviceFilterBar .filter-btn').forEach(btn =>
-            btn.classList.toggle('active', btn.dataset.filter === filter)
-        );
-        renderFilteredDevices();
-    }
-
-    function setDeviceFilterFull(filter) {
-        state.deviceFilterFull = filter;
-        $$('#deviceFilterBarFull .filter-btn').forEach(btn =>
-            btn.classList.toggle('active', btn.dataset.filter === filter)
-        );
-        renderFilteredDevicesFull();
-    }
-
-    function filterDevicesByStatus(devices, filter) {
-        switch (filter) {
-            case 'online': return devices.filter(d => d.status === 'online' && !d.has_alert);
-            case 'offline': return devices.filter(d => d.status === 'offline');
-            case 'alert': return devices.filter(d => d.has_alert === true);
-            default: return devices;
-        }
-    }
-
-    function renderFilteredDevices() {
-        const filtered = filterDevicesByStatus(state.devices, state.deviceFilter);
-        renderTable(filtered, 'deviceTableBody', false);
-    }
-
-    function renderFilteredDevicesFull() {
-        const filtered = filterDevicesByStatus(state.devices, state.deviceFilterFull);
-        renderTable(filtered, 'deviceTableBodyFull', true);
-    }
-
-    function updateFilterCounts() {
-        const onlineCount = state.devices.filter(d => d.status === 'online' && !d.has_alert).length;
-        const offlineCount = state.devices.filter(d => d.status === 'offline').length;
-        const alertCount = state.devices.filter(d => d.has_alert === true).length;
-
-        const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
-        setText('filterCountAll', state.devices.length);
-        setText('filterCountOnline', onlineCount);
-        setText('filterCountOffline', offlineCount);
-        setText('filterCountAlert', alertCount);
-    }
-
-    function renderTable(devices, tbodyId, full) {
-        const tbody = $(tbodyId);
-        if (!tbody) return;
-
-        if (devices.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="${full ? 9 : 7}" style="text-align:center;padding:40px;color:var(--text-3);">Tidak ada perangkat</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = devices.map(d => {
-            const lastSeen = formatTime(d.last_seen);
-            const uptime = formatUptime(d.latest_uptime_seconds || 0);
-            const wifi = escapeHtml(d.latest_wifi_ssid || '-');
-
-            let statusClass = d.status || 'offline';
-            let statusLabel = d.status || 'offline';
-
-            if (d.has_alert && d.top_alert_severity) {
-                statusClass = d.top_alert_severity;
-                statusLabel = d.top_alert_severity === 'danger' ? 'BAHAYA'
-                            : d.top_alert_severity === 'warning' ? 'PERINGATAN'
-                            : d.top_alert_severity.toUpperCase();
-            }
-
-            const intervalInfo = d.expected_interval
-                ? `<span style="font-size:10px;color:var(--text-3);margin-left:6px;" title="Interval kirim data">${formatUptime(d.expected_interval)}</span>`
-                : '';
-
-            const alertCount = d.total_active_alerts > 1
-                ? `<span style="font-size:10px;background:var(--accent-crit-bg);color:var(--accent-crit);padding:2px 6px;border-radius:8px;margin-left:6px;">${d.total_active_alerts} alert</span>`
-                : '';
-
-            return `
-                <tr data-device-id="${escapeHtml(d.device_id)}">
-                    <td><span class="status-badge ${statusClass}"><span class="status-dot-inline"></span>${escapeHtml(statusLabel)}</span></td>
-                    <td><span class="device-id">${escapeHtml(d.device_id)}</span></td>
-                    <td>
-                        <span class="device-name">${escapeHtml(d.device_name)}</span>
-                        ${intervalInfo}
-                        ${alertCount}
-                    </td>
-                    ${full ? `<td>${escapeHtml(d.device_type || '-')}</td>` : ''}
-                    <td>${wifi}</td>
-                    <td>${uptime}</td>
-                    ${full ? `<td>${escapeHtml(d.location || '-')}</td>` : ''}
-                    <td>${lastSeen}</td>
-                    <td>
-                        <div class="device-actions">
-                            <button class="action-btn view" data-action="view" data-device-id="${escapeHtml(d.device_id)}" title="Detail">
-                                <i class="fa-solid fa-eye"></i>
-                            </button>
-                            <button class="action-btn config" data-action="config" data-device-id="${escapeHtml(d.device_id)}" title="Konfigurasi">
-                                <i class="fa-solid fa-sliders"></i>
-                            </button>
-                            <button class="action-btn regenerate" data-action="regenerate-key" data-device-id="${escapeHtml(d.device_id)}" title="Regenerate API Key">
-                                <i class="fa-solid fa-key"></i>
-                            </button>
-                            <button class="action-btn delete" data-action="delete" data-device-id="${escapeHtml(d.device_id)}" title="Hapus">
-                                <i class="fa-solid fa-trash"></i>
-                            </button>
-                        </div>
-                    </td>
-                </tr>`;
-        }).join('');
-
-        tbody.querySelectorAll('[data-action="view"]').forEach(btn =>
-            btn.addEventListener('click', () => viewDevice(btn.dataset.deviceId))
-        );
-        tbody.querySelectorAll('[data-action="config"]').forEach(btn =>
-            btn.addEventListener('click', () => openEditDeviceConfig(btn.dataset.deviceId))
-        );
-        tbody.querySelectorAll('[data-action="regenerate-key"]').forEach(btn =>
-            btn.addEventListener('click', () => regenerateApiKey(btn.dataset.deviceId))
-        );
-        tbody.querySelectorAll('[data-action="delete"]').forEach(btn =>
-            btn.addEventListener('click', () => openDeleteModal(btn.dataset.deviceId))
-        );
-    }
-
-    function filterDevices() {
-        const term = (state.deviceSearchTerm || '').toLowerCase().trim();
-        const searched = term
-            ? state.devices.filter(d =>
-                d.device_id.toLowerCase().includes(term) ||
-                d.device_name.toLowerCase().includes(term) ||
-                (d.location && d.location.toLowerCase().includes(term))
-              )
-            : state.devices;
-
-        renderTable(filterDevicesByStatus(searched, state.deviceFilter), 'deviceTableBody', false);
-        renderTable(filterDevicesByStatus(searched, state.deviceFilterFull), 'deviceTableBodyFull', true);
-    }
-
-    function updateHealthRing(summary) {
-        const healthy = summary.healthy_devices ?? summary.online_devices ?? 0;
-        const total = summary.total_devices ?? 0;
-        const pct = total > 0 ? Math.round((healthy / total) * 100) : 0;
-        const circumference = 2 * Math.PI * 63;
-        const offset = circumference - (pct / 100) * circumference;
-
-        const ring = $('healthRingProgress');
-        if (!ring) return;
-        ring.setAttribute('stroke-dasharray', circumference.toFixed(1));
-        ring.style.strokeDashoffset = offset;
-
-        const pctEl = $('ringPct');
-        if (pctEl) pctEl.textContent = pct + '%';
-
-        const captionEl = $('ringCaption');
-        if (captionEl) captionEl.textContent = `${healthy} / ${total} perangkat sehat`;
-    }
-
-    async function loadDashboard() {
-        const result = await API.getDashboard();
-        if (!result.success) {
-            console.error('[Dashboard] Load failed:', result.error);
-            return;
-        }
-
-        const { summary, devices } = result.data;
-        state.devices = Array.isArray(devices) ? devices : [];
-
-        const setText = (id, val) => { const el = $(id); if (el) el.textContent = val; };
-        setText('totalDevices', summary.total_devices);
-        setText('onlineDevices', summary.online_devices);
-        setText('offlineDevices', summary.offline_devices);
-        setText('activeAlerts', summary.active_alerts || 0);
-        setText('deviceBadge', summary.total_devices);
-        setText('alertBadge', summary.active_alerts || 0);
-
-        updateHealthRing(summary);
-        loadMarkers(state.mapPreview);
-        if (state.mapFull) loadMarkers(state.mapFull, true);
-        populateMapDeviceSelect();
-        updateFilterCounts();
-        renderFilteredDevices();
-        renderFilteredDevicesFull();
-        renderMapDeviceList();
-    }
-
     function viewDevice(id) {
         const backUrl = `/${window.location.hash || '#dashboard'}`;
         try { sessionStorage.setItem(STORAGE_KEYS.BACK_URL, backUrl); } catch (e) {}
@@ -894,9 +1191,7 @@
     }
 
     async function regenerateApiKey(deviceId) {
-        if (!confirm(`Regenerate API key untuk ${deviceId}?\n\nKey lama tidak akan berfungsi lagi.`)) {
-            return;
-        }
+        if (!confirm(`Regenerate API key untuk ${deviceId}?\n\nKey lama tidak akan berfungsi lagi.`)) return;
         const result = await API.regenerateKey(deviceId);
         if (result.success) {
             const display = $('apiKeyDisplay');
@@ -916,7 +1211,6 @@
         setVal('addDeviceLocation', '');
         setVal('addDeviceInterval', '60');
         setVal('addDeviceOfflineTimeout', '');
-        setVal('addDeviceOfflineSeverity', 'danger');
         openModal('addDeviceModal');
     }
 
@@ -935,7 +1229,6 @@
             device_type: ($('addDeviceType') || {}).value,
             location: (($('addDeviceLocation') || {}).value || '').trim(),
             expected_interval: parseInt(($('addDeviceInterval') || {}).value) || 60,
-            offline_alert_severity: ($('addDeviceOfflineSeverity') || {}).value || 'danger',
         };
 
         const offlineTimeout = ($('addDeviceOfflineTimeout') || {}).value;
@@ -958,8 +1251,6 @@
             if (intEl) intEl.value = '60';
             const toEl = $('addDeviceOfflineTimeout');
             if (toEl) toEl.value = '';
-            const sevEl = $('addDeviceOfflineSeverity');
-            if (sevEl) sevEl.value = 'danger';
             if (window.populateAlertRules) window.populateAlertRules('add', null);
 
             loadDashboard();
@@ -989,7 +1280,6 @@
         setVal('editConfigDeviceId', deviceId);
         setVal('editDeviceInterval', device.expected_interval || 60);
         setVal('editDeviceOfflineTimeout', device.offline_timeout || 900);
-        setVal('editDeviceOfflineSeverity', device.offline_alert_severity || 'danger');
 
         if (window.populateAlertRules) window.populateAlertRules('edit', device.alert_rules);
         openModal('editDeviceConfigModal');
@@ -1004,7 +1294,6 @@
         const payload = {
             expected_interval: parseInt(($('editDeviceInterval') || {}).value) || 60,
             offline_timeout: parseInt(($('editDeviceOfflineTimeout') || {}).value) || 900,
-            offline_alert_severity: ($('editDeviceOfflineSeverity') || {}).value,
             alert_rules: alertRules,
         };
 
@@ -1080,19 +1369,29 @@
     }
 
     // ==========================================
-    // 7. ANALYTICS TABS
+    // ANALYTICS TABS
     // ==========================================
     async function loadAnalyticsTabs() {
         const store = window.DashboardStore;
         if (!store) return;
-        await store.loadDashboards();
 
-        const defaultDash = store.state.dashboards.find(d => d.is_default) || store.state.dashboards[0];
-        if (!defaultDash) return;
+        let targetDashboard = null;
 
-        await store.loadDashboard(defaultDash.id);
+        if (state.dashboardSlug) {
+            const res = await API.call(`/api/v1/dashboards/slug/${encodeURIComponent(state.dashboardSlug)}`);
+            if (res.success) targetDashboard = res.data.dashboard;
+        }
 
-        const res = await API.call(`/api/v1/dashboards/${defaultDash.id}/analytics-tabs`);
+        if (!targetDashboard) {
+            await store.loadDashboards();
+            targetDashboard = store.state.dashboards.find(d => d.is_default) || store.state.dashboards[0];
+        }
+
+        if (!targetDashboard) return;
+
+        await store.loadDashboard(targetDashboard.id);
+
+        const res = await API.call(`/api/v1/dashboards/${targetDashboard.id}/analytics-tabs`);
         state.analyticsTabs = res.success ? (res.data.tabs || []) : [];
 
         if (state.currentTabId === null && state.analyticsTabs.length > 0) {
@@ -1106,14 +1405,12 @@
         const trigger = $('tabDropdownTrigger');
         const label = $('tabDropdownLabel');
         const menu = $('tabDropdownMenu');
-
         if (!trigger || !label || !menu) return;
 
         const currentTab = state.analyticsTabs.find(t => t.id === state.currentTabId);
         label.textContent = currentTab ? currentTab.name : 'Pilih Tab';
 
         let html = '';
-
         state.analyticsTabs.forEach(tab => {
             html += `
                 <div class="tab-dropdown-item ${state.currentTabId === tab.id ? 'active' : ''}"
@@ -1131,7 +1428,6 @@
                 </div>
             `;
         });
-
         html += `
             <div class="tab-dropdown-divider"></div>
             <div class="tab-dropdown-add" data-action="new-tab">
@@ -1139,7 +1435,6 @@
                 <span>Tambah Tab Analitik</span>
             </div>
         `;
-
         menu.innerHTML = html;
 
         menu.querySelectorAll('[data-tab-id]').forEach(item => {
@@ -1151,17 +1446,7 @@
             });
         });
 
-        menu.querySelectorAll('[data-action="rename-tab"]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const tabId = parseInt(btn.dataset.tabId);
-                const tab = state.analyticsTabs.find(t => t.id === tabId);
-                if (tab) openAnalyticsTabModal('edit', tab.id, tab.name);
-                menu.classList.remove('active');
-            });
-        });
-
-        menu.querySelectorAll('[data-action="delete-tab"]').forEach(btn => {
+        menu.querySelectorAll('[data-action="rename-tab"], [data-action="delete-tab"]').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const tabId = parseInt(btn.dataset.tabId);
@@ -1250,25 +1535,32 @@
         if (res.success) {
             closeModal('analyticsTabModal');
             showToast('Tab dihapus', 'success');
-            if (state.currentTabId === parseInt(tabId)) {
-                state.currentTabId = null;
-            }
+            if (state.currentTabId === parseInt(tabId)) state.currentTabId = null;
             await loadAnalyticsTabs();
+
             if (state.analyticsTabs.length > 0) {
                 switchAnalyticsTab(state.analyticsTabs[0].id);
             } else {
+                state.charts.forEach(c => {
+                    if (c.chartInstance) {
+                        try { c.chartInstance.destroy(); } catch (e) {}
+                    }
+                });
                 state.charts = [];
                 const grid = $('chartsGrid');
-                if (grid) grid.innerHTML = '';
+                if (grid) {
+                    grid.innerHTML = `
+                        <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
+                            <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i>
+                            <p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p>
+                        </div>`;
+                }
             }
         } else {
             showToast(res.error || 'Gagal hapus tab', 'error');
         }
     }
 
-    // ==========================================
-    // 8. CHARTS (Widget CRUD + Drag/Resize)
-    // ==========================================
     async function loadTabCharts(tabId) {
         if (!tabId) return;
         const store = window.DashboardStore;
@@ -1277,6 +1569,11 @@
 
         const res = await API.call(`/api/v1/dashboards/${dashboardId}/analytics-tabs/${tabId}/widgets`);
         const widgets = res.success ? (res.data.widgets || []) : [];
+
+        state.resizeObservers.forEach(obs => {
+            try { obs.disconnect(); } catch (e) {}
+        });
+        state.resizeObservers = [];
 
         state.charts.forEach(c => {
             if (c.chartInstance) {
@@ -1299,7 +1596,6 @@
                     <div class="empty-charts" style="text-align:center;padding:40px;color:var(--text-3);grid-column:1/-1;">
                         <i class="fa-solid fa-chart-column" style="font-size:40px;margin-bottom:12px;display:block;opacity:.4;"></i>
                         <p style="font-size:14px;font-weight:600;">Belum ada diagram di tab ini</p>
-                        <p style="font-size:12px;margin-top:4px;">Klik "Tambah Diagram" untuk membuat visualisasi baru</p>
                     </div>`;
             }
             return;
@@ -1326,9 +1622,67 @@
             state.chartIdCounter = Math.max(state.chartIdCounter, w.id);
 
             renderChartCard(config);
-            loadDynamicChartData(config);
-            initializeDragResize(config.id);
         });
+
+        // ✅ v4.1 N+1 FIX: batch fetch per (device, timeRange)
+        await loadAllChartDataBatched();
+    }
+
+    // ✅ v4.1: Batch fetch — 1 request per (deviceId + time range)
+    async function loadAllChartDataBatched() {
+        if (state.charts.length === 0) return;
+
+        const groups = new Map();
+        state.charts.forEach(c => {
+            const key = `${c.deviceId}|${state.globalTimeMinutes}`;
+            if (!groups.has(key)) groups.set(key, []);
+            groups.get(key).push(c);
+        });
+
+        const hours = Math.max(1, Math.ceil(state.globalTimeMinutes / 60));
+        const limit = Math.min(Math.max(hours * 60, 500), 5000);
+
+        const promises = [];
+        for (const [key, charts] of groups.entries()) {
+            const deviceId = charts[0].deviceId;
+            promises.push(
+                API.getDeviceHistory(deviceId, { hours, limit }).then(result => ({
+                    charts, result, hours, limit
+                }))
+            );
+        }
+
+        const results = await Promise.all(promises);
+
+        for (const { charts, result } of results) {
+            if (!result.success) {
+                charts.forEach(c => showChartEmpty(c.id, 'Gagal memuat data'));
+                continue;
+            }
+
+            const history = result.data.history || [];
+            const now = Date.now();
+            const cutoffTime = now - state.globalTimeMinutes * 60 * 1000;
+            const filtered = history.filter(item => {
+                const d = parseDate(item.timestamp);
+                return d && d.getTime() >= cutoffTime;
+            });
+
+            const dataToRender = filtered.length > 0 ? filtered : history;
+
+            if (dataToRender.length === 0) {
+                charts.forEach(c => showChartEmpty(c.id, 'Menunggu data sensor...'));
+                continue;
+            }
+
+            charts.forEach(c => {
+                try {
+                    renderChartDataSync(c, dataToRender);
+                } catch (e) {
+                    console.error('[Chart] Render failed:', c.id, e);
+                }
+            });
+        }
     }
 
     function generateDataCheckboxes(selectedData = {}) {
@@ -1400,7 +1754,9 @@
         const chartType = ($('chartTypeSelect') || {}).value;
 
         const showData = {};
-        $$('.chart-data-checkbox').forEach(cb => { showData[cb.dataset.key] = cb.checked; });
+        document.querySelectorAll('#chartDataCheckboxes .chart-data-checkbox').forEach(cb => {
+            showData[cb.dataset.key] = cb.checked;
+        });
 
         if (!deviceId) { showToast('Pilih perangkat terlebih dahulu!', 'error'); return; }
         if (!Object.values(showData).some(v => v)) { showToast('Pilih minimal satu jenis data!', 'error'); return; }
@@ -1439,7 +1795,7 @@
                     <span style="font-size:10px;color:var(--text-3);font-weight:500;">(${escapeHtml(chart.deviceName)} - ${escapeHtml(dataLabels)})</span>
                 `;
             }
-            loadDynamicChartData(chart);
+            await loadAllChartDataBatched();
             showToast('Diagram berhasil diperbarui', 'success');
         } else {
             const res = await API.call(`/api/v1/dashboards/${dashboardId}/widgets`, {
@@ -1476,13 +1832,16 @@
         const card = document.createElement('div');
         card.className = 'chart-card';
         card.id = config.id;
-        card.style.width = `${config.gridW * 50}%`;
-        card.style.height = `${config.gridH * 175}px`;
+
+        const actualCols = getGridColumnCount(grid);
+        const requestedW = Math.max(config.gridW || 2, 1);
+        const spanW = Math.min(requestedW, Math.max(actualCols, 1));
+        card.style.gridColumn = `span ${spanW}`;
+        card.style.height = `${Math.max(config.gridH || 2, 1) * 175}px`;
 
         const dataLabels = Object.entries(config.showData).filter(([_, v]) => v)
             .map(([k]) => DATA_KEYS[k]?.label || k).join(', ');
 
-        // ✅ FIX: multi-edge resize handles (edge + corner)
         card.innerHTML = `
             <div class="chart-card-header">
                 <div class="chart-card-title">
@@ -1490,9 +1849,9 @@
                     <span style="font-size:10px;color:var(--text-3);font-weight:500;">(${escapeHtml(config.deviceName)} - ${escapeHtml(dataLabels)})</span>
                 </div>
                 <div class="chart-actions">
-                    <button class="chart-edit-btn" data-action="download" data-chart-id="${config.id}" title="Download PNG"><i class="fa-solid fa-download"></i></button>
-                    <button class="chart-edit-btn" data-action="edit" data-chart-id="${config.id}" title="Edit"><i class="fa-solid fa-pen"></i></button>
-                    <button class="chart-remove-btn" data-action="remove" data-chart-id="${config.id}" title="Hapus"><i class="fa-solid fa-trash"></i></button>
+                    <button class="chart-edit-btn" data-action="download" data-chart-id="${config.id}"><i class="fa-solid fa-download"></i></button>
+                    <button class="chart-edit-btn" data-action="edit" data-chart-id="${config.id}"><i class="fa-solid fa-pen"></i></button>
+                    <button class="chart-remove-btn" data-action="remove" data-chart-id="${config.id}"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>
             <div class="chart-card-body">
@@ -1501,7 +1860,13 @@
                 </div>
             </div>
             <div class="chart-resize-handle corner-se"></div>
+            <div class="chart-resize-handle corner-sw"></div>
+            <div class="chart-resize-handle corner-ne"></div>
+            <div class="chart-resize-handle corner-nw"></div>
             <div class="chart-resize-handle edge-bottom"></div>
+            <div class="chart-resize-handle edge-top"></div>
+            <div class="chart-resize-handle edge-left"></div>
+            <div class="chart-resize-handle edge-right"></div>
         `;
 
         grid.appendChild(card);
@@ -1531,14 +1896,14 @@
             }
         });
         resizeObserver.observe(card);
+        state.resizeObservers.push(resizeObserver);
+
+        initializeDragResize(config.id);
     }
 
     function downloadChartImage(chartId) {
         const chart = state.charts.find(c => c.id === chartId);
-        if (!chart || !chart.chartInstance) {
-            showToast('Chart belum siap', 'error');
-            return;
-        }
+        if (!chart || !chart.chartInstance) { showToast('Chart belum siap', 'error'); return; }
         try {
             const url = chart.chartInstance.toBase64Image('image/png', 1.0);
             const a = document.createElement('a');
@@ -1553,7 +1918,6 @@
         }
     }
 
-    // ✅ FIX: resize dari SEMUA sisi + edge-bottom (tengah bawah) bisa resize ke bawah.
     function initializeDragResize(chartId) {
         const el = document.getElementById(chartId);
         if (!el || typeof interact === 'undefined') return;
@@ -1563,9 +1927,7 @@
                 allowFrom: '.chart-card-header',
                 ignoreFrom: '.chart-actions, .chart-resize-handle',
                 inertia: true,
-                modifiers: [
-                    interact.modifiers.restrictRect({ restriction: '#chartsGrid', endOnly: false })
-                ],
+                modifiers: [interact.modifiers.restrictRect({ restriction: '#chartsGrid', endOnly: false })],
                 autoScroll: true,
                 listeners: {
                     start() { el.classList.add('dragging'); },
@@ -1584,12 +1946,7 @@
                 },
             })
             .resizable({
-                edges: {
-                    top:    true,
-                    left:   true,
-                    bottom: true,
-                    right:  true,
-                },
+                edges: { top: true, left: true, bottom: true, right: true },
                 inertia: true,
                 modifiers: [
                     interact.modifiers.restrictSize({ min: { width: 280, height: 200 } }),
@@ -1601,6 +1958,7 @@
                         const target = event.target;
                         target.style.width = `${event.rect.width}px`;
                         target.style.height = `${event.rect.height}px`;
+                        target.style.gridColumn = 'auto';
 
                         const x = (parseFloat(target.getAttribute('data-x')) || 0) + event.deltaRect.left;
                         const y = (parseFloat(target.getAttribute('data-y')) || 0) + event.deltaRect.top;
@@ -1621,6 +1979,14 @@
             });
     }
 
+    function getGridColumnCount(grid) {
+        if (!grid) return 4;
+        const computed = window.getComputedStyle(grid);
+        const cols = computed.gridTemplateColumns || '';
+        const parts = cols.split(' ').filter(p => p && p !== 'none');
+        return Math.max(parts.length, 1);
+    }
+
     function saveCurrentLayoutFromDOM() {
         const store = window.DashboardStore;
         if (!store) return;
@@ -1629,7 +1995,8 @@
         if (!grid) return;
 
         const gridWidth = grid.clientWidth;
-        const colWidth = gridWidth / 4;
+        const colCount = getGridColumnCount(grid);
+        const colWidth = gridWidth / colCount;
 
         state.charts.forEach(chart => {
             const el = document.getElementById(chart.id);
@@ -1694,8 +2061,9 @@
                 el.style.transform = '';
                 el.setAttribute('data-x', 0);
                 el.setAttribute('data-y', 0);
-                el.style.width = '100%';
+                el.style.width = '';
                 el.style.height = '350px';
+                el.style.gridColumn = `span ${Math.min(chart.gridW || 4, 4)}`;
                 if (chart.chartInstance) chart.chartInstance.resize();
             }
             store.updateWidgetPositionLocal(chart.widgetId, 0, 0, 4, 2);
@@ -1705,40 +2073,8 @@
         showToast('Layout diagram direset', 'success');
     }
 
-    async function loadDynamicChartData(config) {
-        if (config.isLoading) return;
-        config.isLoading = true;
-
-        try {
-            const hours = Math.max(1, Math.ceil(state.globalTimeMinutes / 60));
-            const result = await API.getDeviceHistory(config.deviceId, { hours });
-
-            if (!result.success || !result.data.history?.length) {
-                showChartEmpty(config.id, 'Menunggu data sensor...');
-                return;
-            }
-
-            const now = Date.now();
-            const cutoffTime = now - state.globalTimeMinutes * 60 * 1000;
-            const filtered = result.data.history.filter(item => {
-                const d = parseDate(item.timestamp);
-                return d && d.getTime() >= cutoffTime;
-            });
-
-            if (filtered.length === 0) {
-                if (result.data.history.length > 0) await renderChartData(config, result.data.history);
-                else showChartEmpty(config.id, 'Menunggu data...');
-                return;
-            }
-            await renderChartData(config, filtered);
-        } catch (e) {
-            console.error('[Chart] Load failed:', e);
-        } finally {
-            config.isLoading = false;
-        }
-    }
-
-    async function renderChartData(config, historyData) {
+    // ✅ v4.1: sync render (dipakai oleh batch loader)
+    function renderChartDataSync(config, historyData) {
         const canvas = document.getElementById(`${config.id}_canvas`);
         if (!canvas) return;
 
@@ -1762,8 +2098,8 @@
         });
 
         const activeKeys = Object.entries(config.showData).filter(([_, v]) => v).map(([k]) => k);
-
         const datasets = [];
+
         for (let i = 0; i < activeKeys.length; i++) {
             const key = activeKeys[i];
             const info = DATA_KEYS[key];
@@ -1891,7 +2227,7 @@
     function refreshAllCharts() {
         if (state.refreshTimeout) clearTimeout(state.refreshTimeout);
         state.refreshTimeout = setTimeout(() => {
-            state.charts.forEach(c => loadDynamicChartData(c));
+            loadAllChartDataBatched();
         }, 300);
     }
 
@@ -1903,9 +2239,6 @@
         }, 15000);
     }
 
-    // ==========================================
-    // 9. TIME RANGE DROPDOWN
-    // ==========================================
     function setGlobalTimeRange(minutes) {
         state.globalTimeMinutes = minutes;
         localStorage.setItem(STORAGE_KEYS.GLOBAL_TIME, minutes);
@@ -1922,9 +2255,7 @@
 
     function loadGlobalTimeRange() {
         const saved = localStorage.getItem(STORAGE_KEYS.GLOBAL_TIME);
-        if (saved) {
-            state.globalTimeMinutes = parseInt(saved);
-        }
+        if (saved) state.globalTimeMinutes = parseInt(saved);
 
         $$('.time-range-item').forEach(item =>
             item.classList.toggle('active', parseInt(item.dataset.minutes) === state.globalTimeMinutes)
@@ -1934,6 +2265,9 @@
         if (labelEl) labelEl.textContent = formatTimeRange(state.globalTimeMinutes);
     }
 
+    // ==========================================
+    // EVENT BINDING
+    // ==========================================
     function bindTimeRangeDropdown() {
         const trigger = $('timeRangeTrigger');
         const menu = $('timeRangeMenu');
@@ -1978,14 +2312,10 @@
         });
     }
 
-    // ==========================================
-    // 10. EVENT BINDING
-    // ==========================================
     function bindSidebarNav() {
         document.querySelectorAll('.sidebar-nav .nav-item').forEach((item) => {
             item.addEventListener('click', (e) => {
                 const href = (item.getAttribute('href') || '').trim();
-
                 if (href.startsWith('#')) {
                     e.preventDefault();
                     const targetSection = href.replace('#', '');
@@ -2012,12 +2342,16 @@
             btn.addEventListener('click', () => {
                 const modal = btn.closest('.modal');
                 if (modal) modal.classList.remove('active');
+                unlockBodyScrollIfNoModal();
             });
         });
 
         document.querySelectorAll('.modal').forEach(modal => {
             modal.addEventListener('click', e => {
-                if (e.target === modal) modal.classList.remove('active');
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                    unlockBodyScrollIfNoModal();
+                }
             });
         });
     }
@@ -2038,6 +2372,7 @@
             'save-chart': saveChart,
             'save-analytics-tab': saveAnalyticsTab,
             'delete-analytics-tab': deleteAnalyticsTab,
+            'goto-map': () => showSection('map'),
         };
 
         Object.entries(actionMap).forEach(([action, handler]) => {
@@ -2049,9 +2384,28 @@
         const delTabBtn = $('analyticsTabDeleteBtn');
         if (delTabBtn) delTabBtn.addEventListener('click', deleteAnalyticsTab);
 
-        document.querySelectorAll('.stat-card.clickable').forEach(card => {
+        document.querySelectorAll('.stat-card.clickable[data-stat-type]').forEach(card => {
             card.addEventListener('click', () => openStatDetailModal(card.dataset.statType));
         });
+
+        // ✅ v4.1: stat card click → navigate
+        document.querySelectorAll('.stat-card.clickable[data-goto]').forEach(card => {
+            card.addEventListener('click', () => {
+                const target = card.dataset.goto;
+                const filter = card.dataset.filter;
+                if (filter && target === 'devices') {
+                    state.deviceFilter = filter;
+                    setDeviceFilter(filter);
+                }
+                showSection(target);
+            });
+        });
+
+        // ✅ v4.1: activity refresh button
+        const activityRefresh = $('activityRefreshBtn');
+        if (activityRefresh) {
+            activityRefresh.addEventListener('click', loadActivityFeed);
+        }
     }
 
     function bindFilters() {
@@ -2076,6 +2430,9 @@
         const saveBtn = $('saveLocationBtn');
         if (saveBtn) saveBtn.addEventListener('click', saveLocation);
 
+        const clearBtn = $('clearMapSelectionBtn');
+        if (clearBtn) clearBtn.addEventListener('click', clearMapSelection);
+
         const resetMapBtn = $('resetMapViewBtn');
         if (resetMapBtn) {
             resetMapBtn.addEventListener('click', () => {
@@ -2085,15 +2442,27 @@
             });
         }
 
-        const mapSelect = $('mapDeviceSelect');
-        if (mapSelect) {
-            mapSelect.addEventListener('change', function() {
-                state.selectedMapDeviceId = this.value;
-                updateMapDeviceInfo();
-                if (state.marker) { state.marker.remove(); state.marker = null; }
-                state.selectedLat = null;
-                state.selectedLng = null;
-                if (saveBtn) saveBtn.style.display = 'none';
+        const searchInput = $('mapSearchInput');
+        if (searchInput) {
+            let t;
+            searchInput.addEventListener('input', (e) => {
+                clearTimeout(t);
+                t = setTimeout(() => {
+                    state.mapSearchTerm = e.target.value.trim();
+                    renderMapDeviceList();
+                }, 150);
+            });
+        }
+
+        const chips = $('mapFilterChips');
+        if (chips) {
+            chips.querySelectorAll('.map-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    chips.querySelectorAll('.map-chip').forEach(c => c.classList.remove('active'));
+                    chip.classList.add('active');
+                    state.mapFilter = chip.dataset.filter;
+                    renderMapDeviceList();
+                });
             });
         }
     }
@@ -2102,6 +2471,7 @@
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active'));
+                unlockBodyScrollIfNoModal();
                 const trMenu = $('timeRangeMenu');
                 if (trMenu) trMenu.classList.remove('active');
                 const tabMenu = $('tabDropdownMenu');
@@ -2165,11 +2535,49 @@
         if (label) label.textContent = theme === 'light' ? 'Tema Terang' : 'Tema Gelap';
     }
 
+    function bindCleanup() {
+        window.addEventListener('beforeunload', () => {
+            if (state.dashboardInterval) clearInterval(state.dashboardInterval);
+            if (state.autoRefreshInterval) clearInterval(state.autoRefreshInterval);
+            if (state.attendanceInterval) clearInterval(state.attendanceInterval);
+            if (state.activityRefreshInterval) clearInterval(state.activityRefreshInterval);
+            state.resizeObservers.forEach(obs => {
+                try { obs.disconnect(); } catch (e) {}
+            });
+            state.charts.forEach(c => {
+                if (c.chartInstance) {
+                    try { c.chartInstance.destroy(); } catch (e) {}
+                }
+            });
+        });
+    }
+
+    function readDashboardSlug() {
+        const meta = document.querySelector('meta[name="dashboard-slug"]');
+        if (meta && meta.content) return meta.content.trim() || null;
+
+        const body = document.body;
+        if (body && body.dataset && body.dataset.dashboardSlug) {
+            return body.dataset.dashboardSlug.trim() || null;
+        }
+
+        const pathMatch = window.location.pathname.match(/^\/d\/([a-z0-9\-]+)/i);
+        if (pathMatch) return pathMatch[1];
+
+        return null;
+    }
+
     // ==========================================
-    // 11. INIT
+    // INIT
     // ==========================================
     async function init() {
+        if (state.isInitialized) return;
+        state.isInitialized = true;
+
+        state.dashboardSlug = readDashboardSlug();
+
         bindEvents();
+        bindCleanup();
         updateThemeUI(window.ThemeManager.get());
         loadGlobalTimeRange();
         updateDateTime();
@@ -2190,23 +2598,20 @@
         state.currentSection = initialSection;
 
         initMapPreview();
-
         await loadDashboard();
+        await loadAnalyticsTabs();
 
-        if (initialSection === 'graph') {
-            await loadAnalyticsTabs();
-            if (state.currentTabId) await loadTabCharts(state.currentTabId);
-        } else {
-            await loadAnalyticsTabs();
-        }
-
-        // ✅ FIX: gunakan showSection() untuk set visibility awal
         showSection(initialSection, true);
 
         state.dashboardInterval = setInterval(loadDashboard, 30000);
         startAutoRefresh();
 
-        console.log('[Dashboard] Ready, section:', initialSection);
+        // Activity refresh tiap 60 detik (kalau di section dashboard)
+        state.activityRefreshInterval = setInterval(() => {
+            if (state.currentSection === 'dashboard') loadActivityFeed();
+        }, 60000);
+
+        console.log('[Dashboard] Ready v4.1, section:', initialSection);
     }
 
     if (document.readyState === 'loading') {

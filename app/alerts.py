@@ -4,6 +4,7 @@ State machine: healthy → warning → danger → warning → healthy
 """
 import json
 import logging
+from datetime import timedelta
 from app.config import get_config
 from app.database import get_db_context, get_wib_time
 from app.notifier import notify_alert_event
@@ -13,6 +14,27 @@ logger = logging.getLogger('nexus')
 SEVERITY_ORDER = ['healthy', 'warning', 'danger']
 VALID_SEVERITIES = ['healthy', 'info', 'warning', 'danger']
 DEFAULT_HYSTERESIS = 0.5
+
+# Skip re-trigger window setelah user acknowledge alert (menit)
+ACK_SKIP_WINDOW_MINUTES = 5
+
+SENSOR_LABELS = {
+    'temperature': ('Suhu', '°C'),
+    'humidity': ('Kelembaban', '%'),
+    'gas_level': ('Level Gas', 'ppm'),
+    'smoke': ('Asap', 'ppm'),
+    'moisture': ('Kelembaban Tanah', '%'),
+    'lux': ('Cahaya', 'lux'),
+    'co2': ('CO2', 'ppm'),
+    'voc': ('VOC', 'ppb'),
+    'air_quality': ('Kualitas Udara', 'AQI'),
+    'motion': ('Gerakan', ''),
+    'rfid': ('RFID', ''),
+}
+
+
+def _get_sensor_label(key):
+    return SENSOR_LABELS.get(key, (key.replace('_', ' ').title(), ''))
 
 
 def _get_global_rules():
@@ -58,11 +80,11 @@ def _evaluate_severity(value, rule):
             if severity == 'healthy':
                 return 'healthy', None
             elif severity == 'warning':
-                return 'warning', f"nilai {value:g} di luar batas normal"
+                return 'warning', None
             elif severity == 'danger':
-                return 'danger', f"nilai {value:g} di luar batas peringatan"
+                return 'danger', None
 
-    return 'danger', f"nilai {value:g} di luar semua batas"
+    return 'danger', None
 
 
 def _severity_rank(sev):
@@ -70,29 +92,62 @@ def _severity_rank(sev):
 
 
 def _apply_hysteresis(new_severity, old_severity, value, rule):
+    """Hysteresis: cegah flapping di sekitar batas.
+
+    - Severity memburuk → langsung transition
+    - Severity membaik → cek apakah value sudah masuk range BARU
+      dengan margin hysteresis (deep enough)
+    """
     if not old_severity or old_severity == new_severity:
         return new_severity
 
     old_rank = _severity_rank(old_severity)
     new_rank = _severity_rank(new_severity)
 
+    # Memburuk → langsung transition
     if new_rank > old_rank:
         return new_severity
 
+    # Membaik → cek range BARU
     offset = float(rule.get('_hysteresis', DEFAULT_HYSTERESIS))
-    old_range = rule.get(old_severity)
-    if not old_range:
+    new_range = rule.get(new_severity)
+    if not new_range:
         return new_severity
 
     try:
-        rmin = float(old_range['min'])
-        rmax = float(old_range['max'])
+        n_min = float(new_range['min'])
+        n_max = float(new_range['max'])
     except (TypeError, ValueError):
         return new_severity
 
-    if (rmin - offset) <= value <= (rmax + offset):
-        return old_severity
-    return new_severity
+    # Value harus di dalam range baru dengan margin offset dari tepi
+    if (n_min + offset) <= value <= (n_max - offset):
+        return new_severity
+    return old_severity
+
+
+def _format_alert_message(key, value, severity, rule):
+    label, unit = _get_sensor_label(key)
+    value_str = f"{value:g}{unit}" if unit else f"{value:g}"
+
+    healthy = rule.get('healthy', {})
+    h_min = healthy.get('min')
+    h_max = healthy.get('max')
+
+    if h_min is not None and h_max is not None:
+        try:
+            normal_str = f"{float(h_min):g}–{float(h_max):g}{unit}"
+            return f"{value_str} — di luar batas normal ({normal_str})"
+        except (TypeError, ValueError):
+            pass
+
+    return f"{value_str} — di luar batas normal"
+
+
+def _format_recovery_message(key, value):
+    label, unit = _get_sensor_label(key)
+    value_str = f"{value:g}{unit}" if unit else f"{value:g}"
+    return f"kembali normal: {value_str}"
 
 
 def _log_history(conn, device_id, alert_type, severity, message, value, action):
@@ -106,15 +161,15 @@ def _log_history(conn, device_id, alert_type, severity, message, value, action):
         logger.error(f"Failed to log alert history: {e}", exc_info=True)
 
 
-def _notify_event(conn, device_id, alert_type, severity, message, value,
-                  event_type, old_severity=None):
+def _build_notify_event(conn, device_id, alert_type, severity, message, value,
+                        event_type, old_severity=None):
     try:
         device = conn.execute(
             'SELECT device_name, location FROM devices WHERE device_id = ?',
             (device_id,)
         ).fetchone()
 
-        event = {
+        return {
             'event': event_type,
             'device_id': device_id,
             'device_name': device['device_name'] if device else device_id,
@@ -126,9 +181,47 @@ def _notify_event(conn, device_id, alert_type, severity, message, value,
             'value': value,
             'timestamp': get_wib_time().strftime('%Y-%m-%d %H:%M:%S WIB'),
         }
-        notify_alert_event(event)
     except Exception as e:
-        logger.warning(f"Failed to enqueue notification: {e}")
+        logger.warning(f"Failed to build notify event: {e}")
+        return None
+
+
+def _was_recently_acknowledged(conn, device_id, alert_type, severity):
+    """Cek apakah alert ini baru saja di-acknowledge dengan severity sama.
+
+    Return True jika: 
+      - Last history entry (dalam window X menit) adalah 'acknowledged'
+      - Severity-nya sama
+    Ini mencegah alert yang sudah di-ack kembali trigger dengan value sama.
+    """
+    cutoff = get_wib_time() - timedelta(minutes=ACK_SKIP_WINDOW_MINUTES)
+    row = conn.execute('''
+        SELECT action, severity FROM alert_history
+        WHERE device_id = ? AND alert_type = ?
+          AND created_at >= ?
+        ORDER BY created_at DESC LIMIT 1
+    ''', (device_id, alert_type, cutoff)).fetchone()
+
+    if not row:
+        return False
+
+    return row['action'] == 'acknowledged' and row['severity'] == severity
+
+
+def _log_implicit_recovery_if_needed(conn, device_id, alert_type, value):
+    """Kalau value kembali healthy tapi alert sudah di-ack sebelumnya,
+    log 'cleared' sekali supaya history cycle lengkap.
+    """
+    last = conn.execute('''
+        SELECT action FROM alert_history
+        WHERE device_id = ? AND alert_type = ?
+        ORDER BY created_at DESC LIMIT 1
+    ''', (device_id, alert_type)).fetchone()
+
+    if last and last['action'] == 'acknowledged':
+        _log_history(conn, device_id, alert_type, 'healthy',
+                     _format_recovery_message(alert_type, value),
+                     value, 'cleared')
 
 
 def get_device_alert_rules(conn, device_id):
@@ -155,6 +248,7 @@ def check_and_create_alerts(device_id, sensor_data):
         return []
 
     changes = []
+    pending_notifications = []
 
     with get_db_context() as conn:
         alert_rules = get_device_alert_rules(conn, device_id)
@@ -164,11 +258,13 @@ def check_and_create_alerts(device_id, sensor_data):
                 continue
             if key not in alert_rules:
                 continue
+            if isinstance(value, bool):
+                continue
             if not isinstance(value, (int, float)):
                 continue
 
             rule = alert_rules[key]
-            new_severity, reason = _evaluate_severity(value, rule)
+            new_severity, _ = _evaluate_severity(value, rule)
             if new_severity is None:
                 continue
 
@@ -180,24 +276,36 @@ def check_and_create_alerts(device_id, sensor_data):
             old_severity = existing['severity'] if existing else None
             final_severity = _apply_hysteresis(new_severity, old_severity, value, rule)
 
+            # ── RECOVERY: healthy ──
             if final_severity == 'healthy':
                 if existing:
                     conn.execute('''
                         UPDATE alerts SET is_active = 0, updated_at = ?, value = ?
                         WHERE id = ?
                     ''', (get_wib_time(), value, existing['id']))
-                    _log_history(conn, device_id, key, 'healthy',
-                                 f"{key} kembali normal: {value:g}", value, 'cleared')
+
+                    recovery_msg = _format_recovery_message(key, value)
+                    _log_history(conn, device_id, key, 'healthy', recovery_msg,
+                                 value, 'cleared')
                     changes.append({'type': key, 'action': 'cleared',
                                     'severity': 'healthy', 'value': value})
-                    _notify_event(conn, device_id, key, 'healthy',
-                                  f"{key} kembali normal: {value:g}",
-                                  value, 'cleared', old_severity=existing['severity'])
+
+                    evt = _build_notify_event(
+                        conn, device_id, key, 'healthy', recovery_msg,
+                        value, 'cleared', old_severity=existing['severity']
+                    )
+                    if evt:
+                        pending_notifications.append(evt)
+                else:
+                    # No active alert but maybe there's an acked one pending clear
+                    _log_implicit_recovery_if_needed(conn, device_id, key, value)
                 continue
 
-            message = f"{key}={value:g} — {reason or 'di luar batas normal'}"
+            # ── ALERT: warning / danger ──
+            message = _format_alert_message(key, value, final_severity, rule)
 
             if existing:
+                # Update existing active alert
                 if existing['severity'] != final_severity:
                     conn.execute('''
                         UPDATE alerts
@@ -210,15 +318,24 @@ def check_and_create_alerts(device_id, sensor_data):
                                     'severity': final_severity,
                                     'old_severity': existing['severity'],
                                     'value': value})
-                    _notify_event(conn, device_id, key, final_severity,
-                                  message, value, 'severity_changed',
-                                  old_severity=existing['severity'])
+
+                    evt = _build_notify_event(
+                        conn, device_id, key, final_severity, message,
+                        value, 'severity_changed', old_severity=existing['severity']
+                    )
+                    if evt:
+                        pending_notifications.append(evt)
                 else:
                     conn.execute('''
                         UPDATE alerts SET message = ?, value = ?, updated_at = ?
                         WHERE id = ?
                     ''', (message, value, get_wib_time(), existing['id']))
             else:
+                # ✅ Skip create jika alert sama baru saja di-acknowledge
+                if _was_recently_acknowledged(conn, device_id, key, final_severity):
+                    continue
+
+                # Create new alert
                 conn.execute('''
                     INSERT INTO alerts
                     (device_id, alert_type, severity, message, value,
@@ -230,10 +347,21 @@ def check_and_create_alerts(device_id, sensor_data):
                              value, 'created')
                 changes.append({'type': key, 'action': 'created',
                                 'severity': final_severity, 'value': value})
-                _notify_event(conn, device_id, key, final_severity,
-                              message, value, 'created', old_severity=None)
+
+                evt = _build_notify_event(
+                    conn, device_id, key, final_severity, message,
+                    value, 'created', old_severity=None
+                )
+                if evt:
+                    pending_notifications.append(evt)
 
         conn.commit()
+
+    for evt in pending_notifications:
+        try:
+            notify_alert_event(evt)
+        except Exception as e:
+            logger.warning(f"Failed to enqueue notification: {e}")
 
     return changes
 
@@ -241,6 +369,8 @@ def check_and_create_alerts(device_id, sensor_data):
 def create_offline_alert(device_id, severity='danger'):
     if severity not in ('info', 'warning', 'danger'):
         severity = 'danger'
+
+    pending_notifications = []
 
     with get_db_context() as conn:
         existing = conn.execute('''
@@ -255,11 +385,26 @@ def create_offline_alert(device_id, severity='danger'):
                 ''', (severity, get_wib_time(), existing['id']))
                 _log_history(conn, device_id, 'offline', severity,
                              f"Severity offline berubah ke {severity}", None, 'severity_changed')
+
+                evt = _build_notify_event(
+                    conn, device_id, 'offline', severity,
+                    f"Perangkat offline dengan severity {severity}",
+                    None, 'severity_changed', old_severity=existing['severity']
+                )
+                if evt:
+                    pending_notifications.append(evt)
+
                 conn.commit()
-                _notify_event(conn, device_id, 'offline', severity,
-                              f"Perangkat offline dengan severity {severity}",
-                              None, 'severity_changed', old_severity=existing['severity'])
+                for e in pending_notifications:
+                    try:
+                        notify_alert_event(e)
+                    except Exception as e2:
+                        logger.warning(f"Failed to enqueue notification: {e2}")
                 return True
+            return False
+
+        # ✅ Skip jika baru saja di-ack
+        if _was_recently_acknowledged(conn, device_id, 'offline', severity):
             return False
 
         message = "Perangkat tidak mengirim data melebihi batas waktu"
@@ -269,8 +414,20 @@ def create_offline_alert(device_id, severity='danger'):
             VALUES (?, 'offline', ?, ?, 1, ?, ?)
         ''', (device_id, severity, message, get_wib_time(), get_wib_time()))
         _log_history(conn, device_id, 'offline', severity, message, None, 'created')
+
+        evt = _build_notify_event(
+            conn, device_id, 'offline', severity, message, None, 'created'
+        )
+        if evt:
+            pending_notifications.append(evt)
+
         conn.commit()
-        _notify_event(conn, device_id, 'offline', severity, message, None, 'created')
+
+        for e in pending_notifications:
+            try:
+                notify_alert_event(e)
+            except Exception as e2:
+                logger.warning(f"Failed to enqueue notification: {e2}")
         return True
 
 
@@ -284,9 +441,19 @@ def clear_offline_alert(device_id):
         if result.rowcount > 0:
             _log_history(conn, device_id, 'offline', 'healthy',
                          'Perangkat kembali online', None, 'cleared')
+
+            evt = _build_notify_event(
+                conn, device_id, 'offline', 'healthy',
+                'Perangkat kembali online', None, 'cleared', old_severity='danger'
+            )
+
             conn.commit()
-            _notify_event(conn, device_id, 'offline', 'healthy',
-                          'Perangkat kembali online', None, 'cleared', old_severity='danger')
+
+            if evt:
+                try:
+                    notify_alert_event(evt)
+                except Exception as e:
+                    logger.warning(f"Failed to enqueue notification: {e}")
             return True
     return False
 

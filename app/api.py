@@ -55,6 +55,11 @@ def validate_device_api_key(device_id, api_key):
 
 def update_device_status(device_id, status, ip=None):
     with get_db_context() as conn:
+        prev = conn.execute(
+            'SELECT status FROM devices WHERE device_id = ?', (device_id,)
+        ).fetchone()
+        prev_status = prev['status'] if prev else None
+
         if ip:
             conn.execute(
                 'UPDATE devices SET status = ?, last_seen = ?, last_ip = ? WHERE device_id = ?',
@@ -64,6 +69,15 @@ def update_device_status(device_id, status, ip=None):
             conn.execute(
                 'UPDATE devices SET status = ?, last_seen = ? WHERE device_id = ?',
                 (status, get_wib_time(), device_id)
+            )
+
+        # Catat transisi ke online (sebelumnya hanya 'offline' yang tercatat,
+        # karena data masuk langsung men-set online sebelum status checker sempat).
+        if prev_status is not None and prev_status != status:
+            conn.execute(
+                'INSERT INTO device_status_log (device_id, status, reason, created_at) '
+                'VALUES (?, ?, ?, ?)',
+                (device_id, status, 'data_received', get_wib_time())
             )
         conn.commit()
 
@@ -467,7 +481,7 @@ def delete_device(device_id):
 
 @api_bp.route('/devices/<device_id>/regenerate-key', methods=['POST'])
 @login_required
-@limiter.limit(lambda: get_config().RATE_LIMIT_LOGIN)
+@limiter.limit(lambda: get_config().RATE_LIMIT_REGENERATE)
 def regenerate_api_key(device_id):
     with get_db_context() as conn:
         device = conn.execute(
@@ -766,57 +780,49 @@ def get_all_alerts():
     limit = min(request.args.get('limit', 200, type=int), 1000)
 
     with get_db_context() as conn:
-        query = '''
+        # ✅ FIX #14: pakai LEFT JOIN ke subquery aktif, bukan correlated EXISTS
+        # Jauh lebih cepat untuk history besar.
+        base_query = '''
             SELECT h.id, h.device_id, h.alert_type, h.severity, h.message,
                    h.value, h.action, h.created_at,
                    d.device_name, d.location,
                    CASE
-                       WHEN h.action = 'cleared' OR h.action = 'acknowledged' THEN 0
-                       WHEN EXISTS (
-                           SELECT 1 FROM alerts a
-                           WHERE a.device_id = h.device_id
-                             AND a.alert_type = h.alert_type
-                             AND a.is_active = 1
-                       ) THEN 1
+                       WHEN h.action IN ('cleared', 'acknowledged') THEN 0
+                       WHEN active_alerts.device_id IS NOT NULL THEN 1
                        ELSE 0
                    END as is_still_active
             FROM alert_history h
             LEFT JOIN devices d ON h.device_id = d.device_id
+            LEFT JOIN (
+                SELECT DISTINCT device_id, alert_type
+                FROM alerts
+                WHERE is_active = 1
+            ) active_alerts
+                ON active_alerts.device_id = h.device_id
+               AND active_alerts.alert_type = h.alert_type
             WHERE h.alert_type != 'uid'
         '''
         params = []
 
         if severity:
-            query += ' AND h.severity = ?'
+            base_query += ' AND h.severity = ?'
             params.append(severity)
 
         if device_id:
-            query += ' AND h.device_id = ?'
+            base_query += ' AND h.device_id = ?'
             params.append(device_id)
 
         if status == 'active':
-            query += ''' AND h.action != 'cleared'
-                        AND h.action != 'acknowledged'
-                        AND EXISTS (
-                            SELECT 1 FROM alerts a
-                            WHERE a.device_id = h.device_id
-                              AND a.alert_type = h.alert_type
-                              AND a.is_active = 1
-                        )'''
+            base_query += ''' AND h.action NOT IN ('cleared', 'acknowledged')
+                              AND active_alerts.device_id IS NOT NULL'''
         elif status == 'resolved':
-            query += ''' AND (h.action = 'cleared'
-                            OR h.action = 'acknowledged'
-                            OR NOT EXISTS (
-                                SELECT 1 FROM alerts a
-                                WHERE a.device_id = h.device_id
-                                  AND a.alert_type = h.alert_type
-                                  AND a.is_active = 1
-                            ))'''
+            base_query += ''' AND (h.action IN ('cleared', 'acknowledged')
+                                   OR active_alerts.device_id IS NULL)'''
 
-        query += ' ORDER BY h.created_at DESC LIMIT ?'
+        base_query += ' ORDER BY h.created_at DESC LIMIT ?'
         params.append(limit)
 
-        rows = conn.execute(query, params).fetchall()
+        rows = conn.execute(base_query, params).fetchall()
 
     alerts = []
     for r in rows:
@@ -1113,6 +1119,64 @@ def get_last_unknown_tap():
 
     return jsonify({'success': True, 'uid': row['uid'], 'timestamp': row['timestamp']}), 200
 
+@api_bp.route('/attendance/export', methods=['GET'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def export_attendance():
+    """Export data absensi dengan filter tanggal."""
+    from flask import Response
+    import csv
+    import io as _io
+
+    start_date = request.args.get('start')
+    end_date = request.args.get('end')
+    uid = request.args.get('uid')
+
+    query = '''
+        SELECT a.id, a.uid, a.device_id, a.timestamp,
+               COALESCE(c.nama, 'Tidak dikenal') AS nama
+        FROM attendance a
+        LEFT JOIN cardholders c ON a.uid = c.uid
+        WHERE 1=1
+    '''
+    params = []
+
+    if start_date:
+        try:
+            query += ' AND a.timestamp >= ?'
+            params.append(f"{start_date} 00:00:00")
+        except Exception:
+            pass
+
+    if end_date:
+        try:
+            query += ' AND a.timestamp <= ?'
+            params.append(f"{end_date} 23:59:59")
+        except Exception:
+            pass
+
+    if uid:
+        query += ' AND a.uid = ?'
+        params.append(uid)
+
+    query += ' ORDER BY a.timestamp DESC LIMIT 50000'
+
+    with get_db_context() as conn:
+        rows = conn.execute(query, params).fetchall()
+
+    output = _io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['ID', 'UID', 'Nama', 'Device ID', 'Timestamp'])
+
+    for r in rows:
+        writer.writerow([r['id'], r['uid'], r['nama'], r['device_id'], r['timestamp']])
+
+    filename = f"attendance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={'Content-Disposition': f'attachment; filename="{filename}"'}
+    )
 
 @api_bp.route('/system/info', methods=['GET'])
 @login_required

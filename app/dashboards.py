@@ -1,13 +1,13 @@
 """
-NEXUS IoT - Dashboard & Analytics Management
+NEXUS IoT - Dashboard & Analytics Management (Multi-User)
 """
 import re
 import json
 import logging
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 
-from app.auth import login_required
+from app.auth import login_required, ensure_user_dashboard
 from app.database import get_db_context, get_wib_time
 from app.utils import safe_json_loads
 from app.extensions import limiter
@@ -25,8 +25,44 @@ VALID_WIDGET_TYPES = {
 }
 
 
+def _get_user_id():
+    return session.get('user_id')
+
+
 def _validate_slug(slug):
     return bool(slug) and SLUG_RE.match(slug) and len(slug) <= 64
+
+
+def _owns_dashboard(conn, dashboard_id, user_id):
+    if not user_id:
+        return False
+    row = conn.execute(
+        'SELECT id FROM dashboards WHERE id = ? AND user_id = ?',
+        (dashboard_id, user_id)
+    ).fetchone()
+    return row is not None
+
+
+def _owns_widget(conn, widget_id, user_id):
+    if not user_id:
+        return False
+    row = conn.execute('''
+        SELECT w.id FROM widgets w
+        JOIN dashboards d ON w.dashboard_id = d.id
+        WHERE w.id = ? AND d.user_id = ?
+    ''', (widget_id, user_id)).fetchone()
+    return row is not None
+
+
+def _owns_tab(conn, tab_id, user_id):
+    if not user_id:
+        return False
+    row = conn.execute('''
+        SELECT t.id FROM analytics_tabs t
+        JOIN dashboards d ON t.dashboard_id = d.id
+        WHERE t.id = ? AND d.user_id = ?
+    ''', (tab_id, user_id)).fetchone()
+    return row is not None
 
 
 # ==========================================
@@ -36,14 +72,36 @@ def _validate_slug(slug):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def list_dashboards():
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid, re-login'}), 401
+
     with get_db_context() as conn:
         rows = conn.execute('''
             SELECT d.*, COUNT(w.id) AS widget_count
             FROM dashboards d
             LEFT JOIN widgets w ON w.dashboard_id = d.id
+            WHERE d.user_id = ?
             GROUP BY d.id
             ORDER BY d.is_default DESC, d.created_at ASC
-        ''').fetchall()
+        ''', (user_id,)).fetchall()
+
+    # Auto-create kalau kosong
+    if not rows:
+        username = session.get('username', 'user')
+        try:
+            ensure_user_dashboard(user_id, username)
+            with get_db_context() as conn:
+                rows = conn.execute('''
+                    SELECT d.*, COUNT(w.id) AS widget_count
+                    FROM dashboards d
+                    LEFT JOIN widgets w ON w.dashboard_id = d.id
+                    WHERE d.user_id = ?
+                    GROUP BY d.id
+                    ORDER BY d.is_default DESC, d.created_at ASC
+                ''', (user_id,)).fetchall()
+        except Exception as e:
+            logger.error(f"Auto-create dashboard failed: {e}")
 
     return jsonify({'success': True, 'dashboards': [dict(r) for r in rows]}), 200
 
@@ -52,44 +110,73 @@ def list_dashboards():
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def create_dashboard():
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     data = request.get_json(silent=True) or {}
     name = (data.get('name') or '').strip()
-    slug = (data.get('slug') or '').strip().lower().replace(' ', '-')
+    slug_input = (data.get('slug') or '').strip().lower().replace(' ', '-')
 
     if not name:
         return jsonify({'success': False, 'error': 'Nama dashboard wajib diisi'}), 400
-    if not _validate_slug(slug):
-        return jsonify({'success': False, 'error': 'Slug hanya huruf kecil, angka, dan dash (max 64)'}), 400
+
+    if slug_input and not _validate_slug(slug_input):
+        return jsonify({'success': False, 'error': 'Slug hanya huruf kecil, angka, dan dash'}), 400
+
+    # Auto-generate slug dari nama kalau kosong
+    if not slug_input:
+        slug_input = re.sub(r'[^a-z0-9\-]+', '-', name.lower()).strip('-') or 'dashboard'
 
     with get_db_context() as conn:
-        exists = conn.execute('SELECT id FROM dashboards WHERE slug = ?', (slug,)).fetchone()
+        exists = conn.execute(
+            'SELECT id FROM dashboards WHERE slug = ? AND user_id = ?',
+            (slug_input, user_id)
+        ).fetchone()
+
         if exists:
-            return jsonify({'success': False, 'error': 'Slug sudah dipakai'}), 409
+            # Append suffix
+            i = 2
+            base = slug_input
+            while exists:
+                slug_input = f"{base}-{i}"
+                i += 1
+                exists = conn.execute(
+                    'SELECT id FROM dashboards WHERE slug = ? AND user_id = ?',
+                    (slug_input, user_id)
+                ).fetchone()
 
         cur = conn.execute('''
-            INSERT INTO dashboards (slug, name, description, icon, is_default, created_at, updated_at)
-            VALUES (?, ?, ?, ?, 0, ?, ?)
+            INSERT INTO dashboards
+            (slug, name, description, icon, is_default, user_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 0, ?, ?, ?)
         ''', (
-            slug, name,
+            slug_input, name,
             data.get('description', ''),
             data.get('icon', 'fa-chart-line'),
+            user_id,
             get_wib_time(), get_wib_time()
         ))
         conn.commit()
         new_id = cur.lastrowid
 
-    logger.info(f"Dashboard created: id={new_id} slug={slug} name={name}")
-    return jsonify({'success': True, 'id': new_id, 'slug': slug}), 201
+    logger.info(f"Dashboard created: id={new_id} user={user_id} slug={slug_input}")
+    return jsonify({'success': True, 'id': new_id, 'slug': slug_input}), 201
 
 
 @dashboards_bp.route('/dashboards/<int:dashboard_id>', methods=['GET'])
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def get_dashboard_detail(dashboard_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     with get_db_context() as conn:
-        dash = conn.execute('SELECT * FROM dashboards WHERE id = ?', (dashboard_id,)).fetchone()
-        if not dash:
+        if not _owns_dashboard(conn, dashboard_id, user_id):
             return jsonify({'success': False, 'error': 'Dashboard not found'}), 404
+
+        dash = conn.execute('SELECT * FROM dashboards WHERE id = ?', (dashboard_id,)).fetchone()
 
         widgets = conn.execute('''
             SELECT * FROM widgets WHERE dashboard_id = ?
@@ -109,8 +196,16 @@ def get_dashboard_detail(dashboard_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def get_dashboard_by_slug(slug):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     with get_db_context() as conn:
-        dash = conn.execute('SELECT * FROM dashboards WHERE slug = ?', (slug,)).fetchone()
+        dash = conn.execute(
+            'SELECT * FROM dashboards WHERE slug = ? AND user_id = ?',
+            (slug, user_id)
+        ).fetchone()
+
         if not dash:
             return jsonify({'success': False, 'error': 'Dashboard not found'}), 404
 
@@ -132,11 +227,14 @@ def get_dashboard_by_slug(slug):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def update_dashboard(dashboard_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     data = request.get_json(silent=True) or {}
 
     with get_db_context() as conn:
-        exists = conn.execute('SELECT id FROM dashboards WHERE id = ?', (dashboard_id,)).fetchone()
-        if not exists:
+        if not _owns_dashboard(conn, dashboard_id, user_id):
             return jsonify({'success': False, 'error': 'Dashboard not found'}), 404
 
         conn.execute('''
@@ -158,13 +256,45 @@ def update_dashboard(dashboard_id):
     return jsonify({'success': True}), 200
 
 
+@dashboards_bp.route('/dashboards/<int:dashboard_id>/set-default', methods=['POST'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def set_default_dashboard(dashboard_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
+    with get_db_context() as conn:
+        if not _owns_dashboard(conn, dashboard_id, user_id):
+            return jsonify({'success': False, 'error': 'Dashboard not found'}), 404
+
+        now = get_wib_time()
+        conn.execute(
+            'UPDATE dashboards SET is_default = 0, updated_at = ? WHERE user_id = ? AND is_default = 1',
+            (now, user_id)
+        )
+        conn.execute(
+            'UPDATE dashboards SET is_default = 1, updated_at = ? WHERE id = ?',
+            (now, dashboard_id)
+        )
+        conn.commit()
+
+    logger.info(f"Dashboard {dashboard_id} set as default for user {user_id}")
+    return jsonify({'success': True}), 200
+
+
 @dashboards_bp.route('/dashboards/<int:dashboard_id>', methods=['DELETE'])
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def delete_dashboard(dashboard_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     with get_db_context() as conn:
         dash = conn.execute(
-            'SELECT id, is_default FROM dashboards WHERE id = ?', (dashboard_id,)
+            'SELECT id, is_default FROM dashboards WHERE id = ? AND user_id = ?',
+            (dashboard_id, user_id)
         ).fetchone()
 
         if not dash:
@@ -177,7 +307,7 @@ def delete_dashboard(dashboard_id):
         conn.execute('DELETE FROM dashboards WHERE id = ?', (dashboard_id,))
         conn.commit()
 
-    logger.info(f"Dashboard deleted: id={dashboard_id}")
+    logger.info(f"Dashboard deleted: id={dashboard_id} user={user_id}")
     return jsonify({'success': True}), 200
 
 
@@ -188,9 +318,12 @@ def delete_dashboard(dashboard_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def list_analytics_tabs(dashboard_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     with get_db_context() as conn:
-        dash = conn.execute('SELECT id FROM dashboards WHERE id = ?', (dashboard_id,)).fetchone()
-        if not dash:
+        if not _owns_dashboard(conn, dashboard_id, user_id):
             return jsonify({'success': False, 'error': 'Dashboard not found'}), 404
 
         rows = conn.execute('''
@@ -209,14 +342,17 @@ def list_analytics_tabs(dashboard_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def create_analytics_tab(dashboard_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     data = request.get_json(silent=True) or {}
     name = (data.get('name') or '').strip()
     if not name:
         return jsonify({'success': False, 'error': 'Nama tab wajib diisi'}), 400
 
     with get_db_context() as conn:
-        dash = conn.execute('SELECT id FROM dashboards WHERE id = ?', (dashboard_id,)).fetchone()
-        if not dash:
+        if not _owns_dashboard(conn, dashboard_id, user_id):
             return jsonify({'success': False, 'error': 'Dashboard not found'}), 404
 
         row = conn.execute(
@@ -249,11 +385,14 @@ def create_analytics_tab(dashboard_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def update_analytics_tab(tab_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     data = request.get_json(silent=True) or {}
 
     with get_db_context() as conn:
-        exists = conn.execute('SELECT id FROM analytics_tabs WHERE id = ?', (tab_id,)).fetchone()
-        if not exists:
+        if not _owns_tab(conn, tab_id, user_id):
             return jsonify({'success': False, 'error': 'Tab not found'}), 404
 
         fields, params = [], []
@@ -276,9 +415,12 @@ def update_analytics_tab(tab_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def delete_analytics_tab(tab_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     with get_db_context() as conn:
-        exists = conn.execute('SELECT id FROM analytics_tabs WHERE id = ?', (tab_id,)).fetchone()
-        if not exists:
+        if not _owns_tab(conn, tab_id, user_id):
             return jsonify({'success': False, 'error': 'Tab not found'}), 404
 
         conn.execute('DELETE FROM widgets WHERE analytics_tab_id = ?', (tab_id,))
@@ -292,7 +434,14 @@ def delete_analytics_tab(tab_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def list_tab_widgets(dashboard_id, tab_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     with get_db_context() as conn:
+        if not _owns_dashboard(conn, dashboard_id, user_id):
+            return jsonify({'success': False, 'error': 'Dashboard not found'}), 404
+
         rows = conn.execute('''
             SELECT * FROM widgets
             WHERE dashboard_id = ? AND analytics_tab_id = ?
@@ -315,6 +464,10 @@ def list_tab_widgets(dashboard_id, tab_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def create_widget(dashboard_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     data = request.get_json(silent=True) or {}
 
     widget_type = data.get('widget_type', 'line_chart')
@@ -328,8 +481,7 @@ def create_widget(dashboard_id):
         tab_id_int = None
 
     with get_db_context() as conn:
-        dash = conn.execute('SELECT id FROM dashboards WHERE id = ?', (dashboard_id,)).fetchone()
-        if not dash:
+        if not _owns_dashboard(conn, dashboard_id, user_id):
             return jsonify({'success': False, 'error': 'Dashboard not found'}), 404
 
         cur = conn.execute('''
@@ -361,11 +513,14 @@ def create_widget(dashboard_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def update_widget(widget_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     data = request.get_json(silent=True) or {}
 
     with get_db_context() as conn:
-        exists = conn.execute('SELECT id FROM widgets WHERE id = ?', (widget_id,)).fetchone()
-        if not exists:
+        if not _owns_widget(conn, widget_id, user_id):
             return jsonify({'success': False, 'error': 'Widget not found'}), 404
 
         fields, params = [], []
@@ -393,9 +548,17 @@ def update_widget(widget_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def delete_widget(widget_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     with get_db_context() as conn:
+        if not _owns_widget(conn, widget_id, user_id):
+            return jsonify({'success': False, 'error': 'Widget not found'}), 404
+
         conn.execute('DELETE FROM widgets WHERE id = ?', (widget_id,))
         conn.commit()
+
     return jsonify({'success': True}), 200
 
 
@@ -403,6 +566,10 @@ def delete_widget(widget_id):
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def save_dashboard_layout(dashboard_id):
+    user_id = _get_user_id()
+    if not user_id:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
     data = request.get_json(silent=True) or {}
     layout = data.get('layout', [])
 
@@ -411,8 +578,7 @@ def save_dashboard_layout(dashboard_id):
 
     updated = 0
     with get_db_context() as conn:
-        dash = conn.execute('SELECT id FROM dashboards WHERE id = ?', (dashboard_id,)).fetchone()
-        if not dash:
+        if not _owns_dashboard(conn, dashboard_id, user_id):
             return jsonify({'success': False, 'error': 'Dashboard not found'}), 404
 
         now = get_wib_time()

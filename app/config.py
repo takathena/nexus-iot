@@ -19,15 +19,18 @@ class Config:
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = timedelta(hours=int(os.getenv('SESSION_LIFETIME_HOURS', 24)))
-    SESSION_REFRESH_EACH_REQUEST = True
+    # ✅ FIX Tier 3 #12: session lifetime absolut, tidak refresh tiap request
+    SESSION_REFRESH_EACH_REQUEST = False
+    # Idle timeout (menit) — session invalid kalau idle > N menit
+    SESSION_IDLE_TIMEOUT_MINUTES = int(os.getenv('SESSION_IDLE_TIMEOUT_MINUTES', 120))
+
     WTF_CSRF_ENABLED = True
-    WTF_CSRF_TIME_LIMIT = None
+    WTF_CSRF_TIME_LIMIT = 3600
 
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 2 * 1024 * 1024))
     ENABLE_HSTS = os.getenv('ENABLE_HSTS', 'False').lower() == 'true'
     CSP_REPORT_ONLY = os.getenv('CSP_REPORT_ONLY', 'False').lower() == 'true'
 
-    # Notifikasi Telegram
     NOTIFY_ENABLED = os.getenv('NOTIFY_ENABLED', 'False').lower() == 'true'
     NOTIFY_MIN_SEVERITY = os.getenv('NOTIFY_MIN_SEVERITY', 'warning')
     NOTIFY_ON_CLEARED = os.getenv('NOTIFY_ON_CLEARED', 'True').lower() == 'true'
@@ -35,7 +38,6 @@ class Config:
     TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN', '')
     TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '')
 
-    # CSP whitelist
     CSP_SCRIPT_SRC = os.getenv(
         'CSP_SCRIPT_SRC',
         "'self' 'unsafe-inline' "
@@ -68,6 +70,9 @@ class Config:
     BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     DB_PATH = os.getenv('DB_PATH', os.path.join(BASE_DIR, 'database', 'iot.db'))
     DATA_RETENTION_DAYS = int(os.getenv('DATA_RETENTION_DAYS', 30))
+    ALERT_HISTORY_RETENTION_DAYS = int(os.getenv('ALERT_HISTORY_RETENTION_DAYS', 90))
+    STATUS_LOG_RETENTION_DAYS = int(os.getenv('STATUS_LOG_RETENTION_DAYS', 30))
+    ATTENDANCE_RETENTION_DAYS = int(os.getenv('ATTENDANCE_RETENTION_DAYS', 365))
 
     BACKUP_ENABLED = os.getenv('BACKUP_ENABLED', 'True').lower() == 'true'
     BACKUP_INTERVAL_HOURS = int(os.getenv('BACKUP_INTERVAL_HOURS', 24))
@@ -83,6 +88,8 @@ class Config:
     RATE_LIMIT_DEFAULT = os.getenv('RATE_LIMIT_DEFAULT', '200 per minute')
     RATE_LIMIT_DATA = os.getenv('RATE_LIMIT_DATA', '60 per minute')
     RATE_LIMIT_LOGIN = os.getenv('RATE_LIMIT_LOGIN', '5 per minute')
+    RATE_LIMIT_REGENERATE = os.getenv('RATE_LIMIT_REGENERATE', '10 per minute')
+    RATE_LIMIT_STORAGE = os.getenv('RATE_LIMIT_STORAGE', 'memory://')
 
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = os.getenv('LOG_FILE', os.path.join(BASE_DIR, 'logs', 'nexus.log'))
@@ -110,6 +117,48 @@ class Config:
             'warning': {'min': 0, 'max': 85},
             'danger':  {'min': 0, 'max': 100},
             '_hysteresis': 2.0,
+        },
+        'moisture': {
+            'healthy': {'min': 40, 'max': 70},
+            'warning': {'min': 30, 'max': 80},
+            'danger':  {'min': 20, 'max': 90},
+            '_hysteresis': 1.0,
+        },
+        'lux': {
+            'healthy': {'min': 100, 'max': 800},
+            'warning': {'min': 50, 'max': 1000},
+            'danger':  {'min': 0, 'max': 2000},
+            '_hysteresis': 50.0,
+        },
+        'co2': {
+            'healthy': {'min': 300, 'max': 1000},
+            'warning': {'min': 300, 'max': 1500},
+            'danger':  {'min': 300, 'max': 5000},
+            '_hysteresis': 50.0,
+        },
+        'smoke': {
+            'healthy': {'min': 0, 'max': 200},
+            'warning': {'min': 0, 'max': 500},
+            'danger':  {'min': 0, 'max': 1000},
+            '_hysteresis': 20.0,
+        },
+        'motion': {
+            'healthy': {'min': 0, 'max': 0},
+            'warning': {'min': 0, 'max': 1},
+            'danger':  {'min': 0, 'max': 1},
+            '_hysteresis': 0.0,
+        },
+        'voc': {
+            'healthy': {'min': 0, 'max': 250},
+            'warning': {'min': 0, 'max': 500},
+            'danger':  {'min': 0, 'max': 1000},
+            '_hysteresis': 20.0,
+        },
+        'air_quality': {
+            'healthy': {'min': 0, 'max': 100},
+            'warning': {'min': 0, 'max': 200},
+            'danger':  {'min': 0, 'max': 500},
+            '_hysteresis': 10.0,
         },
     }
 

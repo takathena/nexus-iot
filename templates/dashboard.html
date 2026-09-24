@@ -11,6 +11,10 @@
 {% endblock %}
 
 {% block content %}
+{% if dashboard_slug %}
+<meta name="dashboard-slug" content="{{ dashboard_slug }}">
+{% endif %}
+
 <script>
     if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|Tablet/i.test(navigator.userAgent) || window.innerWidth <= 768) {
         window.location.href = '/mobile';
@@ -59,7 +63,6 @@
     </defs>
 </svg>
 
-<!-- Backdrop: aktif hanya saat sidebar overlay terbuka di mobile -->
 <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
 
 <div class="sidebar" id="sidebar">
@@ -150,5 +153,6 @@
 <script src="https://cdn.jsdelivr.net/npm/interactjs@1.10.27/dist/interact.min.js"></script>
 <script src="{{ url_for('static', filename='js/alert_rules_builder.js') }}"></script>
 <script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
+<script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
 {% endblock %}

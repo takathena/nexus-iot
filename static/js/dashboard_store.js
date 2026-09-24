@@ -1,5 +1,6 @@
 /* ==========================================
-   NEXUS IoT - Dashboard Store (Single Dashboard)
+   NEXUS IoT - Dashboard Store (Single Dashboard) v2 FIXED
+   Fix: race condition saveLayoutNow(), pending save queue
    ========================================== */
 
 (function() {
@@ -12,6 +13,7 @@
         widgets: [],
         saveTimer: null,
         isSaving: false,
+        pendingSave: false,
     };
 
     async function loadDashboards() {
@@ -69,11 +71,19 @@
         state.saveTimer = setTimeout(saveLayoutNow, 600);
     }
 
+    // ✅ FIX #6: race condition — kalau sedang save, tandai pending dan
+    // jalankan ulang setelah selesai
     async function saveLayoutNow() {
         if (!state.currentDashboardId || state.widgets.length === 0) return;
-        if (state.isSaving) return;
+
+        if (state.isSaving) {
+            state.pendingSave = true;
+            return;
+        }
 
         state.isSaving = true;
+        state.pendingSave = false;
+
         const layout = state.widgets.map(w => ({
             id: w.id,
             x: w.grid_x || 0,
@@ -82,13 +92,24 @@
             h: w.grid_h || 2,
         }));
 
+        // Snapshot dashboardId — kalau user pindah tab, jangan save ke dashboard salah
+        const dashboardId = state.currentDashboardId;
+
         try {
             await window.API.call(
-                `/api/v1/dashboards/${state.currentDashboardId}/layout`,
+                `/api/v1/dashboards/${dashboardId}/layout`,
                 { method: 'PUT', body: JSON.stringify({ layout }) }
             );
+        } catch (e) {
+            console.error('[DashboardStore] saveLayoutNow failed:', e);
         } finally {
             state.isSaving = false;
+
+            // Kalau ada perubahan lain yang masuk selama save, jalankan lagi
+            if (state.pendingSave) {
+                state.pendingSave = false;
+                scheduleLayoutSave();
+            }
         }
     }
 
