@@ -1104,14 +1104,18 @@
                 cw = DEFAULT_W;
                 ch = DEFAULT_H;
             }
+            const wConfig = w.config || {};
+            const deviceIds = Array.isArray(wConfig.devices) && wConfig.devices.length > 0
+                ? wConfig.devices
+                : (w.device_id ? [w.device_id] : []);
+
             const config = {
                 id: `chart_${w.id}`,
                 widgetId: w.id,
                 title: w.title,
-                deviceId: w.device_id,
-                deviceName: state.devices.find(d => d.device_id === w.device_id)?.device_name || w.device_id,
+                deviceIds,
                 chartType: store.mapWidgetTypeToChartType(w.widget_type),
-                showData: (w.config && w.config.show_data) || {},
+                showData: wConfig.show_data || {},
                 x, y, w: cw, h: ch,
                 chartInstance: null,
             };
@@ -1142,13 +1146,14 @@
         card.style.height = config.h + 'px';
 
         const dataLabels = Object.entries(config.showData).filter(([_, v]) => v).map(([k]) => DATA_KEYS[k]?.label || k).join(', ');
+        const deviceNamesStr = (config.deviceIds || []).map(did => state.devices.find(d => d.device_id === did)?.device_name || did).join(', ');
 
         card.innerHTML = `
             <div class="chart-card-header">
                 <div class="chart-card-title">
                     <i class="fa-solid fa-chart-line"></i>
                     <span>${escapeHtml(config.title)}</span>
-                    <span class="chart-meta">(${escapeHtml(config.deviceName)} - ${escapeHtml(dataLabels)})</span>
+                    <span class="chart-meta">(${escapeHtml(deviceNamesStr)} - ${escapeHtml(dataLabels)})</span>
                 </div>
                 <div class="chart-actions">
                     <button class="chart-action-btn" data-action="edit" title="Edit"><i class="fa-solid fa-pen"></i></button>
@@ -1361,6 +1366,26 @@
         }, { passive: true });
     }
 
+    function generateDeviceCheckboxes(selectedDeviceIds = []) {
+        const container = $('chartDeviceCheckboxes');
+        if (!container) return;
+        if (state.devices.length === 0) {
+            container.innerHTML = '<div style="padding:12px;color:var(--text-3);font-size:12px;grid-column:1/-1;">Belum ada perangkat. Tambah dulu di menu Perangkat.</div>';
+            return;
+        }
+        const selectedSet = new Set(selectedDeviceIds);
+        container.innerHTML = state.devices.map(d => `
+            <label class="checkbox-item">
+                <input type="checkbox" class="chart-device-checkbox"
+                       data-device-id="${escapeHtml(d.device_id)}"
+                       ${selectedSet.has(d.device_id) ? 'checked' : ''}>
+                <span>${escapeHtml(d.device_name)}
+                    <span style="color:var(--text-3);font-family:var(--mono);font-size:10px;">(${escapeHtml(d.device_id)})</span>
+                </span>
+            </label>
+        `).join('');
+    }
+
     function generateDataCheckboxes(selected = {}) {
         const container = $('chartDataCheckboxes'); if (!container) return;
         container.innerHTML = Object.entries(DATA_KEYS).map(([key, info]) => `<label class="checkbox-item"><input type="checkbox" class="chart-data-checkbox" data-key="${key}" ${selected[key] ? 'checked' : ''}><span class="data-color" style="background:${info.color};"></span><span>${escapeHtml(info.label)} (${escapeHtml(info.unit)})</span></label>`).join('');
@@ -1368,25 +1393,28 @@
 
     function openAddChartModal() {
         if (!state.currentTabId) { showToast('Buat tab analitik dulu', 'warning'); return; }
-        const titleEl = $('chartModalTitle'); const editEl = $('editChartId'); const chartTitleEl = $('chartTitle');
+        const titleEl = $('chartModalTitle');
+        const editEl = $('editChartId');
+        const chartTitleEl = $('chartTitle');
         if (titleEl) titleEl.textContent = 'Tambah Diagram';
         if (editEl) editEl.value = '';
         if (chartTitleEl) chartTitleEl.value = '';
-        const select = $('chartDeviceSelect');
-        if (select) select.innerHTML = '<option value="">Pilih Perangkat...</option>' + state.devices.map(d => `<option value="${escapeHtml(d.device_id)}">${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`).join('');
+        generateDeviceCheckboxes([]);
         const typeEl = $('chartTypeSelect'); if (typeEl) typeEl.value = 'line';
         generateDataCheckboxes({ temperature: true });
         openModal('chartModal');
     }
 
     function openEditChartModal(chartId) {
-        const chart = state.charts.find(c => c.id === chartId); if (!chart) return;
-        const titleEl = $('chartModalTitle'); const editEl = $('editChartId'); const chartTitleEl = $('chartTitle');
+        const chart = state.charts.find(c => c.id === chartId);
+        if (!chart) return;
+        const titleEl = $('chartModalTitle');
+        const editEl = $('editChartId');
+        const chartTitleEl = $('chartTitle');
         if (titleEl) titleEl.textContent = 'Edit Diagram';
         if (editEl) editEl.value = chartId;
         if (chartTitleEl) chartTitleEl.value = chart.title;
-        const select = $('chartDeviceSelect');
-        if (select) select.innerHTML = '<option value="">Pilih Perangkat...</option>' + state.devices.map(d => `<option value="${escapeHtml(d.device_id)}" ${d.device_id === chart.deviceId ? 'selected' : ''}>${escapeHtml(d.device_name)} (${escapeHtml(d.device_id)})</option>`).join('');
+        generateDeviceCheckboxes(chart.deviceIds || []);
         const typeEl = $('chartTypeSelect'); if (typeEl) typeEl.value = chart.chartType;
         generateDataCheckboxes(chart.showData);
         openModal('chartModal');
@@ -1395,30 +1423,58 @@
     async function saveChart() {
         const editId = ($('editChartId') || {}).value;
         const title = (($('chartTitle') || {}).value || '').trim() || 'Diagram';
-        const deviceId = ($('chartDeviceSelect') || {}).value;
         const chartType = ($('chartTypeSelect') || {}).value;
+
+        const deviceIds = [];
+        document.querySelectorAll('#chartDeviceCheckboxes .chart-device-checkbox').forEach(cb => {
+            if (cb.checked) deviceIds.push(cb.dataset.deviceId);
+        });
+
         const showData = {};
-        document.querySelectorAll('#chartDataCheckboxes .chart-data-checkbox').forEach(cb => { showData[cb.dataset.key] = cb.checked; });
-        if (!deviceId) { showToast('Pilih perangkat dulu', 'error'); return; }
-        if (!Object.values(showData).some(v => v)) { showToast('Pilih minimal 1 data', 'error'); return; }
+        document.querySelectorAll('#chartDataCheckboxes .chart-data-checkbox').forEach(cb => {
+            showData[cb.dataset.key] = cb.checked;
+        });
+
+        if (deviceIds.length === 0) { showToast('Pilih minimal 1 perangkat', 'error'); return; }
+        if (!Object.values(showData).some(v => v)) { showToast('Pilih minimal 1 jenis data', 'error'); return; }
+
         const store = window.DashboardStore;
         const dashboardId = store.state.currentDashboardId;
         const widgetType = store.mapChartTypeToWidgetType(chartType);
+
+        const widgetConfig = {
+            show_data: showData,
+            devices: deviceIds,
+        };
+
         if (editId) {
-            const chart = state.charts.find(c => c.id === editId); if (!chart) return;
+            const chart = state.charts.find(c => c.id === editId);
+            if (!chart) return;
+
             const res = await API.call(`/api/v1/widgets/${chart.widgetId}`, {
                 method: 'PUT',
-                body: JSON.stringify({ title, device_id: deviceId, widget_type: widgetType, config: { show_data: showData } }),
+                body: JSON.stringify({
+                    title,
+                    device_id: deviceIds[0],
+                    widget_type: widgetType,
+                    config: widgetConfig,
+                }),
             });
             if (!res.success) { showToast(res.error || 'Gagal', 'error'); return; }
-            chart.title = title; chart.deviceId = deviceId;
-            chart.deviceName = state.devices.find(d => d.device_id === deviceId)?.device_name || deviceId;
-            chart.chartType = chartType; chart.showData = showData;
+
+            chart.title = title;
+            chart.deviceIds = deviceIds;
+            chart.chartType = chartType;
+            chart.showData = showData;
+
             if (chart.chartInstance) { try { chart.chartInstance.destroy(); } catch (e) {} chart.chartInstance = null; }
+
             const card = document.getElementById(editId);
             if (card) {
                 const dataLabels = Object.entries(showData).filter(([_, v]) => v).map(([k]) => DATA_KEYS[k]?.label || k).join(', ');
-                card.querySelector('.chart-card-title').innerHTML = `<i class="fa-solid fa-chart-line"></i><span>${escapeHtml(title)}</span><span class="chart-meta">(${escapeHtml(chart.deviceName)} - ${escapeHtml(dataLabels)})</span>`;
+                const deviceNamesStr = deviceIds.map(did => state.devices.find(d => d.device_id === did)?.device_name || did).join(', ');
+                card.querySelector('.chart-card-title').innerHTML =
+                    `<i class="fa-solid fa-chart-line"></i><span>${escapeHtml(title)}</span><span class="chart-meta">(${escapeHtml(deviceNamesStr)} - ${escapeHtml(dataLabels)})</span>`;
             }
             await loadDynamicChartData(chart);
             showToast('Diagram diupdate', 'success');
@@ -1426,8 +1482,10 @@
             const res = await API.call(`/api/v1/dashboards/${dashboardId}/widgets`, {
                 method: 'POST',
                 body: JSON.stringify({
-                    widget_type: widgetType, title, device_id: deviceId,
-                    config: { show_data: showData },
+                    widget_type: widgetType,
+                    title,
+                    device_id: deviceIds[0],
+                    config: widgetConfig,
                     grid_x: 0, grid_y: 0, grid_w: 6, grid_h: 2,
                     analytics_tab_id: state.currentTabId,
                 }),
@@ -1440,92 +1498,186 @@
     }
 
     async function loadDynamicChartData(config) {
+        const deviceIds = config.deviceIds || [];
+        if (deviceIds.length === 0) { showChartEmpty(config.id, 'Belum ada device dipilih'); return; }
+        const hours = Math.max(1, Math.ceil(state.globalTimeMinutes / 60));
+        const limit = Math.min(Math.max(hours * 60, 500), 5000);
         try {
-            const hours = Math.max(1, Math.ceil(state.globalTimeMinutes / 60));
-            const limit = Math.min(Math.max(hours * 60, 500), 5000);
-            const result = await API.getDeviceHistory(config.deviceId, { hours, limit });
-            if (!result.success || !result.data.history?.length) { showChartEmpty(config.id, 'Menunggu data sensor...'); return; }
-            const now = Date.now();
-            const cutoff = now - state.globalTimeMinutes * 60 * 1000;
-            const filtered = result.data.history.filter(item => { const d = parseDate(item.timestamp); return d && d.getTime() >= cutoff; });
-            const data = filtered.length > 0 ? filtered : result.data.history;
-            renderChartDataSync(config, data);
+            const results = await Promise.all(deviceIds.map(did =>
+                API.getDeviceHistory(did, { hours, limit }).then(r => ({ did, result: r }))
+            ));
+            const historyByDevice = {};
+            results.forEach(({ did, result }) => {
+                historyByDevice[did] = result.success ? (result.data.history || []) : [];
+            });
+            renderChartDataSync(config, historyByDevice);
         } catch (e) { console.error('[Chart]', e); }
     }
 
     async function loadAllChartDataBatched() {
         if (state.charts.length === 0) return;
-        const groups = new Map();
+
+        const uniqueDevices = new Set();
         state.charts.forEach(c => {
-            const key = `${c.deviceId}|${state.globalTimeMinutes}`;
-            if (!groups.has(key)) groups.set(key, []);
-            groups.get(key).push(c);
+            (c.deviceIds || []).forEach(did => uniqueDevices.add(did));
         });
+        if (uniqueDevices.size === 0) return;
+
         const hours = Math.max(1, Math.ceil(state.globalTimeMinutes / 60));
         const limit = Math.min(Math.max(hours * 60, 500), 5000);
-        const promises = [];
-        for (const [, charts] of groups.entries()) {
-            const deviceId = charts[0].deviceId;
-            promises.push(API.getDeviceHistory(deviceId, { hours, limit }).then(result => ({ charts, result })));
-        }
-        const results = await Promise.all(promises);
-        for (const { charts, result } of results) {
-            if (!result.success) { charts.forEach(c => showChartEmpty(c.id, 'Gagal memuat')); continue; }
-            const history = result.data.history || [];
-            const now = Date.now();
-            const cutoff = now - state.globalTimeMinutes * 60 * 1000;
-            const filtered = history.filter(item => { const d = parseDate(item.timestamp); return d && d.getTime() >= cutoff; });
-            const data = filtered.length > 0 ? filtered : history;
-            if (data.length === 0) { charts.forEach(c => showChartEmpty(c.id, 'Menunggu data...')); continue; }
-            charts.forEach(c => { try { renderChartDataSync(c, data); } catch (e) { console.error(e); } });
-        }
+
+        const fetchResults = await Promise.all(
+            Array.from(uniqueDevices).map(did =>
+                API.getDeviceHistory(did, { hours, limit }).then(r => ({ did, result: r }))
+            )
+        );
+        const historyByDevice = {};
+        fetchResults.forEach(({ did, result }) => {
+            historyByDevice[did] = result.success ? (result.data.history || []) : [];
+        });
+
+        state.charts.forEach(c => {
+            const chartHistory = {};
+            (c.deviceIds || []).forEach(did => { chartHistory[did] = historyByDevice[did] || []; });
+            try { renderChartDataSync(c, chartHistory); } catch (e) { console.error(e); }
+        });
     }
 
-    function renderChartDataSync(config, historyData) {
+    function renderChartDataSync(config, historyByDevice) {
         const canvas = document.getElementById(`${config.id}_canvas`);
         if (!canvas) return;
-        historyData = downsampleHistory(historyData, 500);
         const ctx = canvas.getContext('2d');
         const colors = getChartColors();
         if (config.chartInstance) { try { config.chartInstance.destroy(); } catch (e) {} config.chartInstance = null; }
-        const labels = historyData.map(item => {
-            const d = parseDate(item.timestamp); if (!d) return '';
-            try { return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' }); } catch (e) { return ''; }
-        });
+
+        const deviceIds = config.deviceIds || [];
         const activeKeys = Object.entries(config.showData).filter(([_, v]) => v).map(([k]) => k);
-        const datasets = [];
-        for (let i = 0; i < activeKeys.length; i++) {
-            const key = activeKeys[i]; const info = DATA_KEYS[key]; if (!info) continue;
-            const values = historyData.map(item => { const d = item.data || {}; return d[key] ?? d[key.toLowerCase()] ?? d[key.toUpperCase()] ?? null; });
-            if (!values.some(v => v !== null && v !== undefined)) continue;
-            const color = CHART_COLORS[i % CHART_COLORS.length];
-            const isArea = config.chartType === 'area' || config.chartType === 'stackedArea';
-            const isStacked = config.chartType === 'stackedBar' || config.chartType === 'stackedArea';
-            datasets.push({
-                label: `${info.label} (${info.unit})`, data: values,
-                borderColor: color, backgroundColor: isArea ? color + '30' : color + '80',
-                fill: isArea, tension: 0.35, pointRadius: 2, pointHoverRadius: 5,
-                pointBackgroundColor: color, pointBorderColor: colors.pointBorderColor,
-                pointBorderWidth: 1, borderWidth: 2,
-                stack: isStacked ? 'stack1' : undefined,
-            });
-        }
-        if (datasets.length === 0) { showChartEmpty(config.id, 'Tidak ada data cocok'); return; }
+
+        // Doughnut / Pie / Polar / Radar → 1 slice per device × key
         if (['doughnut', 'pie', 'polarArea', 'radar'].includes(config.chartType)) {
-            const latest = historyData[historyData.length - 1];
-            const gl = [], gv = [];
-            activeKeys.forEach(key => { const info = DATA_KEYS[key]; if (!info) return; const val = latest.data?.[key]; if (val !== null && val !== undefined) { gl.push(info.label); gv.push(val); } });
-            if (gv.length === 0) { showChartEmpty(config.id, 'Tidak ada data terbaru'); return; }
+            const gaugeLabels = [];
+            const gaugeValues = [];
+            deviceIds.forEach(did => {
+                const hist = historyByDevice[did] || [];
+                if (hist.length === 0) return;
+                const latest = hist[hist.length - 1];
+                const dname = state.devices.find(d => d.device_id === did)?.device_name || did;
+                activeKeys.forEach(key => {
+                    const info = DATA_KEYS[key];
+                    if (!info) return;
+                    const val = latest.data?.[key];
+                    if (val !== null && val !== undefined) {
+                        gaugeLabels.push(deviceIds.length > 1 ? `${dname} — ${info.label}` : info.label);
+                        gaugeValues.push(val);
+                    }
+                });
+            });
+            if (gaugeValues.length === 0) { showChartEmpty(config.id, 'Tidak ada data terbaru'); return; }
             config.chartInstance = new Chart(ctx, {
                 type: config.chartType,
-                data: { labels: gl, datasets: [{ data: gv, backgroundColor: gv.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + '80'), borderColor: gv.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]), borderWidth: 2 }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: colors.legendColor, font: { size: 11, family: CHART_FONT }, usePointStyle: true, padding: 12 } } } },
+                data: {
+                    labels: gaugeLabels,
+                    datasets: [{
+                        data: gaugeValues,
+                        backgroundColor: gaugeValues.map((_, i) => CHART_COLORS[i % CHART_COLORS.length] + '80'),
+                        borderColor: gaugeValues.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
+                        borderWidth: 2,
+                    }],
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: colors.legendColor, font: { size: 11, family: CHART_FONT }, usePointStyle: true, padding: 12 },
+                        },
+                    },
+                },
             });
             return;
         }
+
+        // Time-series (line/bar/area)
+        const timestampSet = new Set();
+        deviceIds.forEach(did => {
+            (historyByDevice[did] || []).forEach(item => timestampSet.add(item.timestamp));
+        });
+        if (timestampSet.size === 0) { showChartEmpty(config.id, 'Menunggu data sensor...'); return; }
+
+        const now = Date.now();
+        const cutoff = now - state.globalTimeMinutes * 60 * 1000;
+        const allTs = Array.from(timestampSet).sort();
+        const inRange = allTs.filter(ts => {
+            const d = parseDate(ts);
+            return d && d.getTime() >= cutoff;
+        });
+        const usedTs = downsampleHistory(inRange.length > 0 ? inRange : allTs, 500);
+
+        if (usedTs.length === 0) { showChartEmpty(config.id, 'Menunggu data sensor...'); return; }
+
+        const labels = usedTs.map(ts => {
+            const d = parseDate(ts);
+            if (!d) return '';
+            try {
+                return d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jakarta' });
+            } catch (e) { return ''; }
+        });
+
+        const datasets = [];
+        let colorIdx = 0;
+
+        deviceIds.forEach(did => {
+            const hist = historyByDevice[did] || [];
+            if (hist.length === 0) return;
+            const dname = state.devices.find(d => d.device_id === did)?.device_name || did;
+
+            // Map timestamp → data object
+            const tsMap = {};
+            hist.forEach(item => { tsMap[item.timestamp] = item.data || {}; });
+
+            activeKeys.forEach(key => {
+                const info = DATA_KEYS[key];
+                if (!info) return;
+                const values = usedTs.map(ts => {
+                    const obj = tsMap[ts];
+                    if (!obj) return null;
+                    return obj[key] ?? obj[key.toLowerCase()] ?? obj[key.toUpperCase()] ?? null;
+                });
+                if (!values.some(v => v !== null && v !== undefined)) return;
+
+                const color = CHART_COLORS[colorIdx % CHART_COLORS.length];
+                colorIdx++;
+
+                const isArea = config.chartType === 'area' || config.chartType === 'stackedArea';
+                const isStacked = config.chartType === 'stackedBar' || config.chartType === 'stackedArea';
+
+                const label = deviceIds.length > 1
+                    ? `${dname} — ${info.label}`
+                    : `${info.label} (${info.unit})`;
+
+                datasets.push({
+                    label,
+                    data: values,
+                    borderColor: color,
+                    backgroundColor: isArea ? color + '30' : color + '80',
+                    fill: isArea,
+                    tension: 0.35,
+                    pointRadius: 2, pointHoverRadius: 5,
+                    pointBackgroundColor: color,
+                    pointBorderColor: colors.pointBorderColor,
+                    pointBorderWidth: 1, borderWidth: 2,
+                    spanGaps: true,  // ← sambung null biar tidak putus
+                    stack: isStacked ? 'stack1' : undefined,
+                });
+            });
+        });
+
+        if (datasets.length === 0) { showChartEmpty(config.id, 'Tidak ada data sensor yang cocok'); return; }
+
         let type = config.chartType;
         if (type === 'area' || type === 'stackedArea') type = 'line';
         if (type === 'horizontalBar' || type === 'stackedBar') type = 'bar';
+
         config.chartInstance = new Chart(ctx, {
             type,
             data: { labels, datasets },
