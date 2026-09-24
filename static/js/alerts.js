@@ -1,8 +1,9 @@
 /* ==========================================
-   NEXUS IoT - Alert Center (v4.2)
-   + Fix: ack pakai alert_id (bukan history.id)
-   + Sound notification untuk danger/warning baru
-   + Mark All Read
+   NEXUS IoT - Alert Center (v6)
+   - Status/Severity: iOS custom dropdown
+   - Search: dari topbar
+   - Date filter: Dari/Sampai/Terapkan/Reset
+   - Sound notification: DIHAPUS
    ========================================== */
 
 (function() {
@@ -14,6 +15,8 @@
         status: 'all',
         severity: '',
         search: '',
+        dateStart: '',
+        dateEnd: '',
         selectedIds: new Set(),
         newlyAdded: new Set(),
         refreshInterval: null,
@@ -22,11 +25,9 @@
 
     const STORAGE_KEYS = {
         BACK_URL: 'nexus_back_url',
-        SOUND: 'nexus-alerts-sound',
     };
 
     const _seenAlertIds = new Set();
-    let _audioCtx = null;
 
     function $(id) { return document.getElementById(id); }
 
@@ -131,79 +132,45 @@
         return `${trimmed}${unit}`;
     }
 
-    // ✅ helper: pilih ID yang tepat untuk ack (alert_id > id)
     function getAckId(a) {
         if (a && a.alert_id !== null && a.alert_id !== undefined) return a.alert_id;
         return a ? a.id : null;
     }
 
     // ==========================================
-    // SOUND
+    // iOS CUSTOM DROPDOWN — reusable
     // ==========================================
-    function _getAudioCtx() {
-        if (!_audioCtx) {
-            try {
-                _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            } catch (e) {
-                console.warn('[Alerts] AudioContext tidak didukung');
-            }
-        }
-        if (_audioCtx && _audioCtx.state === 'suspended') {
-            try { _audioCtx.resume(); } catch (e) {}
-        }
-        return _audioCtx;
-    }
+    function bindIOSDropdown(id, onChange) {
+        const dd = document.getElementById(id);
+        if (!dd) return;
+        const trigger = dd.querySelector('.ios-dropdown-trigger');
+        const label = dd.querySelector('.ios-dropdown-label');
+        const items = dd.querySelectorAll('.ios-dropdown-item');
+        if (!trigger || !label) return;
 
-    function _playBeep(severity) {
-        if (localStorage.getItem(STORAGE_KEYS.SOUND) === 'off') return;
-        if (severity !== 'danger' && severity !== 'warning') return;
+        trigger.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.querySelectorAll('.ios-dropdown.open').forEach(el => {
+                if (el !== dd) el.classList.remove('open');
+            });
+            dd.classList.toggle('open');
+        });
 
-        const ctx = _getAudioCtx();
-        if (!ctx) return;
+        items.forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const value = item.dataset.value || '';
+                const textEl = item.querySelector('.ios-dropdown-item-label');
+                const text = textEl ? textEl.textContent.trim() : '';
 
-        const now = ctx.currentTime;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.connect(gain);
-        gain.connect(ctx.destination);
+                dd.dataset.value = value;
+                label.textContent = text;
+                items.forEach(i => i.classList.toggle('active', i === item));
+                dd.classList.remove('open');
 
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(severity === 'danger' ? 880 : 660, now);
-
-        gain.gain.setValueAtTime(0.001, now);
-        gain.gain.exponentialRampToValueAtTime(0.15, now + 0.02);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
-
-        osc.start(now);
-        osc.stop(now + 0.16);
-
-        if (severity === 'danger') {
-            const osc2 = ctx.createOscillator();
-            const gain2 = ctx.createGain();
-            osc2.connect(gain2);
-            gain2.connect(ctx.destination);
-            osc2.type = 'sine';
-            osc2.frequency.setValueAtTime(880, now + 0.18);
-
-            gain2.gain.setValueAtTime(0.001, now + 0.18);
-            gain2.gain.exponentialRampToValueAtTime(0.15, now + 0.2);
-            gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.33);
-
-            osc2.start(now + 0.18);
-            osc2.stop(now + 0.34);
-        }
-    }
-
-    function _updateSoundToggleUI() {
-        const btn = document.getElementById('alertSoundToggle');
-        const icon = document.getElementById('alertSoundIcon');
-        const label = document.getElementById('alertSoundLabel');
-        if (!btn) return;
-
-        const enabled = localStorage.getItem(STORAGE_KEYS.SOUND) !== 'off';
-        btn.classList.toggle('muted', !enabled);
-        if (icon) icon.className = enabled ? 'fa-solid fa-volume-high' : 'fa-solid fa-volume-xmark';
-        if (label) label.textContent = enabled ? 'Suara: ON' : 'Suara: OFF';
+                if (typeof onChange === 'function') onChange(value, text);
+            });
+        });
     }
 
     // ==========================================
@@ -227,7 +194,7 @@
         const params = new URLSearchParams();
         if (state.status !== 'all') params.set('status', state.status);
         if (state.severity) params.set('severity', state.severity);
-        params.set('limit', '500');
+        params.set('limit', '1000');
 
         try {
             const res = await fetch(`/api/v1/alerts/all?${params}`);
@@ -247,12 +214,6 @@
                 }
             });
 
-            const activeNew = newOnes.filter(a => a.is_still_active === 1);
-            if (activeNew.length > 0) {
-                const worst = activeNew.some(a => a.severity === 'danger') ? 'danger' : 'warning';
-                _playBeep(worst);
-            }
-
             for (const id of Array.from(_seenAlertIds)) {
                 if (!freshIds.has(id)) _seenAlertIds.delete(id);
             }
@@ -260,7 +221,6 @@
             state.alerts = freshAlerts;
             state.newlyAdded = new Set(newOnes.map(a => a.id));
 
-            // Bersihkan selectedIds yang sudah tidak valid
             const validAckIds = new Set(
                 freshAlerts
                     .filter(a => a.is_still_active === 1 && a.severity !== 'healthy')
@@ -284,8 +244,29 @@
         } catch (e) { showError('Koneksi gagal'); }
     }
 
+    function inDateRange(createdAt) {
+        if (!state.dateStart && !state.dateEnd) return true;
+        const d = parseDate(createdAt);
+        if (!d) return true;
+        const t = d.getTime();
+        if (state.dateStart) {
+            const st = new Date(state.dateStart + 'T00:00:00+07:00').getTime();
+            if (t < st) return false;
+        }
+        if (state.dateEnd) {
+            const en = new Date(state.dateEnd + 'T23:59:59+07:00').getTime();
+            if (t > en) return false;
+        }
+        return true;
+    }
+
     function applyFilter() {
         let list = state.alerts;
+
+        // Filter tanggal
+        list = list.filter(a => inDateRange(a.created_at));
+
+        // Filter pencarian
         if (state.search) {
             const term = state.search.toLowerCase();
             list = list.filter(a =>
@@ -296,9 +277,23 @@
                 (a.label || '').toLowerCase().includes(term)
             );
         }
+
         state.filtered = list;
         renderAlerts();
         updateBulkBar();
+    }
+
+    function updateFilterInfo() {
+        const infoEl = $('alertFilterInfo');
+        if (!infoEl) return;
+        if (!state.dateStart && !state.dateEnd) {
+            infoEl.textContent = '';
+            return;
+        }
+        const parts = [];
+        if (state.dateStart) parts.push(`dari ${state.dateStart}`);
+        if (state.dateEnd) parts.push(`sampai ${state.dateEnd}`);
+        infoEl.textContent = `Filter aktif: ${parts.join(' ')}`;
     }
 
     function renderAlerts() {
@@ -306,7 +301,8 @@
         if (!container) return;
 
         if (state.filtered.length === 0) {
-            const filterInfo = state.search || state.status !== 'all' || state.severity;
+            const filterInfo = state.search || state.status !== 'all' ||
+                              state.severity || state.dateStart || state.dateEnd;
             container.innerHTML = `
                 <div class="empty-state" style="padding:60px 20px;">
                     <i class="fa-solid fa-bell-slash" style="font-size:36px;color:var(--text-3);"></i>
@@ -539,56 +535,48 @@
             </div>`;
     }
 
+    function applyDateFilter() {
+        const startEl = $('alertStartDate');
+        const endEl = $('alertEndDate');
+        state.dateStart = startEl ? startEl.value : '';
+        state.dateEnd = endEl ? endEl.value : '';
+        applyFilter();
+        updateFilterInfo();
+    }
+
+    function clearDateFilter() {
+        const startEl = $('alertStartDate');
+        const endEl = $('alertEndDate');
+        if (startEl) startEl.value = '';
+        if (endEl) endEl.value = '';
+        state.dateStart = '';
+        state.dateEnd = '';
+        applyFilter();
+        updateFilterInfo();
+    }
+
     function bindEvents() {
-        document.querySelectorAll('[data-status]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                state.status = btn.dataset.status;
-                document.querySelectorAll('[data-status]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                loadAlerts();
-            });
+        // Status dropdown (custom iOS)
+        bindIOSDropdown('alertStatusDropdown', (value) => {
+            state.status = value || 'all';
+            loadAlerts();
         });
 
-        document.querySelectorAll('[data-severity]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const sev = btn.dataset.severity;
-                if (state.severity === sev) state.severity = '';
-                else state.severity = sev;
-                document.querySelectorAll('[data-severity]').forEach(b => b.classList.remove('active'));
-                if (state.severity !== '') btn.classList.add('active');
-                else {
-                    const allBtn = document.querySelector('[data-severity=""]');
-                    if (allBtn) allBtn.classList.add('active');
-                }
-                loadAlerts();
-            });
+        // Severity dropdown (custom iOS)
+        bindIOSDropdown('alertSeverityDropdown', (value) => {
+            state.severity = value || '';
+            loadAlerts();
         });
 
-        const searchInput = $('alertSearchInput');
-        if (searchInput) {
-            let t;
-            searchInput.addEventListener('input', e => {
-                clearTimeout(t);
-                t = setTimeout(() => { state.search = e.target.value.trim(); applyFilter(); }, 200);
-            });
-        }
-
+        // Refresh
         const refreshBtn = $('refreshAlertsBtn');
         if (refreshBtn) refreshBtn.addEventListener('click', loadAlerts);
 
-        const soundBtn = $('alertSoundToggle');
-        if (soundBtn) {
-            soundBtn.addEventListener('click', () => {
-                const enabled = localStorage.getItem(STORAGE_KEYS.SOUND) !== 'off';
-                localStorage.setItem(STORAGE_KEYS.SOUND, enabled ? 'off' : 'on');
-                _updateSoundToggleUI();
-                if (!enabled) _playBeep('warning');
-            });
-        }
-
+        // Mark all
         const markAllBtn = $('markAllReadBtn');
         if (markAllBtn) markAllBtn.addEventListener('click', markAllVisible);
 
+        // Select all
         const selectAll = $('selectAllCheckbox');
         if (selectAll) {
             selectAll.addEventListener('change', e => {
@@ -600,9 +588,51 @@
             });
         }
 
+        // Bulk ack
         const bulkAckBtn = $('bulkAckBtn');
         if (bulkAckBtn) bulkAckBtn.addEventListener('click', bulkAcknowledge);
 
+        // Date filter: Terapkan
+        const applyBtn = $('alertApplyFilter');
+        if (applyBtn) applyBtn.addEventListener('click', applyDateFilter);
+
+        // Date filter: Reset
+        const clearBtn = $('alertClearFilter');
+        if (clearBtn) clearBtn.addEventListener('click', clearDateFilter);
+
+        // Date input: Enter / change = apply
+        ['alertStartDate', 'alertEndDate'].forEach(id => {
+            const el = $(id);
+            if (el) {
+                el.addEventListener('change', applyDateFilter);
+                el.addEventListener('keydown', e => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        applyDateFilter();
+                    }
+                });
+            }
+        });
+
+        // Tutup custom dropdown saat klik di luar
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.ios-dropdown')) {
+                document.querySelectorAll('.ios-dropdown.open').forEach(el => {
+                    el.classList.remove('open');
+                });
+            }
+        });
+
+        // Tutup saat Esc
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.ios-dropdown.open').forEach(el => {
+                    el.classList.remove('open');
+                });
+            }
+        });
+
+        // Ctrl+R refresh
         document.addEventListener('keydown', e => {
             if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
                 const alertsSection = $('alertsSection');
@@ -617,7 +647,6 @@
     function init() {
         if (state.isInitialized) return;
         state.isInitialized = true;
-        _updateSoundToggleUI();
         bindEvents();
         loadAlerts();
         state.refreshInterval = setInterval(() => {
@@ -639,6 +668,11 @@
         init,
         load: loadAlerts,
         loadStats,
+        setSearch(term) {
+            state.search = (term || '').trim();
+            applyFilter();
+        },
+        getSearch() { return state.search; },
     };
 
     if (document.readyState === 'loading') {
@@ -647,5 +681,5 @@
         init();
     }
 
-    console.log('[Alerts] Initialized v4.2');
+    console.log('[Alerts] Initialized v6');
 })();

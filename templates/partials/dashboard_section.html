@@ -1,4 +1,5 @@
 <div id="dashboardSection">
+
     <div class="overview-grid">
         <div class="ring-card">
             <div class="ring-wrap">
@@ -63,13 +64,7 @@
         </div>
     </div>
 
-    <div class="section-card">
-        <div class="section-header">
-            <div class="section-title"><i class="fa-solid fa-list"></i> Daftar Perangkat</div>
-            <button class="btn btn-primary" data-action="add-device">
-                <i class="fa-solid fa-plus"></i> Tambah Perangkat
-            </button>
-        </div>
+    <div class="devices-toolbar">
         <div class="filter-bar" id="deviceFilterBar">
             <button class="filter-btn active" data-filter="all">
                 <i class="fa-solid fa-server"></i> Semua <span class="count" id="filterCountAll">0</span>
@@ -84,6 +79,12 @@
                 <i class="fa-solid fa-triangle-exclamation"></i> Alert <span class="count" id="filterCountAlert">0</span>
             </button>
         </div>
+        <button class="btn btn-primary" data-action="add-device">
+            <i class="fa-solid fa-plus"></i> Tambah Perangkat
+        </button>
+    </div>
+
+    <div class="section-card">
         <div class="section-body" style="padding:0;">
             <div class="table-wrapper">
                 <table class="device-table">
@@ -100,4 +101,5 @@
             </div>
         </div>
     </div>
+
 </div>

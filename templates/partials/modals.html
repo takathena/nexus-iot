@@ -25,11 +25,13 @@
         </div>
         <div class="form-group">
             <label>Device ID</label>
-            <input type="text" id="addDeviceId" placeholder="ESP32-001">
+            <input type="text" id="addDeviceId" placeholder="ESP32-001"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
         <div class="form-group">
             <label>Nama</label>
-            <input type="text" id="addDeviceName" placeholder="Sensor Suhu Server">
+            <input type="text" id="addDeviceName" placeholder="Sensor Suhu Server"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
         <div class="form-group">
             <label>Tipe</label>
@@ -44,7 +46,8 @@
         </div>
         <div class="form-group">
             <label>Lokasi</label>
-            <input type="text" id="addDeviceLocation" placeholder="Ruang Server">
+            <input type="text" id="addDeviceLocation" placeholder="Ruang Server"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
@@ -54,14 +57,14 @@
 
         <div class="form-group">
             <label>Interval Kirim Data (detik)</label>
-            <input type="number" id="addDeviceInterval" placeholder="60" value="60" min="10" max="86400">
+            <input type="number" id="addDeviceInterval" placeholder="60" value="60" min="10" max="86400" autocomplete="off">
             <small style="font-size:10px;color:var(--text-3);margin-top:4px;display:block;">
                 60 = tiap menit, 3600 = tiap jam
             </small>
         </div>
         <div class="form-group">
             <label>Offline Timeout (detik) - Opsional</label>
-            <input type="number" id="addDeviceOfflineTimeout" placeholder="Auto: 3x interval" min="10" max="604800">
+            <input type="number" id="addDeviceOfflineTimeout" placeholder="Auto: 3x interval" min="10" max="604800" autocomplete="off">
         </div>
 
         <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
@@ -102,11 +105,11 @@
 
         <div class="form-group">
             <label>Interval Kirim Data (detik)</label>
-            <input type="number" id="editDeviceInterval" min="10" max="86400">
+            <input type="number" id="editDeviceInterval" min="10" max="86400" autocomplete="off">
         </div>
         <div class="form-group">
             <label>Offline Timeout (detik)</label>
-            <input type="number" id="editDeviceOfflineTimeout" min="10" max="604800">
+            <input type="number" id="editDeviceOfflineTimeout" min="10" max="604800" autocomplete="off">
         </div>
 
         <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
@@ -148,7 +151,8 @@
         <input type="hidden" id="editChartId" value="">
         <div class="form-group">
             <label>Judul Diagram</label>
-            <input type="text" id="chartTitle" placeholder="Contoh: Suhu Ruang Server">
+            <input type="text" id="chartTitle" placeholder="Contoh: Suhu Ruang Server"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
         <div class="form-group">
         <label style="display:flex;justify-content:space-between;align-items:center;">
@@ -231,7 +235,7 @@
             </label>
             <input type="text" id="deleteConfirmInput"
                    placeholder="Ketik nama device..."
-                   autocomplete="off" autocorrect="off" spellcheck="false">
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
         <input type="hidden" id="deleteDeviceId">
         <div class="modal-actions">
@@ -253,7 +257,8 @@
         <div class="form-group">
             <label>UID Kartu</label>
             <div style="display:flex;gap:8px;">
-                <input type="text" id="cardholderUid" placeholder="0x010dd605" style="flex:1;">
+                <input type="text" id="cardholderUid" placeholder="0x010dd605" style="flex:1;"
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
                 <button class="btn btn-secondary" data-action="capture-last-tap" title="Ambil UID tap terakhir" style="flex:0 0 auto;">
                     <i class="fa-solid fa-crosshairs"></i> Tangkap
                 </button>
@@ -261,7 +266,8 @@
         </div>
         <div class="form-group">
             <label>Nama Pemilik</label>
-            <input type="text" id="cardholderNama" placeholder="Nama lengkap">
+            <input type="text" id="cardholderNama" placeholder="Nama lengkap"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
         <div class="modal-actions">
             <button class="btn btn-secondary modal-close">Batal</button>
@@ -299,7 +305,8 @@
         <input type="hidden" id="analyticsTabId" value="">
         <div class="form-group">
             <label>Nama Tab</label>
-            <input type="text" id="analyticsTabName" placeholder="Contoh: Suhu, Kelembapan, Gas">
+            <input type="text" id="analyticsTabName" placeholder="Contoh: Suhu, Kelembapan, Gas"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
         <div class="modal-actions">
             <button class="btn btn-danger" id="analyticsTabDeleteBtn" style="display:none;margin-right:auto;">

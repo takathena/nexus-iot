@@ -6,41 +6,42 @@
 (function() {
     'use strict';
 
-    const state = {
-        devices: [],
-        attendance: [],
-        currentSection: 'dashboard',
-        charts: [],
-        chartIdCounter: 0,
-        globalTimeMinutes: 1440,
-        deviceFilter: 'all',
-        deviceFilterFull: 'all',
-        mapPreview: null,
-        mapFull: null,
-        markerCluster: null,
-        marker: null,
-        selectedLat: null,
-        selectedLng: null,
-        selectedMapDeviceId: null,
-        refreshTimeout: null,
-        autoRefreshInterval: null,
-        dashboardInterval: null,
-        attendanceInterval: null,
-        attendanceLastId: 0,
-        deviceSearchTerm: '',
-        analyticsTabs: [],
-        currentTabId: null,
-        isInitialized: false,
-        dashboardSlug: null,
-        mapFilter: 'all',
-        mapSearchTerm: '',
-        mapHasUnsavedChange: false,
-        activityRefreshInterval: null,
-        markerMap: new Map(),
-        attendanceView: 'report',
-        deleteTarget: null,
-        canvasHeight: 720,
-    };
+const state = {
+    devices: [],
+    attendance: [],
+    currentSection: 'dashboard',
+    charts: [],
+    chartIdCounter: 0,
+    globalTimeMinutes: 1440,
+    deviceFilter: 'all',
+    deviceFilterFull: 'all',
+    mapPreview: null,
+    mapFull: null,
+    markerCluster: null,
+    marker: null,
+    selectedLat: null,
+    selectedLng: null,
+    selectedMapDeviceId: null,
+    refreshTimeout: null,
+    autoRefreshInterval: null,
+    dashboardInterval: null,
+    attendanceInterval: null,
+    attendanceLastId: 0,
+    deviceSearchTerm: '',
+    alertSearchTerm: '',        // ← TAMBAH INI
+    analyticsTabs: [],
+    currentTabId: null,
+    isInitialized: false,
+    dashboardSlug: null,
+    mapFilter: 'all',
+    mapSearchTerm: '',
+    mapHasUnsavedChange: false,
+    activityRefreshInterval: null,
+    markerMap: new Map(),
+    attendanceView: 'report',
+    deleteTarget: null,
+    canvasHeight: 720,
+};
 
     const CHART_FONT = "'Inter', -apple-system, sans-serif";
     const CHART_COLORS = ['#c97a7a', '#7a9dc4', '#5fb587', '#d99a56', '#a88cc4', '#6ab8b8', '#b8a85a', '#8cb069'];
@@ -205,11 +206,19 @@
 
         const searchBox = document.querySelector('.search-box');
         const searchInput = $('searchInput');
-        const noSearch = ['map', 'graph', 'alerts'];
+        const noSearch = ['map', 'graph'];   // ← 'alerts' dihapus
         if (searchBox) searchBox.style.display = noSearch.includes(section) ? 'none' : '';
         if (searchInput) {
-            searchInput.value = state.deviceSearchTerm || '';
-            searchInput.placeholder = section === 'attendance' ? 'Cari nama/UID/perangkat...' : 'Cari perangkat...';
+            if (section === 'alerts') {
+                searchInput.value = state.alertSearchTerm || '';
+                searchInput.placeholder = 'Cari alert...';
+            } else if (section === 'attendance') {
+                searchInput.value = state.deviceSearchTerm || '';
+                searchInput.placeholder = 'Cari nama/UID/perangkat...';
+            } else {
+                searchInput.value = state.deviceSearchTerm || '';
+                searchInput.placeholder = 'Cari perangkat...';
+            }
         }
 
         if (section !== 'attendance') stopAttendancePolling();
@@ -236,6 +245,9 @@
             }, 100);
         }
         if (section === 'alerts' && window.NexusAlerts && typeof window.NexusAlerts.load === 'function') {
+            if (window.NexusAlerts.setSearch) {
+                window.NexusAlerts.setSearch(state.alertSearchTerm || '');
+            }
             window.NexusAlerts.load();
         }
 
@@ -489,7 +501,6 @@
         if (filter === 'online') list = list.filter(d => d.status === 'online');
         else if (filter === 'offline') list = list.filter(d => d.status === 'offline');
         else if (filter === 'alert') list = list.filter(d => d.has_alert === true);
-        else if (filter === 'located') list = list.filter(d => d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0));
         if (term) list = list.filter(d => (d.device_name || '').toLowerCase().includes(term) || (d.device_id || '').toLowerCase().includes(term) || (d.location || '').toLowerCase().includes(term));
         const countEl = $('mapListCount'); if (countEl) countEl.textContent = list.length;
         if (list.length === 0) { container.innerHTML = `<div class="map-empty-list">${term ? 'Tidak ada device yang cocok' : 'Tidak ada device di filter ini'}</div>`; return; }
@@ -602,10 +613,7 @@
     function setAttendanceView(view) {
         state.attendanceView = view;
         document.querySelectorAll('.attendance-tab').forEach(btn => {
-            const active = btn.dataset.tab === view;
-            btn.classList.toggle('active', active);
-            btn.style.color = active ? 'var(--text)' : 'var(--text-3)';
-            btn.style.borderBottomColor = active ? 'var(--accent-info)' : 'transparent';
+            btn.classList.toggle('active', btn.dataset.tab === view);
         });
         loadAttendance();
     }
@@ -1866,9 +1874,19 @@
         const searchInput = $('searchInput');
         if (searchInput) {
             searchInput.addEventListener('input', () => {
-                state.deviceSearchTerm = searchInput.value;
-                if (state.currentSection === 'attendance') loadAttendance();
-                else filterDevices();
+                const value = searchInput.value;
+                if (state.currentSection === 'alerts') {
+                    state.alertSearchTerm = value;
+                    if (window.NexusAlerts && window.NexusAlerts.setSearch) {
+                        window.NexusAlerts.setSearch(value);
+                    }
+                } else if (state.currentSection === 'attendance') {
+                    state.deviceSearchTerm = value;
+                    loadAttendance();
+                } else {
+                    state.deviceSearchTerm = value;
+                    filterDevices();
+                }
             });
         }
         document.querySelectorAll('#deviceFilterBar .filter-btn').forEach(btn => btn.addEventListener('click', () => setDeviceFilter(btn.dataset.filter)));

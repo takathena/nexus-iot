@@ -1,11 +1,6 @@
 <div id="devicesSection">
-    <div class="section-card">
-        <div class="section-header">
-            <div class="section-title"><i class="fa-solid fa-microchip"></i> Semua Perangkat</div>
-            <button class="btn btn-primary" data-action="add-device">
-                <i class="fa-solid fa-plus"></i> Tambah
-            </button>
-        </div>
+
+    <div class="devices-toolbar">
         <div class="filter-bar" id="deviceFilterBarFull">
             <button class="filter-btn active" data-filter="all">
                 <i class="fa-solid fa-server"></i> Semua
@@ -20,20 +15,19 @@
                 <i class="fa-solid fa-triangle-exclamation"></i> Alert
             </button>
         </div>
+        <button class="btn btn-primary" data-action="add-device">
+            <i class="fa-solid fa-plus"></i> Tambah
+        </button>
+    </div>
+
+    <div class="section-card">
         <div class="section-body" style="padding:0;">
             <div class="table-wrapper">
                 <table class="device-table">
                     <thead>
                         <tr>
-                            <th>Status</th>
-                            <th>ID</th>
-                            <th>Nama</th>
-                            <th>Tipe</th>
-                            <th>WiFi</th>
-                            <th>Uptime</th>
-                            <th>Lokasi</th>
-                            <th>Terakhir</th>
-                            <th>Aksi</th>
+                            <th>Status</th><th>ID</th><th>Nama</th><th>Tipe</th>
+                            <th>WiFi</th><th>Uptime</th><th>Lokasi</th><th>Terakhir</th><th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="deviceTableBodyFull">
@@ -43,4 +37,5 @@
             </div>
         </div>
     </div>
+
 </div>

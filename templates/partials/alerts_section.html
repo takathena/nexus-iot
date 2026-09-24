@@ -1,4 +1,5 @@
 <div id="alertsSection">
+
     <div class="alert-stats-grid">
         <div class="alert-stat-card total" style="cursor:default;">
             <div class="alert-stat-icon"><i class="fa-solid fa-bell"></i></div>
@@ -30,65 +31,114 @@
         </div>
     </div>
 
-    <div class="section-card">
-        <div class="section-header">
-            <div class="section-title">
-                <i class="fa-solid fa-list"></i> Daftar Alert
-            </div>
-            <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
-                <div class="alert-search">
-                    <i class="fa-solid fa-magnifying-glass"></i>
-                    <input type="text" id="alertSearchInput" placeholder="Cari alert...">
-                </div>
-                <button class="btn btn-secondary" id="alertSoundToggle" title="Suara notifikasi alert bahaya">
-                    <i class="fa-solid fa-volume-high" id="alertSoundIcon"></i>
-                    <span id="alertSoundLabel">Suara: ON</span>
-                </button>
-                <button class="btn btn-secondary" id="markAllReadBtn" title="Tandai semua alert yang tampil sebagai selesai">
-                    <i class="fa-solid fa-check-double"></i> Tandai Semua
-                </button>
-                <button class="btn btn-secondary" id="refreshAlertsBtn">
-                    <i class="fa-solid fa-rotate"></i> Refresh
-                </button>
-            </div>
-        </div>
+    <!-- Toolbar: dropdown filter + actions -->
+    <div class="alert-toolbar">
+        <div class="alert-filters">
 
-        <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:var(--text-2);">
-                    <input type="checkbox" id="selectAllCheckbox" style="width:16px;height:16px;accent-color:var(--blue);">
-                    <span>Pilih Semua</span>
-                </label>
-                <span id="selectedCount" style="font-size:12px;color:var(--text-3);">0 dipilih</span>
+            <!-- Status dropdown -->
+            <div class="ios-dropdown" id="alertStatusDropdown" data-value="all">
+                <button type="button" class="ios-dropdown-trigger">
+                    <i class="fa-solid fa-filter"></i>
+                    <span class="ios-dropdown-label">Semua Status</span>
+                    <i class="fa-solid fa-chevron-down ios-dropdown-chev"></i>
+                </button>
+                <div class="ios-dropdown-menu">
+                    <button type="button" class="ios-dropdown-item active" data-value="all">
+                        <i class="fa-solid fa-layer-group ios-dropdown-item-icon"></i>
+                        <span class="ios-dropdown-item-label">Semua Status</span>
+                        <i class="fa-solid fa-check ios-dropdown-check"></i>
+                    </button>
+                    <button type="button" class="ios-dropdown-item" data-value="active">
+                        <i class="fa-solid fa-circle-exclamation ios-dropdown-item-icon"></i>
+                        <span class="ios-dropdown-item-label">Aktif</span>
+                        <i class="fa-solid fa-check ios-dropdown-check"></i>
+                    </button>
+                    <button type="button" class="ios-dropdown-item" data-value="resolved">
+                        <i class="fa-solid fa-circle-check ios-dropdown-item-icon"></i>
+                        <span class="ios-dropdown-item-label">Selesai</span>
+                        <i class="fa-solid fa-check ios-dropdown-check"></i>
+                    </button>
+                </div>
             </div>
-            <button class="btn btn-success" id="bulkAckBtn" style="padding:8px 16px;font-size:12.5px;">
-                <i class="fa-solid fa-check-double"></i> Tandai Selesai
+
+            <!-- Severity dropdown -->
+            <div class="ios-dropdown" id="alertSeverityDropdown" data-value="">
+                <button type="button" class="ios-dropdown-trigger">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                    <span class="ios-dropdown-label">Semua Severity</span>
+                    <i class="fa-solid fa-chevron-down ios-dropdown-chev"></i>
+                </button>
+                <div class="ios-dropdown-menu">
+                    <button type="button" class="ios-dropdown-item active" data-value="">
+                        <i class="fa-solid fa-layer-group ios-dropdown-item-icon"></i>
+                        <span class="ios-dropdown-item-label">Semua Severity</span>
+                        <i class="fa-solid fa-check ios-dropdown-check"></i>
+                    </button>
+                    <button type="button" class="ios-dropdown-item" data-value="danger">
+                        <i class="fa-solid fa-fire ios-dropdown-item-icon"></i>
+                        <span class="ios-dropdown-item-label">Bahaya</span>
+                        <i class="fa-solid fa-check ios-dropdown-check"></i>
+                    </button>
+                    <button type="button" class="ios-dropdown-item" data-value="warning">
+                        <i class="fa-solid fa-triangle-exclamation ios-dropdown-item-icon"></i>
+                        <span class="ios-dropdown-item-label">Peringatan</span>
+                        <i class="fa-solid fa-check ios-dropdown-check"></i>
+                    </button>
+                    <button type="button" class="ios-dropdown-item" data-value="info">
+                        <i class="fa-solid fa-circle-info ios-dropdown-item-icon"></i>
+                        <span class="ios-dropdown-item-label">Info</span>
+                        <i class="fa-solid fa-check ios-dropdown-check"></i>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+        <div class="alert-actions">
+            <button class="btn btn-secondary" id="markAllReadBtn" title="Tandai semua alert yang tampil sebagai selesai">
+                <i class="fa-solid fa-check-double"></i> Tandai Semua
+            </button>
+            <button class="btn btn-secondary" id="refreshAlertsBtn" title="Refresh">
+                <i class="fa-solid fa-rotate"></i> Refresh
             </button>
         </div>
+    </div>
 
-        <div class="alert-filter-bar">
-            <div class="alert-filter-group">
-                <span class="alert-filter-label">Status:</span>
-                <button class="alert-filter-btn active" data-status="all">
-                    <i class="fa-solid fa-layer-group"></i> Semua
-                </button>
-                <button class="alert-filter-btn" data-status="active">
-                    <i class="fa-solid fa-circle-exclamation"></i> Aktif
-                </button>
-                <button class="alert-filter-btn" data-status="resolved">
-                    <i class="fa-solid fa-circle-check"></i> Selesai
-                </button>
-            </div>
-
-            <div class="alert-filter-group">
-                <span class="alert-filter-label">Severity:</span>
-                <button class="alert-filter-btn active" data-severity="">Semua</button>
-                <button class="alert-filter-btn sev-danger" data-severity="danger">Bahaya</button>
-                <button class="alert-filter-btn sev-warning" data-severity="warning">Peringatan</button>
-                <button class="alert-filter-btn sev-info" data-severity="info">Info</button>
-            </div>
+    <!-- Filter tanggal -->
+    <div class="alert-filter-bar" id="alertDateFilterBar">
+        <div class="alert-filter-group">
+            <label for="alertStartDate">Dari:</label>
+            <input type="date" id="alertStartDate" autocomplete="off">
         </div>
+        <div class="alert-filter-group">
+            <label for="alertEndDate">Sampai:</label>
+            <input type="date" id="alertEndDate" autocomplete="off">
+        </div>
+        <div class="alert-filter-actions">
+            <button class="btn btn-secondary" id="alertApplyFilter">
+                <i class="fa-solid fa-filter"></i> Terapkan
+            </button>
+            <button class="btn btn-secondary" id="alertClearFilter">
+                <i class="fa-solid fa-xmark"></i> Reset
+            </button>
+        </div>
+        <span class="alert-filter-info" id="alertFilterInfo"></span>
+    </div>
 
+    <!-- Bulk action bar -->
+    <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;color:var(--text-2);">
+                <input type="checkbox" id="selectAllCheckbox" style="width:16px;height:16px;accent-color:var(--blue);">
+                <span>Pilih Semua</span>
+            </label>
+            <span id="selectedCount" style="font-size:12px;color:var(--text-3);">0 dipilih</span>
+        </div>
+        <button class="btn btn-success" id="bulkAckBtn" style="padding:8px 16px;font-size:12.5px;">
+            <i class="fa-solid fa-check-double"></i> Tandai Selesai
+        </button>
+    </div>
+
+    <div class="section-card">
         <div class="section-body" style="padding:0;">
             <div id="alertsList">
                 <div class="empty-state" style="padding:60px 20px;">
@@ -98,4 +148,5 @@
             </div>
         </div>
     </div>
+
 </div>

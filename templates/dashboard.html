@@ -9,6 +9,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-v43.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/ios-theme.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -37,20 +38,15 @@
     (function() {
         var hash = (window.location.hash || '').replace('#', '').trim();
         var valid = ['dashboard', 'map', 'graph', 'attendance', 'devices', 'alerts'];
-
         if (!valid.includes(hash)) {
             try {
                 var saved = sessionStorage.getItem('nexus-last-section');
                 hash = (saved && valid.includes(saved)) ? saved : 'dashboard';
-            } catch (e) {
-                hash = 'dashboard';
-            }
+            } catch (e) { hash = 'dashboard'; }
         }
-
         if (window.location.hash !== '#' + hash) {
             try { history.replaceState(null, '', '#' + hash); } catch (e) {}
         }
-
         window.__NEXUS_INITIAL_SECTION = hash;
     })();
 </script>
@@ -125,7 +121,8 @@
         <div class="topbar-right">
             <div class="search-box">
                 <i class="fa-solid fa-magnifying-glass"></i>
-                <input type="text" id="searchInput" placeholder="Cari perangkat...">
+                <input type="text" id="searchInput" placeholder="Cari perangkat..."
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
             </div>
             <div class="datetime-display">
                 <div class="date" id="currentDate"></div>

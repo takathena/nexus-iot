@@ -1,93 +1,76 @@
 <div id="attendanceSection">
-    <div class="section-card">
-        <div class="section-header">
-            <div class="section-title"><i class="fa-solid fa-id-card"></i> Absensi</div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                <button class="btn btn-secondary" id="attendanceExportBtn">
-                    <i class="fa-solid fa-download"></i> Export CSV
-                </button>
-                <button class="btn btn-primary" data-action="open-cardholder-modal">
-                    <i class="fa-solid fa-plus"></i> Daftarkan Kartu
-                </button>
-            </div>
-        </div>
 
-        <div class="section-body" style="padding:16px 20px;border-bottom:1px solid var(--hairline-soft);">
-            <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);gap:12px;">
-                <div class="stat-card clickable" data-stat-type="hadir" style="cursor:pointer;padding:14px;">
-                    <div class="stat-top">
-                        <div class="stat-icon present"><i class="fa-solid fa-user-check"></i></div>
-                        <i class="fa-solid fa-chevron-right" style="color:var(--text-3);font-size:12px;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3>Hadir Hari Ini</h3>
-                        <div class="value" style="font-size:22px;" id="statHadirHariIni">0</div>
-                    </div>
-                </div>
-                <div class="stat-card clickable" data-stat-type="total" style="cursor:pointer;padding:14px;">
-                    <div class="stat-top">
-                        <div class="stat-icon total"><i class="fa-solid fa-id-card"></i></div>
-                        <i class="fa-solid fa-chevron-right" style="color:var(--text-3);font-size:12px;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3>Total Kartu Aktif</h3>
-                        <div class="value" style="font-size:22px;" id="statTotalKartu">0</div>
-                    </div>
-                </div>
-                <div class="stat-card clickable" data-stat-type="belum-terdaftar" style="cursor:pointer;padding:14px;">
-                    <div class="stat-top">
-                        <div class="stat-icon alerts"><i class="fa-solid fa-circle-question"></i></div>
-                        <i class="fa-solid fa-chevron-right" style="color:var(--text-3);font-size:12px;"></i>
-                    </div>
-                    <div class="stat-info">
-                        <h3>Kartu Belum Terdaftar</h3>
-                        <div class="value" style="font-size:22px;" id="statBelumTerdaftar">0</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Tab: Laporan vs Riwayat -->
-        <div class="attendance-tabs" style="display:flex;gap:6px;padding:12px 20px 0;border-bottom:1px solid var(--hairline-soft);">
-            <button class="attendance-tab active" data-tab="report" style="padding:9px 16px;border:none;background:transparent;color:var(--text-2);font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:2px solid var(--accent-info);margin-bottom:-1px;font-family:inherit;">
+    <div class="attendance-toolbar">
+        <div class="attendance-tabs">
+            <button class="attendance-tab active" data-tab="report">
                 <i class="fa-solid fa-clipboard-list"></i> Laporan Harian
             </button>
-            <button class="attendance-tab" data-tab="history" style="padding:9px 16px;border:none;background:transparent;color:var(--text-3);font-size:12.5px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-family:inherit;">
+            <button class="attendance-tab" data-tab="history">
                 <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Tap
             </button>
         </div>
-
-        <!-- Filter tanggal -->
-        <div class="attendance-filter-bar" id="attendanceFilterBar">
-            <div class="attendance-filter-group">
-                <label for="attendanceStartDate">Dari:</label>
-                <input type="date" id="attendanceStartDate">
-            </div>
-            <div class="attendance-filter-group">
-                <label for="attendanceEndDate">Sampai:</label>
-                <input type="date" id="attendanceEndDate">
-            </div>
-            <div class="attendance-filter-actions">
-                <button class="btn btn-secondary" id="attendanceApplyFilter">
-                    <i class="fa-solid fa-filter"></i> Terapkan
-                </button>
-                <button class="btn btn-secondary" id="attendanceClearFilter">
-                    <i class="fa-solid fa-xmark"></i> Reset
-                </button>
-            </div>
-            <span class="attendance-filter-info" id="attendanceFilterInfo"></span>
+        <div class="attendance-actions">
+            <button class="btn btn-secondary" id="attendanceExportBtn">
+                <i class="fa-solid fa-download"></i> Export CSV
+            </button>
+            <button class="btn btn-primary" data-action="open-cardholder-modal">
+                <i class="fa-solid fa-plus"></i> Daftarkan Kartu
+            </button>
         </div>
+    </div>
 
+    <div class="attendance-stats">
+        <div class="stat-card clickable alert-stat-card success" data-stat-type="hadir">
+            <div class="alert-stat-icon"><i class="fa-solid fa-user-check"></i></div>
+            <div class="alert-stat-info">
+                <h3>Hadir Hari Ini</h3>
+                <div class="value" id="statHadirHariIni">0</div>
+            </div>
+        </div>
+        <div class="stat-card clickable alert-stat-card info" data-stat-type="total">
+            <div class="alert-stat-icon"><i class="fa-solid fa-id-card"></i></div>
+            <div class="alert-stat-info">
+                <h3>Total Kartu Aktif</h3>
+                <div class="value" id="statTotalKartu">0</div>
+            </div>
+        </div>
+        <div class="stat-card clickable alert-stat-card warning" data-stat-type="belum-terdaftar">
+            <div class="alert-stat-icon"><i class="fa-solid fa-circle-question"></i></div>
+            <div class="alert-stat-info">
+                <h3>Kartu Belum Terdaftar</h3>
+                <div class="value" id="statBelumTerdaftar">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="attendance-filter-bar" id="attendanceFilterBar">
+        <div class="attendance-filter-group">
+            <label for="attendanceStartDate">Dari:</label>
+            <input type="date" id="attendanceStartDate">
+        </div>
+        <div class="attendance-filter-group">
+            <label for="attendanceEndDate">Sampai:</label>
+            <input type="date" id="attendanceEndDate">
+        </div>
+        <div class="attendance-filter-actions">
+            <button class="btn btn-secondary" id="attendanceApplyFilter">
+                <i class="fa-solid fa-filter"></i> Terapkan
+            </button>
+            <button class="btn btn-secondary" id="attendanceClearFilter">
+                <i class="fa-solid fa-xmark"></i> Reset
+            </button>
+        </div>
+        <span class="attendance-filter-info" id="attendanceFilterInfo"></span>
+    </div>
+
+    <div class="section-card">
         <div class="section-body" style="padding:0;">
             <div class="table-wrapper">
                 <table class="device-table">
                     <thead id="attendanceThead">
                         <tr>
-                            <th>Tanggal</th>
-                            <th>Nama</th>
-                            <th>UID</th>
-                            <th>Check-in</th>
-                            <th>Check-out</th>
+                            <th>Tanggal</th><th>Nama</th><th>UID</th>
+                            <th>Check-in</th><th>Check-out</th>
                         </tr>
                     </thead>
                     <tbody id="attendanceTableBody">
@@ -97,4 +80,5 @@
             </div>
         </div>
     </div>
+
 </div>

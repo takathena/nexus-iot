@@ -13,47 +13,34 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
 /* ==========================================================
-   NEXUS Mobile v3 — palette vibrant, layout grouped
+   NEXUS Mobile v4 — full parity desktop
    ========================================================== */
 
 :root{
-  /* Background — sama dengan shared.css desktop */
   --bg:#14171c;
   --surface:#1c2027;
   --surface-2:#232830;
   --surface-3:#2c323c;
-
-  /* Border (desktop: --hairline) */
   --border:#2c323c;
   --border-soft:#232830;
-
-  /* Text */
   --text:#e8ebef;
   --text-2:#a8b0bc;
   --text-3:#6f7885;
-
-  /* Accent — sama dengan desktop */
   --ok:#5fbb86;      --ok-bg:rgba(95,187,134,.14);
   --warn:#e0a45c;    --warn-bg:rgba(224,164,92,.14);
   --crit:#e08080;    --crit-bg:rgba(224,128,128,.14);
   --info:#7fa8d9;    --info-bg:rgba(127,168,217,.14);
-
-  /* Primary */
   --primary:#e8ebef;
   --primary-hover:#d4d8de;
   --primary-fg:#14171c;
-
   --overlay:rgba(0,0,0,.7);
-
   --radius-sm:8px;
   --radius:12px;
   --radius-lg:16px;
   --radius-xl:20px;
-
   --font:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
   --mono:'JetBrains Mono',ui-monospace,monospace;
   --ease:cubic-bezier(.4,0,.2,1);
-
   --hdr-h:56px;
   --tab-h:60px;
 }
@@ -63,27 +50,21 @@
   --surface:#ffffff;
   --surface-2:#f1f3f7;
   --surface-3:#e4e7ee;
-
   --border:#dfe3ea;
   --border-soft:#ebeff4;
-
   --text:#1a1d23;
   --text-2:#4a5462;
   --text-3:#7a8494;
-
   --ok:#3d8b5f;      --ok-bg:rgba(61,139,95,.10);
   --warn:#b8752a;    --warn-bg:rgba(184,117,42,.10);
   --crit:#b54848;    --crit-bg:rgba(181,72,72,.10);
   --info:#3f6ba0;    --info-bg:rgba(63,107,160,.10);
-
   --primary:#2b3340;
   --primary-hover:#3a4453;
   --primary-fg:#ffffff;
-
   --overlay:rgba(15,18,25,.35);
 }
 
-/* ---------- Reset ---------- */
 *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;}
 body{
@@ -126,7 +107,6 @@ main{
   max-width:640px;margin:0 auto;
 }
 
-/* ---------- Section ---------- */
 .section{display:none;}
 .section.active{display:block;animation:fade .18s var(--ease);}
 @keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
@@ -134,6 +114,9 @@ main{
 .s-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 14px;}
 .s-title{font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--text);}
 .s-title-sub{font-size:12px;color:var(--text-2);font-weight:500;margin-top:2px;}
+.s-head > div:last-child{
+  display:flex;gap:6px;align-items:center;flex-shrink:0;
+}
 
 /* ---------- Bottom tabbar ---------- */
 .tabs{
@@ -174,11 +157,14 @@ main{
 .btn-danger{background:var(--crit);color:#fff;}
 .btn-ok{background:var(--ok);color:#fff;}
 .btn-icon{padding:0;width:40px;height:40px;border-radius:11px;flex:0 0 auto;}
-.btn-icon.sm{width:34px;height:34px;border-radius:9px;font-size:13px;}
+.btn-icon.sm{width:40px;height:40px;border-radius:11px;font-size:14px;}
 .btn-soft{
   background:var(--surface-2);color:var(--text-2);
-  padding:8px 13px;border-radius:9px;font-size:12.5px;min-height:auto;
+  padding:0 13px;border-radius:10px;font-size:12.5px;
+  min-height:38px;min-width:38px;
   border:1px solid var(--border-soft);
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  line-height:1;
 }
 .btn-soft:active{background:var(--surface-3);color:var(--text);}
 
@@ -207,7 +193,7 @@ main{
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 
-/* ---------- Group (iOS list) ---------- */
+/* ---------- Group ---------- */
 .group{
   background:var(--surface);border-radius:var(--radius-lg);
   overflow:hidden;margin-bottom:14px;
@@ -251,6 +237,15 @@ main{
   font-size:11.5px;color:var(--text-3);margin-top:2px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   font-family:var(--mono);
+}
+.row-sub .badge-type{
+  background:var(--surface-2);
+  padding:1px 6px;
+  border-radius:5px;
+  font-size:10px;
+  color:var(--text-2);
+  font-weight:600;
+  margin-right:4px;
 }
 .row-chevron{color:var(--text-3);font-size:11px;flex-shrink:0;opacity:.6;}
 .row-more{
@@ -306,17 +301,46 @@ main{
 
 /* ---------- Chips ---------- */
 .chips{
-  display:flex;gap:6px;margin-bottom:14px;
-  overflow-x:auto;scrollbar-width:none;padding:0 0 2px;
+  display:grid;
+  grid-template-columns:repeat(4, 1fr);
+  gap:6px;
+  margin-bottom:14px;
+  padding:0 0 2px;
+}
+.chips.chips-5{grid-template-columns:repeat(5, 1fr);}
+.chips.chips-3{grid-template-columns:repeat(3, 1fr);}
+
+/* Fallback kalau chip lebih dari 4 — tetap scroll horizontal */
+.chips.scrollable{
+  display:flex;
+  overflow-x:auto;scrollbar-width:none;
   -webkit-overflow-scrolling:touch;
 }
+.chips.scrollable::-webkit-scrollbar{display:none;}
 .chips::-webkit-scrollbar{display:none;}
 .chip{
-  flex:0 0 auto;padding:8px 13px;border-radius:20px;
-  background:var(--surface);color:var(--text-2);
-  font-size:12.5px;font-weight:600;transition:all .15s;white-space:nowrap;
-  display:flex;align-items:center;gap:6px;
+  width:100%;
+  min-width:0;
+  padding:9px 10px;
+  border-radius:11px;
+  background:var(--surface);
+  color:var(--text-2);
+  font-size:12.5px;
+  font-weight:600;
+  transition:all .15s;
+  white-space:nowrap;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
   border:1px solid var(--border-soft);
+  height:38px;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.chip > span:first-child{ /* label text */
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .chip:active{background:var(--surface-2);}
 .chip.active{
@@ -349,52 +373,123 @@ main{
   background:var(--surface-2);
 }
 
-/* ---------- Dropdown ---------- */
-.dd{position:relative;flex:1;min-width:0;}
-.dd-trigger{
-  width:100%;display:flex;align-items:center;gap:9px;
-  padding:0 12px;height:42px;
-  background:var(--surface);border-radius:11px;
-  color:var(--text);font-size:13px;font-weight:600;
-  text-align:left;transition:background .15s;
-  border:1px solid var(--border-soft);
+/* ==========================================================
+   iOS CUSTOM DROPDOWN
+   ========================================================== */
+.ios-dd {
+  position: relative;
+  flex: 1;
+  min-width: 0;
 }
-.dd-trigger:active{background:var(--surface-2);}
-.dd-trigger .dd-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.dd-trigger .dd-chev{font-size:9px;opacity:.45;flex-shrink:0;}
-.dd-trigger > i:first-child{font-size:12px;opacity:.65;flex-shrink:0;}
-.dd-menu{
-  position:absolute;top:calc(100% + 6px);left:0;right:0;
-  background:var(--surface);border-radius:var(--radius);
-  box-shadow:0 12px 36px rgba(0,0,0,.5);
-  padding:5px;z-index:30;display:none;
-  max-height:300px;overflow-y:auto;
-  border:1px solid var(--border);
+.ios-dd-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 12px;
+  height: 44px;
+  background: var(--surface);
+  border-radius: 11px;
+  color: var(--text);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  border: 1px solid var(--border-soft);
+  transition: all .15s var(--ease);
 }
-.dd-menu.open{display:block;animation:fade .15s var(--ease);}
-.dd-item{
-  display:flex;align-items:center;gap:10px;
-  padding:10px 12px;border-radius:9px;
-  font-size:13px;font-weight:500;color:var(--text-2);cursor:pointer;
+.ios-dd-trigger:active { background: var(--surface-2); }
+.ios-dd.open .ios-dd-trigger {
+  border-color: var(--info);
+  box-shadow: 0 0 0 4px var(--info-bg);
 }
-.dd-item:active{background:var(--surface-2);}
-.dd-item.active{background:var(--surface-2);color:var(--text);font-weight:700;}
-.dd-item > i:first-child{width:14px;font-size:11px;opacity:.65;flex-shrink:0;text-align:center;}
-.dd-item .dd-actions{margin-left:auto;display:flex;gap:2px;opacity:.75;}
-.dd-item .dd-actions button{
-  width:24px;height:24px;border-radius:6px;color:var(--text-3);
-  display:flex;align-items:center;justify-content:center;font-size:10px;
+.ios-dd-icon { font-size: 12px; color: var(--text-3); flex-shrink: 0; }
+.ios-dd-label {
+  flex: 1; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.dd-item .dd-actions button:active{background:var(--surface-3);}
-.dd-divider{height:1px;background:var(--border-soft);margin:4px 6px;}
-.dd-add{
-  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
-  font-size:13px;font-weight:600;color:var(--text-3);
+.ios-dd-chev {
+  font-size: 10px; opacity: .55; flex-shrink: 0;
+  transition: transform .2s var(--ease);
 }
-.dd-add:active{background:var(--surface-2);}
+.ios-dd.open .ios-dd-chev { transform: rotate(180deg); opacity: 1; }
+.ios-dd-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0,0,0,.5);
+  padding: 5px;
+  z-index: 40;
+  display: none;
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+}
+.ios-dd.open .ios-dd-menu { display: block; animation: fade .15s var(--ease); }
+.ios-dd-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 9px;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--text-2);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  transition: background .12s;
+}
+.ios-dd-item:active { background: var(--surface-2); }
+.ios-dd-item.active { background: var(--surface-2); color: var(--text); font-weight: 700; }
+.ios-dd-item > i:first-child {
+  width: 16px; font-size: 12px; text-align: center;
+  opacity: .7; flex-shrink: 0;
+}
+.ios-dd-item .ios-dd-check {
+  margin-left: auto; font-size: 11px; opacity: 0; flex-shrink: 0;
+}
+.ios-dd-item.active .ios-dd-check { opacity: 1; color: var(--info); }
+
+.ios-dd-item[data-value="danger"]:active,
+.ios-dd-item[data-value="danger"].active { color: var(--crit); background: var(--crit-bg); }
+.ios-dd-item[data-value="warning"]:active,
+.ios-dd-item[data-value="warning"].active { color: var(--warn); background: var(--warn-bg); }
+.ios-dd-item[data-value="info"]:active,
+.ios-dd-item[data-value="info"].active { color: var(--info); background: var(--info-bg); }
+.ios-dd-item[data-value="active"]:active,
+.ios-dd-item[data-value="active"].active { color: var(--crit); background: var(--crit-bg); }
+.ios-dd-item[data-value="resolved"]:active,
+.ios-dd-item[data-value="resolved"].active { color: var(--ok); background: var(--ok-bg); }
 
 /* ---------- Analytics head ---------- */
-.ana-head{display:flex;gap:8px;margin-bottom:14px;}
+.ana-head {
+  display: grid;
+  grid-template-columns: 1fr 130px;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.ana-head .ios-dd { flex: none; width: 100%; }
+.ana-head .ios-dd-trigger { height: 42px; }
+
+/* ---------- Alert filter row ---------- */
+.alert-dds {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.alert-dds .ios-dd-trigger {
+  height: 42px;
+  font-size: 13px;
+}
 
 /* ---------- Chart card ---------- */
 .chart-card{
@@ -460,7 +555,7 @@ main{
   margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .attend-grid{
-  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;
   padding-top:8px;border-top:1px solid var(--border-soft);
 }
 .attend-cell-label{
@@ -468,35 +563,81 @@ main{
   text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;
 }
 .attend-cell-val{
-  font-size:13px;font-weight:700;font-family:var(--mono);color:var(--text);
+  font-size:12.5px;font-weight:700;font-family:var(--mono);color:var(--text);
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
 .attend-cell-val.ok{color:var(--ok);}
 .attend-cell-val.warn{color:var(--warn);}
+.attend-cell-val.mute{color:var(--text-3);}
 
-/* ---------- Alert card ---------- */
+/* ==========================================================
+   ALERT ITEM — v4 layout (flex + checkbox + value badge)
+   ========================================================== */
 .alert-item{
-  padding:13px 16px;position:relative;
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:12px 14px;
+  position:relative;
   border-left:3px solid transparent;
+  cursor:pointer;
 }
 .alert-item:not(:last-child)::after{
-  content:'';position:absolute;left:16px;right:0;bottom:0;
+  content:'';position:absolute;left:14px;right:0;bottom:0;
   height:1px;background:var(--border-soft);
 }
+.alert-item:active{background:var(--surface-2);}
 .alert-item.danger{border-left-color:var(--crit);}
 .alert-item.warning{border-left-color:var(--warn);}
 .alert-item.info{border-left-color:var(--info);}
-.alert-item.resolved{border-left-color:var(--ok);opacity:.6;}
-.alert-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.alert-item.resolved{border-left-color:var(--ok);opacity:.65;}
+
+.alert-check{
+  display:flex;
+  align-items:flex-start;
+  justify-content:center;
+  width:24px;
+  padding-top:3px;
+  flex-shrink:0;
+  cursor:pointer;
+}
+.alert-check input{
+  width:18px;height:18px;
+  accent-color:var(--info);
+  cursor:pointer;margin:0;
+}
+.alert-check.hidden{display:none;}
+
+.alert-body{flex:1;min-width:0;}
+
+.alert-head{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap;}
 .alert-sev{
   font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
-  padding:3px 7px;border-radius:6px;
+  padding:3px 7px;border-radius:6px;flex-shrink:0;
 }
 .alert-sev.danger{background:var(--crit-bg);color:var(--crit);}
 .alert-sev.warning{background:var(--warn-bg);color:var(--warn);}
 .alert-sev.info{background:var(--info-bg);color:var(--info);}
 .alert-sev.healthy{background:var(--ok-bg);color:var(--ok);}
-.alert-head-type{font-size:11px;color:var(--text-3);font-family:var(--mono);}
+.alert-head-type{
+  font-size:11px;color:var(--text-3);font-family:var(--mono);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.alert-val{
+  font-family:var(--mono);
+  font-size:11px;
+  font-weight:700;
+  padding:2px 6px;
+  border-radius:6px;
+  background:var(--surface-2);
+  color:var(--text);
+  border:1px solid var(--border-soft);
+  flex-shrink:0;
+  margin-left:auto;
+}
+.alert-item.danger .alert-val{color:var(--crit);border-color:var(--crit);background:var(--crit-bg);}
+.alert-item.warning .alert-val{color:var(--warn);border-color:var(--warn);background:var(--warn-bg);}
+
 .alert-title{
   font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:3px;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -521,33 +662,197 @@ main{
 .alert-actions .btn.ok{color:var(--ok);}
 .alert-actions .btn.ok:active{background:var(--ok-bg);}
 
+/* Alert grouping */
+.alert-group-label{
+  padding:10px 16px;
+  background:var(--surface-2);
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--text-3);
+  border-bottom:1px solid var(--border-soft);
+  position:sticky;
+  top:0;
+  z-index:2;
+}
+
+/* Bulk action bar */
+.alert-bulk-bar{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 14px;
+  background:var(--info-bg);
+  border:1px solid color-mix(in srgb, var(--info) 30%, transparent);
+  border-radius:var(--radius);
+  margin-bottom:10px;
+  font-size:12.5px;
+}
+.alert-bulk-bar label{
+  display:flex;align-items:center;gap:8px;
+  cursor:pointer;color:var(--text-2);font-weight:600;
+}
+.alert-bulk-bar input[type="checkbox"]{
+  width:16px;height:16px;
+  accent-color:var(--info);margin:0;
+}
+.alert-bulk-bar .count{
+  flex:1;color:var(--text-2);
+  font-family:var(--mono);font-size:11.5px;
+}
+.alert-bulk-bar .btn{
+  padding:8px 14px;font-size:12px;min-height:34px;flex-shrink:0;
+}
+
+/* Date filter */
+.alert-date-filter{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-bottom:10px;
+}
+.alert-date-filter .adf-group{
+  display:flex;flex-direction:column;gap:4px;min-width:0;
+}
+.alert-date-filter .adf-group label{
+  font-size:10px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;
+  color:var(--text-3);padding-left:4px;
+}
+.alert-date-filter .adf-group input{
+  width:100%;
+  padding:10px 12px;
+  background:var(--surface);
+  color:var(--text);
+  border-radius:10px;
+  border:1px solid var(--border-soft);
+  font-size:13px;outline:none;font-family:inherit;
+}
+.alert-date-filter .adf-group input:focus{border-color:var(--info);}
+.alert-date-filter .adf-group input::-webkit-calendar-picker-indicator{
+  filter:invert(.6);cursor:pointer;
+}
+[data-theme="light"] .alert-date-filter .adf-group input::-webkit-calendar-picker-indicator{
+  filter:none;
+}
+.alert-date-actions{
+  grid-column:1 / -1;
+  display:flex;gap:6px;margin-top:4px;
+}
+.alert-date-actions .btn-soft{
+  flex:1;justify-content:center;
+}
+
 /* ---------- Map ---------- */
 .map-wrap{
   background:var(--surface);border-radius:var(--radius-lg);
   overflow:hidden;margin-bottom:14px;
   border:1px solid var(--border-soft);
+  position:relative;
 }
+/* ==========================================================
+   MAP BANNER — selected device info bar (netral + simetris)
+   ========================================================== */
 .map-banner{
-  display:flex;align-items:center;gap:10px;
-  padding:11px 14px;background:var(--info-bg);
-  border-bottom:1px solid color-mix(in srgb, var(--info) 30%, transparent);
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 12px;
+  background:var(--surface-2);
+  border-bottom:1px solid var(--border-soft);
 }
-.map-banner-info{display:flex;align-items:center;gap:9px;min-width:0;flex:1;}
-.map-banner-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.map-banner-info{
+  display:flex;align-items:center;gap:10px;
+  min-width:0;flex:1;
+}
+.map-banner-dot{
+  width:10px;height:10px;border-radius:50%;
+  flex-shrink:0;margin-top:1px;
+  box-shadow:0 0 0 3px color-mix(in srgb, currentColor 12%, transparent);
+}
 .map-banner-text{min-width:0;flex:1;}
 .map-banner-name{
-  font-size:12.5px;font-weight:700;color:var(--text);
+  font-size:13px;font-weight:700;color:var(--text);
+  letter-spacing:-.01em;line-height:1.2;
   overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.map-banner-coord{font-size:10px;color:var(--text-2);font-family:var(--mono);margin-top:1px;}
-.map-banner .btn-soft{flex-shrink:0;}
-.map-banner .btn-save{
-  flex-shrink:0;background:var(--ok);color:#fff;
-  padding:8px 14px;border-radius:9px;font-size:12.5px;font-weight:600;
-  min-height:auto;
+.map-banner-coord{
+  font-size:10.5px;color:var(--text-3);
+  font-family:var(--mono);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.map-banner .btn-save:disabled{opacity:.4;}
+
+/* Tombol X (batal) — netral, ikon saja */
+.map-banner .btn-soft{
+  flex-shrink:0;
+  width:38px;height:38px;
+  padding:0;min-height:38px;
+  background:var(--surface-3);
+  border:1px solid var(--border-soft);
+  color:var(--text-2);
+  border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;
+}
+.map-banner .btn-soft:active{
+  background:var(--border);
+  color:var(--text);
+}
+
+/* Tombol Simpan — primary color (konsisten dengan tombol utama lain) */
+.map-banner .btn-save{
+  flex-shrink:0;
+  min-height:38px;
+  height:38px;
+  padding:0 16px;
+  background:var(--primary);
+  color:var(--primary-fg);
+  border:none;
+  border-radius:11px;
+  font-size:13px;
+  font-weight:600;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  transition:background .15s, transform .1s, opacity .15s;
+  box-shadow:0 1px 4px rgba(0,0,0,.1);
+}
+.map-banner .btn-save:active:not(:disabled){
+  transform:scale(.97);
+  background:var(--primary-hover);
+}
+.map-banner .btn-save:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+  box-shadow:none;
+}
 #mMapFull{height:280px;width:100%;}
+
+.map-reset-btn{
+  position:absolute;
+  bottom:12px;
+  right:12px;
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  background:var(--surface);
+  border:1px solid var(--border-soft);
+  color:var(--text-2);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 14px rgba(0,0,0,.35);
+  z-index:500;
+  font-size:15px;
+  transition:all .15s;
+}
+[data-theme="light"] .map-reset-btn{box-shadow:0 4px 14px rgba(0,0,0,.18);}
+.map-reset-btn:active{
+  background:var(--surface-2);
+  color:var(--text);
+  transform:scale(.94);
+}
+
 .map-hint{
   padding:11px 14px;background:var(--surface-2);
   font-size:11.5px;color:var(--text-2);line-height:1.5;
@@ -623,6 +928,10 @@ main{
   letter-spacing:.05em;color:var(--text-2);
   margin:18px 0 12px;
 }
+[data-theme="dark"] select,
+[data-theme="dark"] input[type="date"] { color-scheme: dark; }
+[data-theme="light"] select,
+[data-theme="light"] input[type="date"] { color-scheme: light; }
 
 /* ---------- Actions ---------- */
 .actions{display:flex;gap:8px;margin-top:20px;}
@@ -696,7 +1005,7 @@ main{
   color:var(--text-3);font-style:italic;
 }
 
-/* ---------- Sheet (action) ---------- */
+/* ---------- Sheet ---------- */
 .sheet-item{
   width:100%;padding:14px 12px;border-radius:11px;
   display:flex;align-items:center;gap:12px;
@@ -747,7 +1056,13 @@ main{
 .hidden{display:none!important;}
 .mono{font-family:var(--mono);}
 
-
+/* ---------- Dashboard: last update ---------- */
+.last-update{
+  font-size:10px;
+  color:var(--text-3);
+  font-family:var(--mono);
+  margin-top:2px;
+}
 </style>
 </head>
 <body>
@@ -823,8 +1138,9 @@ main{
       <div>
         <div class="s-title">Perangkat</div>
         <div class="s-title-sub" id="deviceCountSub">—</div>
+        <div class="last-update" id="dashLastUpdate">—</div>
       </div>
-      <button class="btn-soft" onclick="loadDashboard()">
+      <button class="btn-soft" onclick="loadDashboard()" aria-label="Refresh">
         <i class="fa-solid fa-rotate"></i>
       </button>
     </div>
@@ -850,7 +1166,7 @@ main{
         <div class="s-title">Peta</div>
         <div class="s-title-sub">Lokasi perangkat</div>
       </div>
-      <button class="btn-soft" onclick="initMap(true)">
+      <button class="btn-soft" onclick="initMap(true)" aria-label="Reload peta">
         <i class="fa-solid fa-rotate"></i>
       </button>
     </div>
@@ -870,6 +1186,9 @@ main{
         </button>
       </div>
       <div id="mMapFull"></div>
+      <button class="map-reset-btn" onclick="resetMapView()" title="Reset View" aria-label="Reset View">
+        <i class="fa-solid fa-arrows-to-circle"></i>
+      </button>
     </div>
 
     <div class="map-hint">
@@ -887,7 +1206,6 @@ main{
       <button class="chip" data-mf="online" onclick="setMapFilter('online')">Online</button>
       <button class="chip" data-mf="offline" onclick="setMapFilter('offline')">Offline</button>
       <button class="chip" data-mf="alert" onclick="setMapFilter('alert')">Alert</button>
-      <button class="chip" data-mf="located" onclick="setMapFilter('located')">Ada Lokasi</button>
     </div>
 
     <div class="group">
@@ -904,39 +1222,45 @@ main{
         <div class="s-title">Analitik</div>
         <div class="s-title-sub" id="chartCountSub">—</div>
       </div>
-      <button class="btn btn-primary btn-icon sm" onclick="openChart()" aria-label="Tambah Diagram">
-        <i class="fa-solid fa-plus"></i>
-      </button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-soft" onclick="resetChartsLayout()" title="Reset Layout" aria-label="Reset Layout">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
+        <button class="btn btn-primary btn-icon sm" onclick="openChart()" aria-label="Tambah Diagram">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>
     </div>
 
     <div class="ana-head">
-      <div class="dd">
-        <button class="dd-trigger" id="tabTrigger" onclick="toggleTabMenu(event)">
-          <i class="fa-solid fa-layer-group"></i>
-          <span class="dd-label" id="tabLabel">Default</span>
-          <i class="fa-solid fa-chevron-down dd-chev"></i>
+      <div class="ios-dd" id="tabDD" data-value="default">
+        <button type="button" class="ios-dd-trigger">
+          <i class="fa-solid fa-layer-group ios-dd-icon"></i>
+          <span class="ios-dd-label" id="tabLabel">Default</span>
+          <i class="fa-solid fa-chevron-down ios-dd-chev"></i>
         </button>
-        <div class="dd-menu" id="tabMenu"></div>
+        <div class="ios-dd-menu" id="tabMenu"></div>
       </div>
-      <div class="dd" style="flex:0 0 auto;width:auto;">
-        <button class="dd-trigger" id="timeTrigger" onclick="toggleTimeMenu(event)" style="min-width:110px;">
-          <i class="fa-regular fa-clock"></i>
-          <span class="dd-label" id="timeLabel" style="flex:0;">24 Jam</span>
-          <i class="fa-solid fa-chevron-down dd-chev"></i>
+
+      <div class="ios-dd" id="timeDD" data-value="1440">
+        <button type="button" class="ios-dd-trigger">
+          <i class="fa-regular fa-clock ios-dd-icon"></i>
+          <span class="ios-dd-label" id="timeLabel">24 Jam</span>
+          <i class="fa-solid fa-chevron-down ios-dd-chev"></i>
         </button>
-        <div class="dd-menu" id="timeMenu" style="right:0;left:auto;min-width:170px;width:auto;">
-          <div class="dd-item" data-min="5"><i class="fa-regular fa-clock"></i> 5 Menit</div>
-          <div class="dd-item" data-min="10"><i class="fa-regular fa-clock"></i> 10 Menit</div>
-          <div class="dd-item" data-min="30"><i class="fa-regular fa-clock"></i> 30 Menit</div>
-          <div class="dd-divider"></div>
-          <div class="dd-item" data-min="60"><i class="fa-regular fa-hourglass-half"></i> 1 Jam</div>
-          <div class="dd-item" data-min="180"><i class="fa-regular fa-hourglass-half"></i> 3 Jam</div>
-          <div class="dd-item" data-min="360"><i class="fa-regular fa-hourglass-half"></i> 6 Jam</div>
-          <div class="dd-item" data-min="720"><i class="fa-regular fa-hourglass"></i> 12 Jam</div>
-          <div class="dd-divider"></div>
-          <div class="dd-item active" data-min="1440"><i class="fa-regular fa-calendar"></i> 24 Jam</div>
-          <div class="dd-item" data-min="10080"><i class="fa-regular fa-calendar-days"></i> 7 Hari</div>
-          <div class="dd-item" data-min="43200"><i class="fa-regular fa-calendar"></i> 30 Hari</div>
+        <div class="ios-dd-menu" id="timeMenu">
+          <button type="button" class="ios-dd-item" data-min="5"><i class="fa-regular fa-clock"></i><span>5 Menit</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="10"><i class="fa-regular fa-clock"></i><span>10 Menit</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="30"><i class="fa-regular fa-clock"></i><span>30 Menit</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <div class="dd-divider" style="height:1px;background:var(--border-soft);margin:4px 6px;"></div>
+          <button type="button" class="ios-dd-item" data-min="60"><i class="fa-regular fa-hourglass-half"></i><span>1 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="180"><i class="fa-regular fa-hourglass-half"></i><span>3 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="360"><i class="fa-regular fa-hourglass-half"></i><span>6 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="720"><i class="fa-regular fa-hourglass"></i><span>12 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <div class="dd-divider" style="height:1px;background:var(--border-soft);margin:4px 6px;"></div>
+          <button type="button" class="ios-dd-item active" data-min="1440"><i class="fa-regular fa-calendar"></i><span>24 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="10080"><i class="fa-regular fa-calendar-days"></i><span>7 Hari</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="43200"><i class="fa-regular fa-calendar"></i><span>30 Hari</span><i class="fa-solid fa-check ios-dd-check"></i></button>
         </div>
       </div>
     </div>
@@ -954,10 +1278,10 @@ main{
         <div class="s-title-sub" id="attendSub">—</div>
       </div>
       <div style="display:flex;gap:6px;">
-        <button class="btn-soft" onclick="exportAttend()" title="Export CSV">
+        <button class="btn-soft" onclick="exportAttend()" title="Export CSV" aria-label="Export">
           <i class="fa-solid fa-download"></i>
         </button>
-        <button class="btn-soft" onclick="openCardholder()" title="Daftar Kartu">
+        <button class="btn-soft" onclick="openCardholder()" title="Daftar Kartu" aria-label="Daftar Kartu">
           <i class="fa-solid fa-plus"></i>
         </button>
       </div>
@@ -1028,9 +1352,14 @@ main{
         <div class="s-title">Alert</div>
         <div class="s-title-sub" id="alertSub">—</div>
       </div>
-      <button class="btn-soft" onclick="loadAlerts()">
-        <i class="fa-solid fa-rotate"></i>
-      </button>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-soft" onclick="markAllVisibleAlerts()" title="Tandai Semua" aria-label="Tandai Semua">
+          <i class="fa-solid fa-check-double"></i>
+        </button>
+        <button class="btn-soft" onclick="loadAlerts()" title="Refresh" aria-label="Refresh">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+      </div>
     </div>
 
     <div class="stat-grid">
@@ -1052,23 +1381,103 @@ main{
       </div>
     </div>
 
-    <div class="chips" id="alertStatusChips" style="margin-bottom:8px;">
-      <button class="chip active" data-s="all" onclick="setAlertStatus('all')">Semua</button>
-      <button class="chip" data-s="active" onclick="setAlertStatus('active')">Aktif</button>
-      <button class="chip" data-s="resolved" onclick="setAlertStatus('resolved')">Selesai</button>
-    </div>
-    <div class="chips" id="alertSevChips">
-      <button class="chip active" data-sv="" onclick="setAlertSev('')">Semua</button>
-      <button class="chip" data-sv="danger" onclick="setAlertSev('danger')">Bahaya</button>
-      <button class="chip" data-sv="warning" onclick="setAlertSev('warning')">Peringatan</button>
-      <button class="chip" data-sv="info" onclick="setAlertSev('info')">Info</button>
+    <!-- Status & Severity dropdowns -->
+    <div class="alert-dds">
+      <div class="ios-dd" id="alertStatusDD" data-value="all">
+        <button type="button" class="ios-dd-trigger">
+          <i class="fa-solid fa-filter ios-dd-icon"></i>
+          <span class="ios-dd-label">Semua Status</span>
+          <i class="fa-solid fa-chevron-down ios-dd-chev"></i>
+        </button>
+        <div class="ios-dd-menu">
+          <button type="button" class="ios-dd-item active" data-value="all">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Semua Status</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="active">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>Aktif</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="resolved">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>Selesai</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="ios-dd" id="alertSevDD" data-value="">
+        <button type="button" class="ios-dd-trigger">
+          <i class="fa-solid fa-triangle-exclamation ios-dd-icon"></i>
+          <span class="ios-dd-label">Semua Severity</span>
+          <i class="fa-solid fa-chevron-down ios-dd-chev"></i>
+        </button>
+        <div class="ios-dd-menu">
+          <button type="button" class="ios-dd-item active" data-value="">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Semua Severity</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="danger">
+            <i class="fa-solid fa-fire"></i>
+            <span>Bahaya</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="warning">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Peringatan</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="info">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>Info</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+        </div>
+      </div>
     </div>
 
+    <!-- Date filter -->
+    <div class="alert-date-filter">
+      <div class="adf-group">
+        <label for="alertDateStart">Dari</label>
+        <input type="date" id="alertDateStart">
+      </div>
+      <div class="adf-group">
+        <label for="alertDateEnd">Sampai</label>
+        <input type="date" id="alertDateEnd">
+      </div>
+      <div class="alert-date-actions">
+        <button class="btn-soft" onclick="applyAlertDateFilter()">
+          <i class="fa-solid fa-filter"></i> Terapkan
+        </button>
+        <button class="btn-soft" onclick="resetAlertDateFilter()">
+          <i class="fa-solid fa-xmark"></i> Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Bulk action bar -->
+    <div class="alert-bulk-bar" id="alertBulkBar" style="display:none;">
+      <label>
+        <input type="checkbox" id="alertSelectAll">
+        <span>Pilih Semua</span>
+      </label>
+      <span class="count" id="alertSelectedCount">0 dipilih</span>
+      <button class="btn btn-ok" onclick="bulkAckAlerts()">
+        <i class="fa-solid fa-check-double"></i> Tandai
+      </button>
+    </div>
+
+    <!-- Search -->
     <div class="search">
       <i class="fa-solid fa-magnifying-glass"></i>
       <input type="text" id="alertSearch" placeholder="Cari alert...">
     </div>
 
+    <!-- List -->
     <div class="group" id="alertsGroup">
       <div class="group-body" id="alertsList" style="padding:0;">
         <div class="loading"><div class="spinner"></div></div>
@@ -1282,7 +1691,7 @@ main{
       <label>UID Kartu</label>
       <div style="display:flex;gap:8px;">
         <input type="text" id="cardUid" placeholder="0x010dd605" style="flex:1;">
-        <button class="btn-soft" onclick="captureLastTap()" style="flex-shrink:0;padding:0 14px;" title="Tap terakhir">
+        <button class="btn-soft" onclick="captureLastTap()" style="flex-shrink:0;padding:0 14px;min-height:44px;" title="Tap terakhir">
           <i class="fa-solid fa-crosshairs"></i>
         </button>
       </div>
@@ -1354,7 +1763,7 @@ main{
 
 <script>
 /* ============================================================
-   NEXUS Mobile v3 — Logic
+   NEXUS Mobile v4 — Logic
    ============================================================ */
 const CSRF = (document.querySelector('meta[name="csrf-token"]')||{}).content||'';
 
@@ -1373,6 +1782,8 @@ let charts = [], timeMinutes = 1440;
 let dashboardId = null, currentTabId = null, tabs = [];
 let attendanceView = 'report';
 let alerts = [], alertStatus = 'all', alertSev = '', alertSearch = '';
+let alertDateStart = '', alertDateEnd = '';
+let alertSelectedIds = new Set();
 let sheetDeviceId = null;
 let pendingRedirect = null;
 
@@ -1380,8 +1791,10 @@ let pendingRedirect = null;
 let map = null, mapMarkers = {}, mapReady = false;
 let selDeviceId = null, selLat = null, selLng = null, selMarker = null, mapDirty = false;
 let mapFilter = 'all', mapSearch = '';
+const MAP_DEFAULT_CENTER = [-2.5489, 118.0149];
+const MAP_DEFAULT_ZOOM = 5;
 
-/* Sensor data keys — palette vibrant */
+/* Sensor data keys */
 const DATA_KEYS = {
   temperature:{label:'Suhu',unit:'°C',color:'#ef6a6a'},
   humidity:{label:'Kelembaban',unit:'%',color:'#5b9eff'},
@@ -1415,26 +1828,51 @@ const fmtUp = s => {
   if(h>0) return `${h}j ${m}m`;
   return `${m}m`;
 };
+const parseTs = iso => {
+  if(!iso) return null;
+  try{ return new Date(String(iso).replace(' ','T')+'+07:00'); }catch(e){ return null; }
+};
 const fmtTime = iso => {
-  if(!iso) return '-';
-  try{ const d = new Date(String(iso).replace(' ','T')+'+07:00');
-    return d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'});
-  }catch(e){ return '-'; }
+  const d = parseTs(iso); if(!d) return '-';
+  try{ return d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}); }
+  catch(e){ return '-'; }
 };
 const fmtDateSplit = iso => {
-  if(!iso) return {date:'-',time:'-'};
-  try{ const d = new Date(String(iso).replace(' ','T')+'+07:00');
+  const d = parseTs(iso); if(!d) return {date:'-',time:'-'};
+  try{
     return {
       date: d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',timeZone:'Asia/Jakarta'}),
       time: d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Jakarta'})
     };
   }catch(e){ return {date:'-',time:'-'}; }
 };
+const fmtRelative = iso => {
+  const d = parseTs(iso); if(!d) return '-';
+  const diff = (Date.now() - d.getTime())/1000;
+  if(diff < 60) return 'baru saja';
+  if(diff < 3600) return `${Math.floor(diff/60)}m lalu`;
+  if(diff < 86400) return `${Math.floor(diff/3600)}j lalu`;
+  if(diff < 604800) return `${Math.floor(diff/86400)}h lalu`;
+  return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',timeZone:'Asia/Jakarta'});
+};
 const deviceStatus = d => {
   if(d.status === 'offline') return 'offline';
   if(d.has_alert && d.top_alert_severity) return d.top_alert_severity;
   return d.status || 'offline';
 };
+const alertTypeLabel = type => {
+  const map = {temperature:'Suhu',humidity:'Kelembaban',gas_level:'Gas',offline:'Offline',smoke:'Asap',motion:'Gerakan',co2:'CO2',moisture:'K. Tanah',lux:'Cahaya',voc:'VOC',air_quality:'Kualitas Udara'};
+  return map[type] || String(type||'').replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase());
+};
+const SENSOR_UNITS = {temperature:'°C',humidity:'%',gas_level:'ppm',smoke:'ppm',moisture:'%',lux:'lux',co2:'ppm',voc:'ppb',air_quality:'AQI',motion:'',rfid:''};
+const formatVal = (type, value) => {
+  if(value === null || value === undefined) return null;
+  const unit = SENSOR_UNITS[type] ?? '';
+  const num = parseFloat(value);
+  if(isNaN(num)) return String(value);
+  return `${parseFloat(num.toFixed(2))}${unit}`;
+};
+const ackIdOf = a => a.alert_id != null ? a.alert_id : a.id;
 
 function toast(msg){
   const t = document.createElement('div');
@@ -1464,7 +1902,7 @@ document.querySelectorAll('.modal').forEach(m => {
 document.addEventListener('keydown', e => {
   if(e.key === 'Escape'){
     document.querySelectorAll('.modal.open').forEach(m => closeModal(m.id));
-    document.querySelectorAll('.dd-menu.open').forEach(m => m.classList.remove('open'));
+    document.querySelectorAll('.ios-dd.open').forEach(m => m.classList.remove('open'));
   }
 });
 
@@ -1538,6 +1976,13 @@ async function loadDashboard(){
     renderDevices();
     renderDevicesFull();
 
+    // Last update timestamp
+    const lu = document.getElementById('dashLastUpdate');
+    if(lu){
+      const now = new Date();
+      lu.textContent = 'Diperbarui ' + now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}) + ' WIB';
+    }
+
     if(document.getElementById('s-map').classList.contains('active')){
       loadMapMarkers(); renderMapList();
     }
@@ -1595,13 +2040,14 @@ function renderDeviceRows(list, targetId){
   }
   c.innerHTML = list.map(d => {
     const st = deviceStatus(d);
-    const wifi = d.latest_wifi_ssid || '—';
+    const type = d.device_type || 'Universal';
+    const loc = d.location || d.latest_wifi_ssid || '—';
     const uptime = fmtUp(d.latest_uptime_seconds || 0);
     return `<div class="row" onclick="openDevice('${esc(d.device_id)}')">
       <span class="row-status ${st}"></span>
       <div class="row-main">
         <div class="row-title">${esc(d.device_name)}</div>
-        <div class="row-sub">${esc(d.device_id)} · ${esc(wifi)} · ${uptime}</div>
+        <div class="row-sub"><span class="badge-type">${esc(type)}</span>${esc(d.device_id)} · ${esc(loc)} · ${uptime}</div>
       </div>
       <button class="row-more" onclick="event.stopPropagation();openSheet('${esc(d.device_id)}')">
         <i class="fa-solid fa-ellipsis"></i>
@@ -1664,12 +2110,21 @@ function initMap(force){
   }
   if(force && map){ try{ map.remove(); }catch(e){} map = null; mapMarkers = {}; mapReady = false; }
   const el = document.getElementById('mMapFull'); if(!el) return;
-  map = L.map('mMapFull', {zoomControl:true, attributionControl:false}).setView([-2.5489,118.0149], 5);
+  map = L.map('mMapFull', {zoomControl:true, attributionControl:false}).setView(MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
   map.on('click', e => { if(selDeviceId) placeMarker(e.latlng.lat, e.latlng.lng); });
   mapReady = true;
   setTimeout(() => map.invalidateSize(), 150);
   loadMapMarkers(); renderMapList();
+}
+function resetMapView(){
+  if(!map) return;
+  map.flyTo(MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM, {duration:.8});
+  // Clear selection marker
+  if(selMarker){ try{ map.removeLayer(selMarker); }catch(e){} selMarker = null; }
+  selDeviceId = null; selLat = null; selLng = null; mapDirty = false;
+  updateMapBanner();
+  toast('View direset');
 }
 function mapStyle(d){
   if(d.status === 'offline') return {color:'#ef6a6a', label:'OFF'};
@@ -1707,7 +2162,6 @@ function renderMapList(){
   if(mapFilter === 'online') list = list.filter(d => d.status === 'online');
   else if(mapFilter === 'offline') list = list.filter(d => d.status === 'offline');
   else if(mapFilter === 'alert') list = list.filter(d => d.has_alert === true);
-  else if(mapFilter === 'located') list = list.filter(d => d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0));
   if(mapSearch) list = list.filter(d =>
     (d.device_name||'').toLowerCase().includes(mapSearch) ||
     (d.device_id||'').toLowerCase().includes(mapSearch));
@@ -1789,36 +2243,71 @@ async function saveMapLoc(){
   } else alert(d.error || 'Gagal');
 }
 
-/* ===== Analytics ===== */
-function toggleTabMenu(e){
-  e.stopPropagation();
-  document.getElementById('tabMenu').classList.toggle('open');
-  document.getElementById('timeMenu').classList.remove('open');
-}
-function toggleTimeMenu(e){
-  e.stopPropagation();
-  document.getElementById('timeMenu').classList.toggle('open');
-  document.getElementById('tabMenu').classList.remove('open');
-}
-document.addEventListener('click', e => {
-  ['tabMenu','timeMenu'].forEach(id => {
-    const m = document.getElementById(id); if(!m) return;
-    const trig = document.getElementById(id === 'tabMenu' ? 'tabTrigger' : 'timeTrigger');
-    if(m.classList.contains('open') && !m.contains(e.target) && !trig.contains(e.target))
-      m.classList.remove('open');
+/* ==========================================
+   iOS Custom Dropdown helper
+   ========================================== */
+function bindIosDD(id, onChange) {
+  const dd = document.getElementById(id);
+  if (!dd) return;
+  const trigger = dd.querySelector('.ios-dd-trigger');
+  const label = dd.querySelector('.ios-dd-label');
+  const items = dd.querySelectorAll('.ios-dd-item');
+  if (!trigger || !label) return;
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    document.querySelectorAll('.ios-dd.open').forEach(el => {
+      if (el !== dd) el.classList.remove('open');
+    });
+    dd.classList.toggle('open');
   });
+
+  items.forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const value = item.dataset.value || item.dataset.min || '';
+      const textEl = item.querySelector('span');
+      const text = textEl ? textEl.textContent.trim() : '';
+      dd.dataset.value = value;
+      label.textContent = text;
+      items.forEach(i => i.classList.toggle('active', i === item));
+      dd.classList.remove('open');
+      if (typeof onChange === 'function') onChange(value, text);
+    });
+  });
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.ios-dd')) {
+    document.querySelectorAll('.ios-dd.open').forEach(el => el.classList.remove('open'));
+  }
 });
-document.querySelectorAll('#timeMenu .dd-item').forEach(item => {
-  item.addEventListener('click', () => {
-    const m = parseInt(item.dataset.min);
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.ios-dd.open').forEach(el => el.classList.remove('open'));
+  }
+});
+
+/* ===== Analytics ===== */
+let __analyticsBound = false;
+function bindAnalyticsDropdowns() {
+  if (__analyticsBound) return;
+  __analyticsBound = true;
+
+  bindIosDD('timeDD', (val) => {
+    const m = parseInt(val) || 1440;
     timeMinutes = m;
-    document.querySelectorAll('#timeMenu .dd-item').forEach(b => b.classList.toggle('active', parseInt(b.dataset.min) === m));
-    const label = m < 60 ? `${m} Menit` : m < 1440 ? `${Math.round(m/60)} Jam` : m < 10080 ? `${Math.round(m/1440)} Hari` : m < 43200 ? `${Math.round(m/10080)} Minggu` : `${Math.round(m/43200)} Bulan`;
-    document.getElementById('timeLabel').textContent = label;
-    document.getElementById('timeMenu').classList.remove('open');
+    const label = m < 60 ? `${m} Menit` :
+                  m < 1440 ? `${Math.round(m/60)} Jam` :
+                  m < 10080 ? `${Math.round(m/1440)} Hari` :
+                  m < 43200 ? `${Math.round(m/10080)} Minggu` :
+                  `${Math.round(m/43200)} Bulan`;
+    const lbl = document.getElementById('timeLabel');
+    if (lbl) lbl.textContent = label;
     loadCharts();
   });
-});
+}
+bindAnalyticsDropdowns();
 
 async function loadTabs(){
   try{
@@ -1835,24 +2324,57 @@ async function loadTabs(){
   }catch(e){ console.error(e); }
 }
 function renderTabs(){
-  const label = document.getElementById('tabLabel'), menu = document.getElementById('tabMenu');
+  const label = document.getElementById('tabLabel');
+  const menu = document.getElementById('tabMenu');
+  const dd = document.getElementById('tabDD');
+  if (!label || !menu) return;
   const cur = tabs.find(t => t.id === currentTabId);
   label.textContent = cur ? cur.name : 'Pilih Tab';
+
   let html = tabs.map(t => `
-    <div class="dd-item ${t.id === currentTabId ? 'active' : ''}" onclick="switchTab(${t.id})">
+    <button type="button" class="ios-dd-item ${t.id === currentTabId ? 'active' : ''}" data-tab-id="${t.id}">
       <i class="fa-solid ${esc(t.icon || 'fa-chart-line')}"></i>
       <span>${esc(t.name)}</span>
-      <div class="dd-actions">
-        <button onclick="event.stopPropagation();openTabModal('edit',${t.id},'${esc(t.name)}')"><i class="fa-solid fa-pen"></i></button>
-      </div>
-    </div>
+      <i class="fa-solid fa-check ios-dd-check"></i>
+    </button>
   `).join('');
-  html += `<div class="dd-divider"></div><div class="dd-add" onclick="openTabModal('new')"><i class="fa-solid fa-plus"></i> Tambah Tab</div>`;
+  html += `<div class="dd-divider" style="height:1px;background:var(--border-soft);margin:4px 6px;"></div>`;
+  html += `<button type="button" class="ios-dd-item" data-action="new-tab">
+    <i class="fa-solid fa-plus"></i>
+    <span>Tambah Tab</span>
+    <i class="fa-solid fa-check ios-dd-check" style="opacity:0;"></i>
+  </button>`;
   menu.innerHTML = html;
+
+  menu.querySelectorAll('[data-tab-id]').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      switchTab(parseInt(item.dataset.tabId));
+      if (dd) dd.classList.remove('open');
+    });
+  });
+  const addBtn = menu.querySelector('[data-action="new-tab"]');
+  if (addBtn) addBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    openTabModal('new');
+    if (dd) dd.classList.remove('open');
+  });
+
+  if (dd && !dd.__bound) {
+    dd.__bound = true;
+    const trigger = dd.querySelector('.ios-dd-trigger');
+    if (trigger) trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      document.querySelectorAll('.ios-dd.open').forEach(el => {
+        if (el !== dd) el.classList.remove('open');
+      });
+      dd.classList.toggle('open');
+    });
+  }
 }
 function switchTab(id){
   currentTabId = id; renderTabs();
-  document.getElementById('tabMenu').classList.remove('open');
+  const dd = document.getElementById('tabDD'); if (dd) dd.classList.remove('open');
   loadCharts();
 }
 function openTabModal(mode, id, name){
@@ -1915,12 +2437,15 @@ async function loadCharts(){
       c.innerHTML = '<div class="empty"><i class="fa-solid fa-chart-column"></i><div class="empty-title">Belum ada diagram</div><div class="empty-sub">Tap + untuk menambahkan</div></div>';
       return;
     }
-    c.innerHTML = charts.map(ch => `
+    c.innerHTML = charts.map(ch => {
+      const deviceNames = ch.deviceIds.map(id => devices.find(d => d.device_id === id)?.device_name || id).join(', ');
+      const dataLabels = Object.entries(ch.showData).filter(([_,v])=>v).map(([k])=>DATA_KEYS[k]?.label).filter(Boolean).join(', ');
+      return `
       <div class="chart-card" id="${ch.id}">
         <div class="chart-head">
           <div class="chart-info">
             <div class="chart-title">${esc(ch.title)}</div>
-            <div class="chart-sub">${esc(ch.deviceIds.join(', '))}</div>
+            <div class="chart-sub">${esc(deviceNames)}${dataLabels ? ' · ' + esc(dataLabels) : ''}</div>
           </div>
           <div class="chart-actions">
             <button class="chart-act" onclick="openChart('${ch.id}')"><i class="fa-solid fa-pen"></i></button>
@@ -1928,8 +2453,8 @@ async function loadCharts(){
           </div>
         </div>
         <div class="chart-canvas"><canvas id="${ch.id}_c"></canvas></div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
     await loadChartsData();
   }catch(e){ console.error(e); c.innerHTML = '<div class="empty"><div class="empty-title">Koneksi gagal</div></div>'; }
 }
@@ -1984,9 +2509,11 @@ function renderChart(ch, hist){
   if(!tsSet.size) return;
   const cutoff = Date.now() - timeMinutes*60*1000;
   const allTs = Array.from(tsSet).sort();
-  const inRange = allTs.filter(ts => new Date(String(ts).replace(' ','T')+'+07:00').getTime() >= cutoff);
+  const inRange = allTs.filter(ts => {
+    const d = parseTs(ts); return d && d.getTime() >= cutoff;
+  });
   const usedTs = (inRange.length ? inRange : allTs).slice(-200);
-  const labels = usedTs.map(ts => { try{ return new Date(String(ts).replace(' ','T')+'+07:00').toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}); }catch(e){ return ''; } });
+  const labels = usedTs.map(ts => fmtTime(ts));
   const datasets = []; let ci = 0;
   ch.deviceIds.forEach(did => {
     const h = hist[did] || []; if(!h.length) return;
@@ -2023,6 +2550,14 @@ function renderChart(ch, hist){
       }
     }
   });
+}
+function resetChartsLayout(){
+  // Clear any cached layout (mobile doesn't drag, but reset if API has cached pos)
+  if(!currentTabId){ toast('Tidak ada tab aktif'); return; }
+  if(!confirm('Reset layout diagram di tab ini?')) return;
+  // Mobile layout is auto-stacked, so we just reload
+  loadCharts();
+  toast('Layout direset');
 }
 
 /* ===== Chart Modal ===== */
@@ -2116,6 +2651,19 @@ async function loadAttend(){
       c.innerHTML = rows.map(r => {
         const ci = r.check_in ? r.check_in.split(' ')[1] : '-';
         const co = (r.check_out && r.check_out !== r.check_in) ? r.check_out.split(' ')[1] : '-';
+        let duration = '-';
+        if(r.check_in && r.check_out && r.check_in !== r.check_out){
+          try{
+            const t1 = new Date(r.check_in.replace(' ','T')+'+07:00').getTime();
+            const t2 = new Date(r.check_out.replace(' ','T')+'+07:00').getTime();
+            const mins = Math.floor((t2-t1)/60000);
+            if(mins > 0){
+              const h = Math.floor(mins/60);
+              const m = mins % 60;
+              duration = h > 0 ? `${h}j ${m}m` : `${m}m`;
+            }
+          }catch(e){}
+        }
         return `<div class="attend-item">
           <div class="attend-head">
             <div class="attend-name">${esc(r.nama)}</div>
@@ -2125,6 +2673,7 @@ async function loadAttend(){
           <div class="attend-grid">
             <div><div class="attend-cell-label">Masuk</div><div class="attend-cell-val ok">${ci}</div></div>
             <div><div class="attend-cell-label">Keluar</div><div class="attend-cell-val warn">${co}</div></div>
+            <div><div class="attend-cell-label">Durasi</div><div class="attend-cell-val mute">${duration}</div></div>
           </div>
         </div>`;
       }).join('');
@@ -2148,7 +2697,7 @@ async function loadAttend(){
             <div class="attend-name">${esc(r.nama)}</div>
             <div class="attend-time">${dt.date} ${dt.time}</div>
           </div>
-          <div class="attend-grid">
+          <div class="attend-grid" style="grid-template-columns:1fr 1fr;">
             <div><div class="attend-cell-label">UID</div><div class="attend-cell-val">${esc(r.uid)}</div></div>
             <div><div class="attend-cell-label">Device</div><div class="attend-cell-val">${esc(r.device_id)}</div></div>
           </div>
@@ -2222,7 +2771,7 @@ async function openStatDetail(type){
         return `<div class="attend-item" style="padding:12px 0;">
           <div class="attend-head">
             <div class="attend-name mono" style="font-family:var(--mono);font-size:13px;">${esc(x.uid)}</div>
-            <button class="btn-soft" style="flex-shrink:0;padding:6px 12px;font-size:11.5px;" onclick="closeModal('m-stat');openCardholder();setTimeout(()=>{document.getElementById('cardUid').value='${esc(x.uid)}';},150)">Daftar</button>
+            <button class="btn-soft" style="flex-shrink:0;padding:6px 12px;font-size:11.5px;min-height:32px;" onclick="closeModal('m-stat');openCardholder();setTimeout(()=>{document.getElementById('cardUid').value='${esc(x.uid)}';},150)">Daftar</button>
           </div>
           <div class="attend-time" style="text-align:left;">${dt.date} ${dt.time}</div>
         </div>`;
@@ -2237,16 +2786,22 @@ async function deleteCardholder(uid){
 }
 
 /* ===== Alerts ===== */
-function setAlertStatus(s){
-  alertStatus = s;
-  document.querySelectorAll('#alertStatusChips .chip').forEach(c => c.classList.toggle('active', c.dataset.s === s));
-  loadAlerts();
+let __alertDDsBound = false;
+function bindAlertDropdowns() {
+  if (__alertDDsBound) return;
+  __alertDDsBound = true;
+
+  bindIosDD('alertStatusDD', (val) => {
+    alertStatus = val || 'all';
+    loadAlerts();
+  });
+  bindIosDD('alertSevDD', (val) => {
+    alertSev = val || '';
+    loadAlerts();
+  });
 }
-function setAlertSev(s){
-  alertSev = s;
-  document.querySelectorAll('#alertSevChips .chip').forEach(c => c.classList.toggle('active', c.dataset.sv === s));
-  loadAlerts();
-}
+bindAlertDropdowns();
+
 document.getElementById('alertSearch').addEventListener('input', e => {
   clearTimeout(window.__aST);
   window.__aST = setTimeout(() => { alertSearch = e.target.value.trim(); renderAlerts(); }, 200);
@@ -2267,60 +2822,253 @@ async function loadAlerts(){
     const params = new URLSearchParams();
     if(alertStatus !== 'all') params.set('status', alertStatus);
     if(alertSev) params.set('severity', alertSev);
-    params.set('limit', '500');
+    params.set('limit', '1000');
     const r = await api(`/api/v1/alerts/all?${params}`);
     const d = await r.json();
     alerts = d.success ? (d.alerts || []) : [];
+    // Prune selection
+    const validIds = new Set(alerts.filter(a => a.is_still_active === 1 && a.severity !== 'healthy').map(ackIdOf).filter(x=>x!=null));
+    Array.from(alertSelectedIds).forEach(id => { if(!validIds.has(id)) alertSelectedIds.delete(id); });
     renderAlerts();
   }catch(e){ c.innerHTML = '<div class="empty"><div class="empty-title">Koneksi gagal</div></div>'; }
 }
-const ackId = a => a.alert_id != null ? a.alert_id : a.id;
-function renderAlerts(){
-  const c = document.getElementById('alertsList'); if(!c) return;
-  let list = alerts;
+
+function inAlertDateRange(iso){
+  if(!alertDateStart && !alertDateEnd) return true;
+  const d = parseTs(iso); if(!d) return true;
+  const t = d.getTime();
+  if(alertDateStart){
+    const st = new Date(alertDateStart+'T00:00:00+07:00').getTime();
+    if(t < st) return false;
+  }
+  if(alertDateEnd){
+    const en = new Date(alertDateEnd+'T23:59:59+07:00').getTime();
+    if(t > en) return false;
+  }
+  return true;
+}
+
+function applyAlertDateFilter(){
+  alertDateStart = document.getElementById('alertDateStart').value;
+  alertDateEnd = document.getElementById('alertDateEnd').value;
+  renderAlerts();
+}
+function resetAlertDateFilter(){
+  document.getElementById('alertDateStart').value = '';
+  document.getElementById('alertDateEnd').value = '';
+  alertDateStart = '';
+  alertDateEnd = '';
+  renderAlerts();
+}
+
+function getFilteredAlerts(){
+  let list = alerts.slice();
+  // Date
+  list = list.filter(a => inAlertDateRange(a.created_at));
+  // Search
   if(alertSearch){
     const t = alertSearch.toLowerCase();
     list = list.filter(a =>
       (a.device_name||'').toLowerCase().includes(t) ||
       (a.device_id||'').toLowerCase().includes(t) ||
       (a.message||'').toLowerCase().includes(t) ||
-      (a.alert_type||'').toLowerCase().includes(t));
+      (a.alert_type||'').toLowerCase().includes(t) ||
+      (a.label||'').toLowerCase().includes(t));
   }
+  return list;
+}
+
+function renderAlerts(){
+  const c = document.getElementById('alertsList'); if(!c) return;
+  const list = getFilteredAlerts();
+
   if(!list.length){
     c.innerHTML = '<div class="empty"><i class="fa-solid fa-bell-slash"></i><div class="empty-title">Tidak ada alert</div></div>';
+    updateAlertBulkBar();
     return;
   }
-  c.innerHTML = list.map(a => {
-    const active = a.is_still_active === 1;
-    const sev = a.severity || 'info';
-    const healthy = sev === 'healthy';
-    const cls = healthy ? 'resolved' : (active ? sev : 'resolved');
-    const id = ackId(a);
-    const canAck = active && !healthy && id != null;
-    return `<div class="alert-item ${cls}">
+
+  // Group by date
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+  const weekAgo = new Date(today.getTime() - 7*86400000);
+
+  let html = '';
+  let currentGroup = '', groupOpen = false;
+
+  list.forEach(a => {
+    const d = parseTs(a.created_at);
+    let group;
+    if(!d) group = 'Tidak Diketahui';
+    else if(d >= today) group = 'Hari Ini';
+    else if(d >= yesterday) group = 'Kemarin';
+    else if(d >= weekAgo) group = '7 Hari Terakhir';
+    else group = 'Lebih Lama';
+
+    if(group !== currentGroup){
+      if(groupOpen) html += '</div>';
+      html += `<div class="alert-group"><div class="alert-group-label">${group}</div>`;
+      currentGroup = group;
+      groupOpen = true;
+    }
+    html += renderAlertRow(a);
+  });
+  if(groupOpen) html += '</div>';
+
+  c.innerHTML = html;
+  bindAlertRowEvents();
+  updateAlertBulkBar();
+}
+
+function renderAlertRow(a){
+  const active = a.is_still_active === 1;
+  const sev = a.severity || 'info';
+  const healthy = sev === 'healthy';
+  const cls = healthy ? 'resolved' : (active ? sev : 'resolved');
+  const id = ackIdOf(a);
+  const canAck = active && !healthy && id != null;
+  const isChecked = id != null && alertSelectedIds.has(id);
+  const valueDisplay = formatVal(a.alert_type, a.value);
+  const typeLabel = a.label || alertTypeLabel(a.alert_type);
+
+  const checkHtml = canAck
+    ? `<label class="alert-check" onclick="event.stopPropagation();">
+         <input type="checkbox" class="alert-cb" data-alert-id="${id}" ${isChecked?'checked':''}>
+       </label>`
+    : `<div class="alert-check hidden"></div>`;
+
+  return `<div class="alert-item ${cls}" data-alert-id="${a.id}" data-device-id="${esc(a.device_id)}">
+    ${checkHtml}
+    <div class="alert-body">
       <div class="alert-head">
         <span class="alert-sev ${sev}">${sev}</span>
         <span class="alert-head-type">${esc(a.alert_type || '')}</span>
+        ${valueDisplay ? `<span class="alert-val">${esc(valueDisplay)}</span>` : ''}
       </div>
-      <div class="alert-title">${esc(a.label || a.alert_type)}</div>
+      <div class="alert-title">${esc(typeLabel)}</div>
       <div class="alert-msg">${esc(a.message || '-')}</div>
       <div class="alert-meta">
         <span><i class="fa-solid fa-microchip"></i> ${esc(a.device_name || a.device_id)}</span>
         <span class="dot"></span>
-        <span>${fmtTime(a.created_at)}</span>
+        <span>${fmtRelative(a.created_at)}</span>
       </div>
       ${(active || canAck) ? `<div class="alert-actions">
-        <button onclick="openDevice('${esc(a.device_id)}')"><i class="fa-solid fa-eye"></i> Detail</button>
-        ${canAck ? `<button class="ok" onclick="ackAlert(${id})"><i class="fa-solid fa-check"></i> Tandai</button>` : ''}
+        <button class="alert-act-btn" data-action="view-device" data-device-id="${esc(a.device_id)}">
+          <i class="fa-solid fa-eye"></i> Detail
+        </button>
+        ${canAck ? `<button class="alert-act-btn ok" data-action="acknowledge" data-alert-id="${id}">
+          <i class="fa-solid fa-check"></i> Tandai
+        </button>` : ''}
       </div>` : ''}
-    </div>`;
-  }).join('');
+    </div>
+  </div>`;
 }
+
+function bindAlertRowEvents(){
+  document.querySelectorAll('.alert-item [data-action="view-device"]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      openDevice(btn.dataset.deviceId);
+    });
+  });
+  document.querySelectorAll('.alert-item [data-action="acknowledge"]').forEach(btn => {
+    btn.addEventListener('click', async e => {
+      e.stopPropagation();
+      const id = parseInt(btn.dataset.alertId, 10);
+      if(!Number.isFinite(id)) return;
+      const ok = await ackAlert(id);
+      if(ok){ loadAlerts(); toast('Alert ditandai selesai'); }
+      else alert('Gagal');
+    });
+  });
+  document.querySelectorAll('.alert-cb').forEach(cb => {
+    cb.addEventListener('change', e => {
+      const id = parseInt(e.target.dataset.alertId, 10);
+      if(!Number.isFinite(id)) return;
+      if(e.target.checked) alertSelectedIds.add(id);
+      else alertSelectedIds.delete(id);
+      updateAlertBulkBar();
+    });
+  });
+  // Click row to open device
+  document.querySelectorAll('.alert-item').forEach(item => {
+    item.addEventListener('click', e => {
+      if(e.target.closest('button') || e.target.closest('label') || e.target.closest('input')) return;
+      const id = item.dataset.deviceId;
+      if(id) openDevice(id);
+    });
+  });
+}
+
+function updateAlertBulkBar(){
+  const bar = document.getElementById('alertBulkBar');
+  if(!bar) return;
+  const activeVisible = getFilteredAlerts().filter(a =>
+    a.is_still_active === 1 && a.severity !== 'healthy' && ackIdOf(a) != null);
+  if(activeVisible.length === 0){
+    bar.style.display = 'none';
+    return;
+  }
+  bar.style.display = 'flex';
+  document.getElementById('alertSelectedCount').textContent = `${alertSelectedIds.size} dipilih`;
+  const selAll = document.getElementById('alertSelectAll');
+  const allIds = activeVisible.map(ackIdOf);
+  selAll.checked = allIds.length > 0 && allIds.every(id => alertSelectedIds.has(id));
+}
+
+document.getElementById('alertSelectAll').addEventListener('change', e => {
+  const activeVisible = getFilteredAlerts().filter(a =>
+    a.is_still_active === 1 && a.severity !== 'healthy' && ackIdOf(a) != null);
+  if(e.target.checked){
+    activeVisible.forEach(a => alertSelectedIds.add(ackIdOf(a)));
+  } else {
+    alertSelectedIds.clear();
+  }
+  renderAlerts();
+});
+
+async function bulkAckAlerts(){
+  if(alertSelectedIds.size === 0){ toast('Pilih minimal satu alert'); return; }
+  if(!confirm(`Tandai ${alertSelectedIds.size} alert sebagai selesai?`)) return;
+  const ids = Array.from(alertSelectedIds);
+  try{
+    const r = await api('/api/v1/alerts/bulk-acknowledge', {
+      method:'POST',
+      body:JSON.stringify({ids})
+    });
+    const d = await r.json();
+    if(d.success){
+      toast(`${d.acknowledged || ids.length} alert ditandai selesai`);
+      alertSelectedIds.clear();
+      loadAlerts();
+    } else alert(d.error || 'Gagal');
+  }catch(e){ alert('Koneksi gagal'); }
+}
+
+async function markAllVisibleAlerts(){
+  const visible = getFilteredAlerts().filter(a =>
+    a.is_still_active === 1 && a.severity !== 'healthy' && ackIdOf(a) != null);
+  if(!visible.length){ toast('Tidak ada alert aktif di filter ini'); return; }
+  if(!confirm(`Tandai ${visible.length} alert sebagai selesai?`)) return;
+  const ids = visible.map(ackIdOf);
+  try{
+    const r = await api('/api/v1/alerts/bulk-acknowledge', {
+      method:'POST',
+      body:JSON.stringify({ids})
+    });
+    const d = await r.json();
+    if(d.success){ toast(`${d.acknowledged || ids.length} alert ditandai selesai`); loadAlerts(); }
+    else alert(d.error || 'Gagal');
+  }catch(e){ alert('Koneksi gagal'); }
+}
+
 async function ackAlert(id){
-  const r = await api(`/api/v1/alerts/${id}/acknowledge`, {method:'POST'});
-  const d = await r.json();
-  if(d.success){ loadAlerts(); toast('Alert ditandai selesai'); }
-  else alert('Gagal');
+  try{
+    const r = await api(`/api/v1/alerts/${id}/acknowledge`, {method:'POST'});
+    const d = await r.json();
+    return d.success === true;
+  }catch(e){ return false; }
 }
 
 /* ===== Device CRUD ===== */
