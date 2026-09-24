@@ -1,1190 +1,2544 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<title>NEXUS — Mobile</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<meta name="theme-color" content="#1a1d23">
+<title>NEXUS</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-
 <style>
+/* ==========================================================
+   NEXUS Mobile v3 — palette vibrant, layout grouped
+   ========================================================== */
+
 :root{
-  --bg: #14171c;
-  --surface: #1c2027;
-  --surface-2: #232830;
-  --surface-3: #2c323c;
-  --hairline: #2c323c;
-  --hairline-soft: #232830;
-  --text: #e8ebef;
-  --text-2: #a8b0bc;
-  --text-3: #6f7885;
-  --primary: #e8ebef;
-  --primary-fg: #14171c;
+  /* Background — sama dengan shared.css desktop */
+  --bg:#14171c;
+  --surface:#1c2027;
+  --surface-2:#232830;
+  --surface-3:#2c323c;
 
-  --accent-ok:#5fbb86;
-  --accent-warn:#e0a45c;
-  --accent-crit:#e08080;
-  --accent-info:#7fa8d9;
+  /* Border (desktop: --hairline) */
+  --border:#2c323c;
+  --border-soft:#232830;
 
-  --accent-ok-bg: rgba(95,187,134,.14);
-  --accent-warn-bg: rgba(224,164,92,.14);
-  --accent-crit-bg: rgba(224,128,128,.14);
-  --accent-info-bg: rgba(127,168,217,.14);
+  /* Text */
+  --text:#e8ebef;
+  --text-2:#a8b0bc;
+  --text-3:#6f7885;
 
-  --overlay-bg: rgba(0, 0, 0, 0.7);
+  /* Accent — sama dengan desktop */
+  --ok:#5fbb86;      --ok-bg:rgba(95,187,134,.14);
+  --warn:#e0a45c;    --warn-bg:rgba(224,164,92,.14);
+  --crit:#e08080;    --crit-bg:rgba(224,128,128,.14);
+  --info:#7fa8d9;    --info-bg:rgba(127,168,217,.14);
 
-  --font: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
-  --mono: 'JetBrains Mono', monospace;
-  --ease: cubic-bezier(.4,0,.2,1);
+  /* Primary */
+  --primary:#e8ebef;
+  --primary-hover:#d4d8de;
+  --primary-fg:#14171c;
+
+  --overlay:rgba(0,0,0,.7);
+
+  --radius-sm:8px;
+  --radius:12px;
+  --radius-lg:16px;
+  --radius-xl:20px;
+
+  --font:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --ease:cubic-bezier(.4,0,.2,1);
+
+  --hdr-h:56px;
+  --tab-h:60px;
 }
 
-[data-theme="light"] {
-  --bg: #f7f8fa;
-  --surface: #ffffff;
-  --surface-2: #f1f3f7;
-  --surface-3: #e4e7ee;
-  --hairline: #dfe3ea;
-  --hairline-soft: #ebeff4;
-  --text: #1a1d23;
-  --text-2: #4a5462;
-  --text-3: #7a8494;
-  --primary: #2b3340;
-  --primary-fg: #ffffff;
-  --accent-ok:#3d8b5f;
-  --accent-warn:#b8752a;
-  --accent-crit:#b54848;
-  --accent-info:#3f6ba0;
+[data-theme="light"]{
+  --bg:#f7f8fa;
+  --surface:#ffffff;
+  --surface-2:#f1f3f7;
+  --surface-3:#e4e7ee;
 
-  --overlay-bg: rgba(15, 18, 25, 0.35);
+  --border:#dfe3ea;
+  --border-soft:#ebeff4;
+
+  --text:#1a1d23;
+  --text-2:#4a5462;
+  --text-3:#7a8494;
+
+  --ok:#3d8b5f;      --ok-bg:rgba(61,139,95,.10);
+  --warn:#b8752a;    --warn-bg:rgba(184,117,42,.10);
+  --crit:#b54848;    --crit-bg:rgba(181,72,72,.10);
+  --info:#3f6ba0;    --info-bg:rgba(63,107,160,.10);
+
+  --primary:#2b3340;
+  --primary-hover:#3a4453;
+  --primary-fg:#ffffff;
+
+  --overlay:rgba(15,18,25,.35);
 }
 
-*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;}
+/* ---------- Reset ---------- */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;}
+html,body{height:100%;}
 body{
-  font-family:var(--font);
-  background:var(--bg);
-  color:var(--text);
-  min-height:100vh;
-  overflow-x:hidden;
-  -webkit-tap-highlight-color:transparent;
-  transition: background 0.2s ease, color 0.2s ease;
+  font-family:var(--font);background:var(--bg);color:var(--text);
+  overflow-x:hidden;transition:background .2s,color .2s;
+  font-size:14px;line-height:1.45;
 }
+body.modal-open{overflow:hidden;touch-action:none;}
+button{font-family:inherit;cursor:pointer;background:none;border:none;color:inherit;}
+input,select,textarea{font-family:inherit;}
+.leaflet-pane,.leaflet-control{z-index:1!important;}
 
-body.modal-open {
-  overflow: hidden;
-  touch-action: none;
-}
-body:has(.mobile-modal.active) {
-  overflow: hidden;
-}
-
-.leaflet-pane,.leaflet-tile-pane,.leaflet-overlay-pane,.leaflet-shadow-pane,.leaflet-marker-pane,.leaflet-tooltip-pane,.leaflet-popup-pane{z-index:1 !important;}
-
-.mobile-header{
+/* ---------- Header ---------- */
+.hdr{
   position:sticky;top:0;z-index:50;
-  background:var(--surface);
-  border-bottom:1px solid var(--hairline-soft);
-  padding:16px 20px;display:flex;align-items:center;justify-content:space-between;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:0 16px;height:var(--hdr-h);
+  border-bottom:1px solid var(--border-soft);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:color-mix(in srgb, var(--bg) 85%, transparent);
 }
-.mobile-header .brand{display:flex;align-items:center;gap:10px;}
-.mobile-header .mark{
+.hdr-brand{display:flex;align-items:center;gap:10px;min-width:0;}
+.hdr-mark{
   width:30px;height:30px;border-radius:9px;
-  background:var(--primary);
-  color:var(--primary-fg);
-  display:flex;align-items:center;justify-content:center;
-  font-size:13px;
+  background:var(--primary);color:var(--primary-fg);
+  display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;
 }
-.mobile-header h1{font-size:15.5px;font-weight:800;letter-spacing:-.02em;color:var(--text);}
-.mobile-header .time{font-size:12px;font-weight:700;font-family:var(--mono);color:var(--text-2);}
+.hdr-brand span{font-size:15px;font-weight:800;letter-spacing:-.02em;}
+.hdr-actions{display:flex;gap:4px;}
+.hdr-btn{
+  width:38px;height:38px;border-radius:10px;color:var(--text-2);
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  transition:background .15s,color .15s;
+}
+.hdr-btn:active{background:var(--surface-2);color:var(--text);}
 
-.bottom-nav{
+/* ---------- Main ---------- */
+main{
+  padding:16px 16px calc(var(--tab-h) + 24px + env(safe-area-inset-bottom));
+  max-width:640px;margin:0 auto;
+}
+
+/* ---------- Section ---------- */
+.section{display:none;}
+.section.active{display:block;animation:fade .18s var(--ease);}
+@keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:translateY(0);}}
+
+.s-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 0 14px;}
+.s-title{font-size:20px;font-weight:800;letter-spacing:-.02em;color:var(--text);}
+.s-title-sub{font-size:12px;color:var(--text-2);font-weight:500;margin-top:2px;}
+
+/* ---------- Bottom tabbar ---------- */
+.tabs{
   position:fixed;bottom:0;left:0;right:0;z-index:100;
-  background:var(--surface);
-  border-top:1px solid var(--hairline-soft);
+  background:color-mix(in srgb, var(--bg) 90%, transparent);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--border-soft);
   display:flex;justify-content:space-around;align-items:center;
-  padding:8px 0 calc(8px + env(safe-area-inset-bottom));height:64px;
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));
+  height:var(--tab-h);
 }
-.bottom-nav-item{
-  display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer;
-  color:var(--text-3);transition:color .2s;font-size:9.5px;font-weight:600;
-  text-transform:uppercase;letter-spacing:.03em;flex:1;
+.tab{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;
+  color:var(--text-3);font-size:10px;font-weight:600;letter-spacing:.01em;
+  padding:5px 0;position:relative;transition:color .15s;
 }
-.bottom-nav-item i{font-size:17px;}
-.bottom-nav-item.active{color:var(--text);}
-
-.mobile-content{padding:18px 18px 30px;}
-
-.mobile-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:22px;}
-.mobile-stat-card{
-  background:var(--surface);border:1px solid var(--hairline);
-  border-radius:16px;padding:14px;display:flex;align-items:center;gap:11px;
+.tab i{font-size:18px;transition:transform .2s;}
+.tab.active{color:var(--text);}
+.tab.active i{transform:translateY(-1px);}
+.tab-badge{
+  position:absolute;top:1px;right:calc(50% - 16px);
+  background:var(--crit);color:#fff;font-size:9px;font-weight:800;
+  padding:0 5px;border-radius:7px;line-height:14px;min-width:15px;text-align:center;
+  font-family:var(--mono);
 }
-.mobile-stat-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:var(--surface-2);color:var(--text-2);}
-.mobile-stat-info h3{font-size:9px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;font-weight:700;}
-.mobile-stat-info .value{font-size:19px;font-weight:800;font-family:var(--mono);color:var(--text);}
 
-.section-title{font-size:13.5px;font-weight:700;margin:6px 0 12px;display:flex;align-items:center;gap:8px;color:var(--text-2);}
-.section-title i{color:var(--text-2);font-size:12.5px;}
-
-.mobile-filter-bar {
-  display: flex;gap: 6px;margin-bottom: 14px;
-  overflow-x: auto;-webkit-overflow-scrolling: touch;
-  scrollbar-width: none;padding: 2px;
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 16px;border-radius:11px;font-size:13.5px;font-weight:600;
+  transition:background .15s,transform .1s;white-space:nowrap;line-height:1;
+  min-height:40px;
 }
-.mobile-filter-bar::-webkit-scrollbar { display: none; }
-.mobile-filter-btn {
-  flex: 1 0 auto;padding: 8px 14px;
-  border: 1px solid var(--hairline);border-radius: 8px;
-  background: var(--surface-2);color: var(--text-2);
-  font-size: 11px;font-weight: 600;cursor: pointer;
-  display: flex;align-items: center;gap: 5px;
-  font-family: inherit;white-space: nowrap;
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--primary);color:var(--primary-fg);}
+.btn-ghost{background:var(--surface-2);color:var(--text-2);border:1px solid var(--border-soft);}
+.btn-ghost:active{background:var(--surface-3);color:var(--text);}
+.btn-danger{background:var(--crit);color:#fff;}
+.btn-ok{background:var(--ok);color:#fff;}
+.btn-icon{padding:0;width:40px;height:40px;border-radius:11px;flex:0 0 auto;}
+.btn-icon.sm{width:34px;height:34px;border-radius:9px;font-size:13px;}
+.btn-soft{
+  background:var(--surface-2);color:var(--text-2);
+  padding:8px 13px;border-radius:9px;font-size:12.5px;min-height:auto;
+  border:1px solid var(--border-soft);
 }
-.mobile-filter-btn.active { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
-.mobile-filter-btn .count { background: rgba(255,255,255,.2); padding: 1px 6px; border-radius: 8px; font-size: 9px; font-weight: 700; }
-[data-theme="light"] .mobile-filter-btn .count { background: rgba(0,0,0,.1); }
+.btn-soft:active{background:var(--surface-3);color:var(--text);}
 
-.device-list{display:flex;flex-direction:column;gap:9px;margin-bottom:22px;}
-.device-card{
-  background:var(--surface);border:1px solid var(--hairline);
-  border-radius:16px;padding:14px;cursor:pointer;
+/* ---------- Stat grid ---------- */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;}
+.stat-grid.cols-3{grid-template-columns:repeat(3,1fr);}
+.stat{
+  background:var(--surface);border-radius:var(--radius);
+  padding:14px 14px 12px;min-width:0;
+  border:1px solid var(--border-soft);
+  transition:transform .15s;
 }
-.device-card:active{opacity:.85;}
-.device-card .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px;}
-.device-card .device-name{font-size:13.5px;font-weight:700;color:var(--text);}
-.device-card .device-id{font-size:10px;color:var(--text-3);font-family:var(--mono);margin-top:2px;}
-
-.status-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;}
-.status-badge.online{background:var(--accent-ok-bg);color:var(--accent-ok);}
-.status-badge.offline{background:var(--accent-crit-bg);color:var(--accent-crit);}
-.status-badge.alert{background:var(--accent-warn-bg);color:var(--accent-warn);}
-.status-badge.danger{background:var(--accent-crit-bg);color:var(--accent-crit);}
-.status-badge.warning{background:var(--accent-warn-bg);color:var(--accent-warn);}
-.status-badge.info{background:var(--accent-info-bg);color:var(--accent-info);}
-.status-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
-
-.device-card .device-info{display:flex;gap:14px;font-size:11px;color:var(--text-3);flex-wrap:wrap;font-weight:500;}
-.device-card .device-info span{display:flex;align-items:center;gap:5px;}
-.device-card .device-info i{font-size:10px;color:var(--text-2);}
-
-#mobileMap{height:210px;border-radius:16px;border:1px solid var(--hairline);overflow:hidden;margin-bottom:22px;z-index:1;}
-
-.mobile-chart-card{
-  background:var(--surface);border:1px solid var(--hairline);
-  border-radius:16px;padding:14px;margin-bottom:12px;
+.stat:active{transform:scale(.98);}
+.stat-num{
+  font-size:24px;font-weight:800;font-family:var(--mono);
+  line-height:1.1;color:var(--text);letter-spacing:-.02em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.mobile-chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.mobile-chart-title{font-size:12px;font-weight:700;color:var(--text);}
-.mobile-chart-actions{display:flex;gap:6px;}
-.mobile-chart-btn{
-  width:26px;height:26px;border-radius:7px;
-  background:var(--surface-2);border:1px solid var(--hairline);
-  color:var(--text-3);cursor:pointer;
+.stat-num.ok{color:var(--ok);}
+.stat-num.warn{color:var(--warn);}
+.stat-num.crit{color:var(--crit);}
+.stat-num.info{color:var(--info);}
+.stat-label{
+  font-size:10.5px;color:var(--text-2);font-weight:600;
+  text-transform:uppercase;letter-spacing:.04em;margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+
+/* ---------- Group (iOS list) ---------- */
+.group{
+  background:var(--surface);border-radius:var(--radius-lg);
+  overflow:hidden;margin-bottom:14px;
+  border:1px solid var(--border-soft);
+}
+.group-header{
+  padding:14px 16px 8px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+}
+.group-title{
+  font-size:11px;font-weight:700;color:var(--text-2);
+  text-transform:uppercase;letter-spacing:.06em;
+  display:flex;align-items:center;gap:7px;
+}
+.group-title i{font-size:12px;color:var(--text-3);}
+.group-meta{font-size:11px;color:var(--text-3);font-family:var(--mono);font-weight:500;}
+
+/* ---------- Row ---------- */
+.row{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;cursor:pointer;transition:background .12s;
+  position:relative;
+}
+.row:not(:last-child)::after{
+  content:'';position:absolute;left:16px;right:0;bottom:0;
+  height:1px;background:var(--border-soft);
+}
+.row:active{background:var(--surface-2);}
+.row-status{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.row-status.online{background:var(--ok);box-shadow:0 0 0 3px var(--ok-bg);}
+.row-status.offline{background:var(--crit);box-shadow:0 0 0 3px var(--crit-bg);}
+.row-status.danger{background:var(--crit);box-shadow:0 0 0 3px var(--crit-bg);}
+.row-status.warning{background:var(--warn);box-shadow:0 0 0 3px var(--warn-bg);}
+.row-status.info{background:var(--info);box-shadow:0 0 0 3px var(--info-bg);}
+.row-main{flex:1;min-width:0;}
+.row-title{
+  font-size:14px;font-weight:600;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.row-sub{
+  font-size:11.5px;color:var(--text-3);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-family:var(--mono);
+}
+.row-chevron{color:var(--text-3);font-size:11px;flex-shrink:0;opacity:.6;}
+.row-more{
+  width:30px;height:30px;border-radius:8px;color:var(--text-3);
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  flex-shrink:0;
+}
+.row-more:active{background:var(--surface-3);color:var(--text);}
+
+/* ---------- Ring ---------- */
+.hero-card{
+  background:var(--surface);border-radius:var(--radius-lg);
+  padding:20px;margin-bottom:16px;
+  display:flex;align-items:center;gap:18px;
+  border:1px solid var(--border-soft);
+}
+.ring{position:relative;width:88px;height:88px;flex-shrink:0;}
+.ring svg{transform:rotate(-90deg);}
+.ring-track{fill:none;stroke:var(--surface-3);stroke-width:8;}
+.ring-prog{fill:none;stroke:var(--text);stroke-width:8;stroke-linecap:round;transition:stroke-dashoffset .5s var(--ease);}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-pct{font-size:21px;font-weight:800;font-family:var(--mono);color:var(--text);line-height:1;letter-spacing:-.03em;}
+.ring-lbl{font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-top:3px;}
+.hero-info{flex:1;min-width:0;}
+.hero-info h3{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px;letter-spacing:-.01em;}
+.hero-info p{font-size:12px;color:var(--text-2);line-height:1.45;}
+
+/* ---------- Activity ---------- */
+.activity-list{display:flex;flex-direction:column;}
+.activity-item{
+  display:flex;gap:12px;padding:11px 16px;cursor:pointer;
+  position:relative;transition:background .12s;
+}
+.activity-item:not(:last-child)::after{
+  content:'';position:absolute;left:58px;right:0;bottom:0;
+  height:1px;background:var(--border-soft);
+}
+.activity-item:active{background:var(--surface-2);}
+.activity-icon{
+  width:30px;height:30px;border-radius:9px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-size:11px;
+  margin-top:1px;
+}
+.activity-icon.danger{background:var(--crit-bg);color:var(--crit);}
+.activity-icon.warning{background:var(--warn-bg);color:var(--warn);}
+.activity-icon.info{background:var(--info-bg);color:var(--info);}
+.activity-icon.online{background:var(--ok-bg);color:var(--ok);}
+.activity-icon.offline{background:var(--crit-bg);color:var(--crit);}
+.activity-body{flex:1;min-width:0;}
+.activity-text{font-size:12.5px;color:var(--text);line-height:1.4;word-break:break-word;}
+.activity-text strong{font-weight:700;}
+.activity-time{font-size:10.5px;color:var(--text-3);font-family:var(--mono);margin-top:2px;}
+
+/* ---------- Chips ---------- */
+.chips{
+  display:flex;gap:6px;margin-bottom:14px;
+  overflow-x:auto;scrollbar-width:none;padding:0 0 2px;
+  -webkit-overflow-scrolling:touch;
+}
+.chips::-webkit-scrollbar{display:none;}
+.chip{
+  flex:0 0 auto;padding:8px 13px;border-radius:20px;
+  background:var(--surface);color:var(--text-2);
+  font-size:12.5px;font-weight:600;transition:all .15s;white-space:nowrap;
+  display:flex;align-items:center;gap:6px;
+  border:1px solid var(--border-soft);
+}
+.chip:active{background:var(--surface-2);}
+.chip.active{
+  background:var(--primary);color:var(--primary-fg);
+  border-color:var(--primary);
+}
+.chip .chip-count{
+  background:color-mix(in srgb, currentColor 18%, transparent);
+  padding:1px 6px;border-radius:8px;font-size:10px;font-weight:700;
+  font-family:var(--mono);
+}
+.chip.active .chip-count{background:color-mix(in srgb, var(--primary-fg) 15%, transparent);}
+
+/* ---------- Search ---------- */
+.search{position:relative;margin-bottom:12px;}
+.search i{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  color:var(--text-3);font-size:12px;pointer-events:none;
+}
+.search input{
+  width:100%;padding:12px 14px 12px 38px;
+  background:var(--surface);color:var(--text);
+  border-radius:11px;font-size:14px;outline:none;
+  border:1px solid var(--border-soft);
+  transition:border-color .15s,background .15s;
+}
+.search input::placeholder{color:var(--text-3);}
+.search input:focus{
+  border-color:var(--info);
+  background:var(--surface-2);
+}
+
+/* ---------- Dropdown ---------- */
+.dd{position:relative;flex:1;min-width:0;}
+.dd-trigger{
+  width:100%;display:flex;align-items:center;gap:9px;
+  padding:0 12px;height:42px;
+  background:var(--surface);border-radius:11px;
+  color:var(--text);font-size:13px;font-weight:600;
+  text-align:left;transition:background .15s;
+  border:1px solid var(--border-soft);
+}
+.dd-trigger:active{background:var(--surface-2);}
+.dd-trigger .dd-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.dd-trigger .dd-chev{font-size:9px;opacity:.45;flex-shrink:0;}
+.dd-trigger > i:first-child{font-size:12px;opacity:.65;flex-shrink:0;}
+.dd-menu{
+  position:absolute;top:calc(100% + 6px);left:0;right:0;
+  background:var(--surface);border-radius:var(--radius);
+  box-shadow:0 12px 36px rgba(0,0,0,.5);
+  padding:5px;z-index:30;display:none;
+  max-height:300px;overflow-y:auto;
+  border:1px solid var(--border);
+}
+.dd-menu.open{display:block;animation:fade .15s var(--ease);}
+.dd-item{
+  display:flex;align-items:center;gap:10px;
+  padding:10px 12px;border-radius:9px;
+  font-size:13px;font-weight:500;color:var(--text-2);cursor:pointer;
+}
+.dd-item:active{background:var(--surface-2);}
+.dd-item.active{background:var(--surface-2);color:var(--text);font-weight:700;}
+.dd-item > i:first-child{width:14px;font-size:11px;opacity:.65;flex-shrink:0;text-align:center;}
+.dd-item .dd-actions{margin-left:auto;display:flex;gap:2px;opacity:.75;}
+.dd-item .dd-actions button{
+  width:24px;height:24px;border-radius:6px;color:var(--text-3);
   display:flex;align-items:center;justify-content:center;font-size:10px;
 }
-.mobile-chart-canvas{position:relative;height:200px;touch-action:pan-y;}
+.dd-item .dd-actions button:active{background:var(--surface-3);}
+.dd-divider{height:1px;background:var(--border-soft);margin:4px 6px;}
+.dd-add{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;
+  font-size:13px;font-weight:600;color:var(--text-3);
+}
+.dd-add:active{background:var(--surface-2);}
 
-.mobile-time-range{
-  display:flex;gap:4px;margin-bottom:16px;
-  background:var(--surface-2);padding:5px;border-radius:10px;
-  overflow-x:auto;scrollbar-width:none;
-}
-.mobile-time-range::-webkit-scrollbar { display: none; }
-.mobile-time-btn{
-  flex: 1 0 auto;min-width: 42px;padding:10px 10px;
-  text-align:center;font-size:11px;font-weight:600;color:var(--text-3);
-  cursor:pointer;white-space:nowrap;
-  font-family:inherit;border:none;border-radius:8px;background:transparent;
-}
-.mobile-time-btn.active{background:var(--primary);color:var(--primary-fg);}
+/* ---------- Analytics head ---------- */
+.ana-head{display:flex;gap:8px;margin-bottom:14px;}
 
-.mobile-checkbox-grid {
-  display: grid;grid-template-columns: repeat(2, 1fr);gap: 6px;padding: 8px;
-  background: var(--surface-2);border: 1px solid var(--hairline);border-radius: 8px;
+/* ---------- Chart card ---------- */
+.chart-card{
+  background:var(--surface);border-radius:var(--radius-lg);
+  padding:14px;margin-bottom:12px;
+  border:1px solid var(--border-soft);
 }
-.mobile-checkbox-item {
-  display: flex;align-items: center;gap: 6px;padding: 6px 8px;
-  border-radius: 6px;font-size: 11px;color: var(--text-2);font-weight: 500;
+.chart-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.chart-info{flex:1;min-width:0;}
+.chart-title{
+  font-size:13.5px;font-weight:700;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
 }
-.mobile-checkbox-item input[type="checkbox"] { width: 14px;height: 14px;accent-color: var(--primary); }
-.mobile-checkbox-item .data-color { width: 6px;height: 6px;border-radius: 50%;flex-shrink: 0; }
+.chart-sub{
+  font-size:10.5px;color:var(--text-3);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.chart-actions{display:flex;gap:2px;flex-shrink:0;}
+.chart-act{
+  width:30px;height:30px;border-radius:9px;color:var(--text-3);
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+}
+.chart-act:active{background:var(--surface-2);color:var(--text);}
+.chart-act.danger:active{background:var(--crit-bg);color:var(--crit);}
+.chart-canvas{position:relative;height:190px;}
 
-.fab-wrapper {
-  position: fixed;bottom: 82px;right: 18px;z-index: 90;
-  display: flex;flex-direction: column;align-items: flex-end;gap: 10px;
+/* ---------- Attendance ---------- */
+.attend-tabs{
+  display:flex;gap:4px;background:var(--surface);border-radius:11px;
+  padding:3px;margin-bottom:14px;
+  border:1px solid var(--border-soft);
 }
-.fab-menu {
-  display: none;flex-direction: column;align-items: flex-end;gap: 10px;margin-bottom: 8px;
+.attend-tab{
+  flex:1;padding:9px 12px;border-radius:9px;
+  font-size:12.5px;font-weight:600;color:var(--text-3);
+  transition:all .15s;
 }
-.fab-menu.open { display: flex; }
-.fab-menu-item {
-  background: var(--surface);border: 1px solid var(--hairline);
-  border-radius: 14px;padding: 11px 16px;
-  color: var(--text-2);font-size: 12.5px;font-weight: 600;cursor: pointer;
-  display: flex;align-items: center;gap: 10px;font-family: var(--font);
-  box-shadow: 0 8px 24px rgba(0,0,0,.2);
-  white-space: nowrap;
-}
-.fab-menu-item i { font-size: 15px; width: 18px; text-align: center; }
-.fab {
-  width: 52px;height: 52px;border-radius: 50%;background: var(--primary);border: none;
-  color: var(--primary-fg);font-size: 22px;cursor: pointer;
-  display: flex;align-items: center;justify-content: center;
-  box-shadow: 0 8px 24px rgba(0,0,0,.2);
-}
-.fab.open { transform: rotate(45deg); }
-
-.mobile-modal{
-  display:none;position:fixed;inset:0;
-  background:var(--overlay-bg);
-  z-index:9999;align-items:flex-end;justify-content:center;
-  overscroll-behavior:contain;
-  transition: background 0.25s ease;
-}
-.mobile-modal.active{display:flex;}
-.mobile-modal-content{
-  background:var(--surface);
-  color: var(--text);
-  border:1px solid var(--hairline);
-  border-top-left-radius:24px;border-top-right-radius:24px;
-  padding:22px 20px calc(22px + env(safe-area-inset-bottom));
-  width:100%;max-width:520px;max-height:82vh;overflow-y:auto;
-  overscroll-behavior: contain;
-  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
-}
-.sheet-handle-area{padding:12px 0 16px;}
-.sheet-handle{width:36px;height:4px;border-radius:3px;background:var(--hairline);margin:0 auto;}
-
-.form-group{margin-bottom:13px;}
-.form-group label{display:block;font-size:10px;font-weight:700;margin-bottom:6px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;}
-.form-group input,.form-group select{width:100%;padding:12px 13px;background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;font-size:14px;font-family:inherit;color:var(--text);outline:none;}
-.form-group input::placeholder{color:var(--text-3);}
-.form-group select option{background:var(--surface);color:var(--text);}
-
-.modal-actions{display:flex;gap:10px;margin-top:18px;}
-.btn{
-  flex:1;
-  padding:14px 16px;
-  border:none;
-  border-radius:12px;
-  font-size:14px;
-  font-weight:600;
-  cursor:pointer;
+.attend-tab.active{background:var(--surface-3);color:var(--text);}
+.date-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+.date-row input{
+  width:100%;padding:11px 12px;
+  background:var(--surface);color:var(--text);
+  border-radius:11px;font-size:13px;outline:none;
+  border:1px solid var(--border-soft);
   font-family:inherit;
-  min-height:46px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  line-height:1.2;
 }
-.btn-primary{background:var(--primary);color:var(--primary-fg);}
-.btn-secondary{background:var(--surface-2);color:var(--text-2);border:1px solid var(--hairline);}
-.btn-success{background:var(--accent-ok);color:#fff;}
+.date-row input:focus{border-color:var(--info);}
+.date-row input::-webkit-calendar-picker-indicator{filter:invert(.6);cursor:pointer;}
+[data-theme="light"] .date-row input::-webkit-calendar-picker-indicator{filter:none;}
 
-.loading-state{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px;gap:12px;color:var(--text-3);font-size:12.5px;font-weight:600;}
-.spinner{width:26px;height:26px;border:2.5px solid var(--hairline);border-top-color:var(--text);border-radius:50%;animation:spin .8s linear infinite;}
+.attend-item{
+  padding:12px 16px;position:relative;
+}
+.attend-item:not(:last-child)::after{
+  content:'';position:absolute;left:16px;right:0;bottom:0;
+  height:1px;background:var(--border-soft);
+}
+.attend-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:6px;}
+.attend-name{font-size:14px;font-weight:600;color:var(--text);}
+.attend-time{font-size:10.5px;color:var(--text-3);font-family:var(--mono);text-align:right;flex-shrink:0;}
+.attend-uid{
+  font-size:11px;color:var(--text-3);font-family:var(--mono);
+  margin-bottom:8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.attend-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;
+  padding-top:8px;border-top:1px solid var(--border-soft);
+}
+.attend-cell-label{
+  font-size:9.5px;color:var(--text-3);font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;
+}
+.attend-cell-val{
+  font-size:13px;font-weight:700;font-family:var(--mono);color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.attend-cell-val.ok{color:var(--ok);}
+.attend-cell-val.warn{color:var(--warn);}
+
+/* ---------- Alert card ---------- */
+.alert-item{
+  padding:13px 16px;position:relative;
+  border-left:3px solid transparent;
+}
+.alert-item:not(:last-child)::after{
+  content:'';position:absolute;left:16px;right:0;bottom:0;
+  height:1px;background:var(--border-soft);
+}
+.alert-item.danger{border-left-color:var(--crit);}
+.alert-item.warning{border-left-color:var(--warn);}
+.alert-item.info{border-left-color:var(--info);}
+.alert-item.resolved{border-left-color:var(--ok);opacity:.6;}
+.alert-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.alert-sev{
+  font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+  padding:3px 7px;border-radius:6px;
+}
+.alert-sev.danger{background:var(--crit-bg);color:var(--crit);}
+.alert-sev.warning{background:var(--warn-bg);color:var(--warn);}
+.alert-sev.info{background:var(--info-bg);color:var(--info);}
+.alert-sev.healthy{background:var(--ok-bg);color:var(--ok);}
+.alert-head-type{font-size:11px;color:var(--text-3);font-family:var(--mono);}
+.alert-title{
+  font-size:13.5px;font-weight:600;color:var(--text);margin-bottom:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.alert-msg{
+  font-size:12.5px;color:var(--text-2);line-height:1.45;
+  word-break:break-word;
+}
+.alert-meta{
+  display:flex;align-items:center;gap:8px;margin-top:7px;
+  font-size:10.5px;color:var(--text-3);flex-wrap:wrap;
+  font-family:var(--mono);
+}
+.alert-meta .dot{width:3px;height:3px;border-radius:50%;background:currentColor;opacity:.5;}
+.alert-actions{display:flex;gap:6px;margin-top:10px;}
+.alert-actions .btn{
+  flex:1;padding:8px;border-radius:9px;font-size:12px;
+  background:var(--surface-2);color:var(--text-2);min-height:36px;
+  border:1px solid var(--border-soft);
+}
+.alert-actions .btn:active{background:var(--surface-3);color:var(--text);}
+.alert-actions .btn.ok{color:var(--ok);}
+.alert-actions .btn.ok:active{background:var(--ok-bg);}
+
+/* ---------- Map ---------- */
+.map-wrap{
+  background:var(--surface);border-radius:var(--radius-lg);
+  overflow:hidden;margin-bottom:14px;
+  border:1px solid var(--border-soft);
+}
+.map-banner{
+  display:flex;align-items:center;gap:10px;
+  padding:11px 14px;background:var(--info-bg);
+  border-bottom:1px solid color-mix(in srgb, var(--info) 30%, transparent);
+}
+.map-banner-info{display:flex;align-items:center;gap:9px;min-width:0;flex:1;}
+.map-banner-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.map-banner-text{min-width:0;flex:1;}
+.map-banner-name{
+  font-size:12.5px;font-weight:700;color:var(--text);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.map-banner-coord{font-size:10px;color:var(--text-2);font-family:var(--mono);margin-top:1px;}
+.map-banner .btn-soft{flex-shrink:0;}
+.map-banner .btn-save{
+  flex-shrink:0;background:var(--ok);color:#fff;
+  padding:8px 14px;border-radius:9px;font-size:12.5px;font-weight:600;
+  min-height:auto;
+}
+.map-banner .btn-save:disabled{opacity:.4;}
+#mMapFull{height:280px;width:100%;}
+.map-hint{
+  padding:11px 14px;background:var(--surface-2);
+  font-size:11.5px;color:var(--text-2);line-height:1.5;
+  display:flex;gap:8px;align-items:flex-start;
+}
+.map-hint i{color:var(--info);flex-shrink:0;margin-top:2px;font-size:11px;}
+
+/* ---------- Modal ---------- */
+.modal{
+  position:fixed;inset:0;background:var(--overlay);
+  z-index:9999;display:none;align-items:flex-end;justify-content:center;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.modal.open{display:flex;}
+.modal-inner{
+  background:var(--surface);color:var(--text);
+  width:100%;max-width:520px;max-height:90vh;overflow-y:auto;
+  border-top-left-radius:var(--radius-xl);border-top-right-radius:var(--radius-xl);
+  padding:22px 18px calc(22px + env(safe-area-inset-bottom));
+  animation:sheet .25s var(--ease);overscroll-behavior:contain;
+  border-top:1px solid var(--border);
+}
+@keyframes sheet{from{transform:translateY(100%);}to{transform:translateY(0);}}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin-bottom:18px;
+}
+.modal-head h3{
+  font-size:17px;font-weight:800;color:var(--text);letter-spacing:-.02em;
+}
+.modal-close{
+  width:34px;height:34px;border-radius:9px;color:var(--text-2);
+  display:flex;align-items:center;justify-content:center;font-size:14px;
+  flex-shrink:0;
+}
+.modal-close:active{background:var(--surface-2);color:var(--text);}
+
+/* ---------- Form ---------- */
+.field{margin-bottom:14px;}
+.field:last-child{margin-bottom:0;}
+.field label{
+  display:block;font-size:11px;font-weight:700;
+  color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;
+  margin-bottom:7px;
+}
+.field .field-row{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:8px;margin-bottom:7px;
+}
+.field .field-row label{margin:0;}
+.field .field-hint{
+  font-size:10.5px;color:var(--text-3);font-weight:500;
+  text-transform:none;letter-spacing:0;
+}
+.field input,.field select,.field textarea{
+  width:100%;padding:13px 14px;
+  background:var(--surface-2);color:var(--text);
+  border-radius:11px;font-size:14.5px;outline:none;
+  border:1px solid var(--border-soft);
+  transition:border-color .15s,background .15s;
+}
+.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:var(--info);
+  background:var(--surface);
+}
+.field input::placeholder{color:var(--text-3);}
+.field select option{background:var(--surface);color:var(--text);}
+.field small{
+  display:block;font-size:11px;color:var(--text-3);margin-top:6px;
+}
+.field-divider{
+  font-size:10.5px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--text-2);
+  margin:18px 0 12px;
+}
+
+/* ---------- Actions ---------- */
+.actions{display:flex;gap:8px;margin-top:20px;}
+.actions .btn{flex:1;}
+
+/* ---------- Checkbox grid ---------- */
+.cb-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;
+  background:var(--surface-2);border-radius:11px;padding:8px;
+  max-height:200px;overflow-y:auto;
+  border:1px solid var(--border-soft);
+}
+.cb{
+  display:flex;align-items:center;gap:8px;padding:8px 10px;
+  border-radius:8px;font-size:12.5px;color:var(--text-2);font-weight:500;
+  cursor:pointer;transition:background .15s;
+}
+.cb:active{background:var(--surface-3);}
+.cb input{width:15px;height:15px;accent-color:var(--info);flex-shrink:0;margin:0;}
+.cb .dot-color{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+
+/* ---------- Alert rules ---------- */
+.rules{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;}
+.rule{
+  background:var(--surface-2);border-radius:11px;padding:12px;
+  border:1px solid var(--border-soft);
+}
+.rule-head{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
+.rule-head select{
+  flex:1;padding:9px 11px;background:var(--surface);color:var(--text);
+  border-radius:9px;font-size:13px;outline:none;font-weight:600;
+  border:1px solid var(--border-soft);
+}
+.rule-remove{
+  width:30px;height:30px;border-radius:9px;color:var(--crit);
+  display:flex;align-items:center;justify-content:center;font-size:12px;
+  background:var(--crit-bg);flex-shrink:0;
+}
+.rule-sev{
+  display:grid;grid-template-columns:66px 1fr 1fr;gap:6px;align-items:center;
+  background:var(--surface);border-radius:9px;padding:7px 9px;margin-bottom:5px;
+  border:1px solid var(--border-soft);
+}
+.rule-sev:last-child{margin-bottom:0;}
+.rule-sev-label{
+  font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;
+  display:flex;align-items:center;gap:5px;
+}
+.rule-sev-label .dot{width:6px;height:6px;border-radius:50%;}
+.rule-sev.healthy .rule-sev-label{color:var(--ok);}
+.rule-sev.warning .rule-sev-label{color:var(--warn);}
+.rule-sev.danger .rule-sev-label{color:var(--crit);}
+.rule-sev.healthy .dot{background:var(--ok);}
+.rule-sev.warning .dot{background:var(--warn);}
+.rule-sev.danger .dot{background:var(--crit);}
+.rule-sev input{
+  width:100%;padding:6px 9px;background:var(--surface-2);color:var(--text);
+  border-radius:7px;font-size:12px;font-family:var(--mono);outline:none;
+  border:1px solid var(--border-soft);
+}
+.rule-add{
+  width:100%;padding:11px;border-radius:11px;
+  background:transparent;color:var(--text-2);
+  font-size:12.5px;font-weight:600;
+  border:1.5px dashed var(--border);
+  display:flex;align-items:center;justify-content:center;gap:6px;
+}
+.rule-add:active{background:var(--surface-2);}
+.rule-empty{
+  padding:16px;text-align:center;font-size:12px;
+  color:var(--text-3);font-style:italic;
+}
+
+/* ---------- Sheet (action) ---------- */
+.sheet-item{
+  width:100%;padding:14px 12px;border-radius:11px;
+  display:flex;align-items:center;gap:12px;
+  font-size:14px;font-weight:500;color:var(--text);
+  text-align:left;transition:background .15s;
+}
+.sheet-item:active{background:var(--surface-2);}
+.sheet-item i{
+  width:20px;font-size:15px;text-align:center;color:var(--text-2);
+  flex-shrink:0;
+}
+.sheet-item.danger,.sheet-item.danger i{color:var(--crit);}
+.sheet-item.warn,.sheet-item.warn i{color:var(--warn);}
+
+/* ---------- Empty / loading ---------- */
+.loading{
+  padding:40px 20px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  color:var(--text-2);font-size:12.5px;font-weight:600;
+}
+.spinner{
+  width:22px;height:22px;border:2.5px solid var(--border);
+  border-top-color:var(--text-2);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
 @keyframes spin{to{transform:rotate(360deg);}}
+.empty{
+  padding:40px 20px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+}
+.empty i{font-size:28px;color:var(--text-3);opacity:.55;margin-bottom:4px;}
+.empty-title{font-size:13.5px;font-weight:600;color:var(--text-2);}
+.empty-sub{font-size:12px;color:var(--text-3);}
 
-.api-key-box{background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;padding:11px;display:flex;gap:9px;align-items:center;}
-.api-key-box code{flex:1;font-size:11px;color:var(--text);word-break:break-all;font-family:var(--mono);}
+/* ---------- Toast ---------- */
+.toast{
+  position:fixed;bottom:calc(var(--tab-h) + 16px);left:50%;
+  transform:translateX(-50%);
+  background:var(--surface-3);color:var(--text);
+  padding:11px 20px;border-radius:22px;
+  font-size:13px;font-weight:600;white-space:nowrap;
+  box-shadow:0 10px 28px rgba(0,0,0,.45);
+  z-index:99999;animation:fade .2s var(--ease);
+  max-width:90vw;overflow:hidden;text-overflow:ellipsis;
+  border:1px solid var(--border);
+}
+
+.hidden{display:none!important;}
+.mono{font-family:var(--mono);}
+
+
 </style>
 </head>
 <body>
-  <div class="mobile-header">
-    <div class="brand">
-      <div class="mark"><i class="fa-solid fa-satellite-dish"></i></div>
-      <h1>NEXUS</h1>
-    </div>
-    <div class="time" id="mobileTime"></div>
+
+<!-- ============ HEADER ============ -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-mark"><i class="fa-solid fa-satellite-dish"></i></div>
+    <span>NEXUS</span>
   </div>
-
-  <div class="mobile-content">
-    <div id="mDashboardSection">
-      <div class="mobile-stats">
-        <div class="mobile-stat-card">
-          <div class="mobile-stat-icon"><i class="fa-solid fa-server"></i></div>
-          <div class="mobile-stat-info"><h3>Total</h3><div class="value" id="mTotalDevices">0</div></div>
-        </div>
-        <div class="mobile-stat-card">
-          <div class="mobile-stat-icon"><i class="fa-solid fa-wifi"></i></div>
-          <div class="mobile-stat-info"><h3>Online</h3><div class="value" id="mOnlineDevices">0</div></div>
-        </div>
-        <div class="mobile-stat-card">
-          <div class="mobile-stat-icon"><i class="fa-solid fa-power-off"></i></div>
-          <div class="mobile-stat-info"><h3>Offline</h3><div class="value" id="mOfflineDevices">0</div></div>
-        </div>
-        <div class="mobile-stat-card">
-          <div class="mobile-stat-icon"><i class="fa-solid fa-bell"></i></div>
-          <div class="mobile-stat-info"><h3>Alert</h3><div class="value" id="mActiveAlerts">0</div></div>
-        </div>
-      </div>
-
-      <div class="section-title"><i class="fa-solid fa-location-dot"></i> Peta Lokasi</div>
-      <div id="mobileMap"></div>
-
-      <div class="section-title"><i class="fa-solid fa-list"></i> Daftar Perangkat</div>
-      <div class="mobile-filter-bar" id="mFilterBar">
-        <button class="mobile-filter-btn active" data-filter="all" onclick="setMFilter('all')">
-          <i class="fa-solid fa-server"></i> Semua <span class="count" id="mFilterCountAll">0</span>
-        </button>
-        <button class="mobile-filter-btn" data-filter="online" onclick="setMFilter('online')">
-          <i class="fa-solid fa-wifi"></i> Online <span class="count" id="mFilterCountOnline">0</span>
-        </button>
-        <button class="mobile-filter-btn" data-filter="offline" onclick="setMFilter('offline')">
-          <i class="fa-solid fa-power-off"></i> Offline <span class="count" id="mFilterCountOffline">0</span>
-        </button>
-        <button class="mobile-filter-btn" data-filter="alert" onclick="setMFilter('alert')">
-          <i class="fa-solid fa-triangle-exclamation"></i> Alert <span class="count" id="mFilterCountAlert">0</span>
-        </button>
-      </div>
-      <div class="device-list" id="mDeviceList">
-        <div class="loading-state"><div class="spinner"></div><div>Memuat...</div></div>
-      </div>
-    </div>
-
-    <div id="mAnalyticsSection" style="display:none;">
-      <div class="section-title"><i class="fa-solid fa-chart-line"></i> Analitik</div>
-
-      <div class="mobile-time-range" id="mTimeRange">
-        <button class="mobile-time-btn" data-minutes="10" onclick="setMTimeRange(10)">10m</button>
-        <button class="mobile-time-btn" data-minutes="60" onclick="setMTimeRange(60)">1j</button>
-        <button class="mobile-time-btn" data-minutes="180" onclick="setMTimeRange(180)">3j</button>
-        <button class="mobile-time-btn" data-minutes="360" onclick="setMTimeRange(360)">6j</button>
-        <button class="mobile-time-btn active" data-minutes="1440" onclick="setMTimeRange(1440)">24j</button>
-        <button class="mobile-time-btn" data-minutes="10080" onclick="setMTimeRange(10080)">7h</button>
-        <button class="mobile-time-btn" data-minutes="43200" onclick="setMTimeRange(43200)">1bln</button>
-      </div>
-
-      <div id="mChartsList">
-        <div class="loading-state"><div class="spinner"></div><div>Memuat...</div></div>
-      </div>
-    </div>
-
-    <div id="mDevicesSection" style="display:none;">
-      <div class="section-title"><i class="fa-solid fa-microchip"></i> Semua Perangkat</div>
-      <div class="mobile-filter-bar" id="mFilterBarFull">
-        <button class="mobile-filter-btn active" data-filter="all" onclick="setMFilterFull('all')">
-          <i class="fa-solid fa-server"></i> Semua
-        </button>
-        <button class="mobile-filter-btn" data-filter="online" onclick="setMFilterFull('online')">
-          <i class="fa-solid fa-wifi"></i> Online
-        </button>
-        <button class="mobile-filter-btn" data-filter="offline" onclick="setMFilterFull('offline')">
-          <i class="fa-solid fa-power-off"></i> Offline
-        </button>
-        <button class="mobile-filter-btn" data-filter="alert" onclick="setMFilterFull('alert')">
-          <i class="fa-solid fa-triangle-exclamation"></i> Alert
-        </button>
-      </div>
-      <div class="device-list" id="mDeviceListFull">
-        <div class="loading-state"><div class="spinner"></div><div>Memuat...</div></div>
-      </div>
-    </div>
-  </div>
-
-  <div class="fab-wrapper">
-    <div class="fab-menu" id="fabMenu">
-      <div class="fab-menu-item" onclick="openAddDeviceFromFab()">
-        <i class="fa-solid fa-microchip"></i> Tambah Perangkat
-      </div>
-      <div class="fab-menu-item" onclick="openAddChartFromFab()">
-        <i class="fa-solid fa-chart-line"></i> Tambah Diagram
-      </div>
-      <div class="fab-menu-item" onclick="toggleTheme()">
-        <i class="fa-solid fa-moon" id="mobileThemeIcon"></i>
-        <span id="mobileThemeLabel">Tema Gelap</span>
-      </div>
-    </div>
-    <button class="fab" id="fabButton" onclick="toggleFabMenu()">
-      <i class="fa-solid fa-plus"></i>
+  <div class="hdr-actions">
+    <button class="hdr-btn" onclick="toggleTheme()" aria-label="Theme">
+      <i class="fa-solid fa-moon" id="themeIcon"></i>
+    </button>
+    <button class="hdr-btn" onclick="logout()" aria-label="Logout">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i>
     </button>
   </div>
+</header>
 
-  <div class="bottom-nav">
-    <div class="bottom-nav-item active" onclick="showMSection('dashboard')"><i class="fa-solid fa-chart-pie"></i><span>Dashboard</span></div>
-    <div class="bottom-nav-item" onclick="showMSection('analytics')"><i class="fa-solid fa-chart-line"></i><span>Analitik</span></div>
-    <div class="bottom-nav-item" onclick="showMSection('devices')"><i class="fa-solid fa-server"></i><span>Perangkat</span></div>
-    <div class="bottom-nav-item" onclick="logoutM()" style="color:var(--accent-crit);"><i class="fa-solid fa-arrow-right-from-bracket"></i><span>Logout</span></div>
-  </div>
+<!-- ============ MAIN ============ -->
+<main>
 
-  <div class="mobile-modal" id="mAddModal">
-    <div class="mobile-modal-content">
-      <div class="sheet-handle-area"><div class="sheet-handle"></div></div>
-      <h3 style="margin-bottom:16px;font-size:16px;font-weight:800;color:var(--text);">Tambah Perangkat</h3>
-      <div class="form-group"><label>Device ID</label><input type="text" id="mAddId" placeholder="ESP32-001"></div>
-      <div class="form-group"><label>Nama</label><input type="text" id="mAddName" placeholder="Sensor Suhu"></div>
-      <div class="form-group"><label>Tipe</label><select id="mAddType"><option>ESP32</option><option>ESP8266</option><option>Arduino</option><option>Other</option></select></div>
-      <div class="form-group"><label>Lokasi</label><input type="text" id="mAddLocation" placeholder="Ruang Server"></div>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeAddModal()">Batal</button>
-        <button class="btn btn-success" onclick="addMobileDevice()">Simpan</button>
+  <!-- ============ DASHBOARD ============ -->
+  <section id="s-dashboard" class="section active">
+    <div class="hero-card">
+      <div class="ring">
+        <svg viewBox="0 0 100 100" width="88" height="88">
+          <circle class="ring-track" cx="50" cy="50" r="42"></circle>
+          <circle class="ring-prog" id="ringProg" cx="50" cy="50" r="42"
+                  stroke-dasharray="263.9" stroke-dashoffset="263.9"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-pct" id="ringPct">0%</div>
+          <div class="ring-lbl">Sehat</div>
+        </div>
+      </div>
+      <div class="hero-info">
+        <h3 id="ringTitle">Memuat...</h3>
+        <p id="ringCaption">—</p>
       </div>
     </div>
-  </div>
 
-  <div class="mobile-modal" id="mChartModal">
-    <div class="mobile-modal-content">
-      <div class="sheet-handle-area"><div class="sheet-handle"></div></div>
-      <h3 style="margin-bottom:16px;font-size:16px;font-weight:800;color:var(--text);" id="mChartModalTitle">Tambah Diagram</h3>
-      <input type="hidden" id="mEditChartId" value="">
-      <div class="form-group"><label>Judul Diagram</label><input type="text" id="mChartTitle" placeholder="Contoh: Suhu Ruang Server"></div>
-      <div class="form-group">
+    <div class="stat-grid">
+      <div class="stat" onclick="go('devices',{filter:'all'})">
+        <div class="stat-num" id="sTotal">0</div>
+        <div class="stat-label">Total Device</div>
+      </div>
+      <div class="stat" onclick="go('devices',{filter:'online'})">
+        <div class="stat-num ok" id="sOnline">0</div>
+        <div class="stat-label">Online</div>
+      </div>
+      <div class="stat" onclick="go('devices',{filter:'offline'})">
+        <div class="stat-num crit" id="sOffline">0</div>
+        <div class="stat-label">Offline</div>
+      </div>
+      <div class="stat" onclick="go('alerts')">
+        <div class="stat-num warn" id="sAlert">0</div>
+        <div class="stat-label">Alert Aktif</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <div class="group-title"><i class="fa-solid fa-bolt"></i> Aktivitas Terbaru</div>
+      </div>
+      <div class="activity-list" id="activityList">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="s-head" style="margin-top:24px;">
+      <div>
+        <div class="s-title">Perangkat</div>
+        <div class="s-title-sub" id="deviceCountSub">—</div>
+      </div>
+      <button class="btn-soft" onclick="loadDashboard()">
+        <i class="fa-solid fa-rotate"></i>
+      </button>
+    </div>
+
+    <div class="chips" id="filterChips">
+      <button class="chip active" data-f="all" onclick="setFilter('all')">Semua <span class="chip-count" id="cAll">0</span></button>
+      <button class="chip" data-f="online" onclick="setFilter('online')">Online <span class="chip-count" id="cOnline">0</span></button>
+      <button class="chip" data-f="offline" onclick="setFilter('offline')">Offline <span class="chip-count" id="cOffline">0</span></button>
+      <button class="chip" data-f="alert" onclick="setFilter('alert')">Alert <span class="chip-count" id="cAlert">0</span></button>
+    </div>
+
+    <div class="group">
+      <div class="group-body" id="deviceList" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MAP ============ -->
+  <section id="s-map" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Peta</div>
+        <div class="s-title-sub">Lokasi perangkat</div>
+      </div>
+      <button class="btn-soft" onclick="initMap(true)">
+        <i class="fa-solid fa-rotate"></i>
+      </button>
+    </div>
+
+    <div class="map-wrap">
+      <div class="map-banner hidden" id="mapBanner">
+        <div class="map-banner-info">
+          <span class="map-banner-dot" id="mapBannerDot"></span>
+          <div class="map-banner-text">
+            <div class="map-banner-name" id="mapBannerName">—</div>
+            <div class="map-banner-coord" id="mapBannerCoord">—</div>
+          </div>
+        </div>
+        <button class="btn-soft" onclick="clearMapSel()"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-save" id="mapSaveBtn" onclick="saveMapLoc()" disabled>
+          Simpan
+        </button>
+      </div>
+      <div id="mMapFull"></div>
+    </div>
+
+    <div class="map-hint">
+      <i class="fa-solid fa-circle-info"></i>
+      <span>Pilih device di bawah → peta zoom. Drag marker atau tap peta untuk atur, lalu <b>Simpan</b>.</span>
+    </div>
+
+    <div class="search" style="margin-top:14px;">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="mapSearch" placeholder="Cari device...">
+    </div>
+
+    <div class="chips" id="mapChips">
+      <button class="chip active" data-mf="all" onclick="setMapFilter('all')">Semua</button>
+      <button class="chip" data-mf="online" onclick="setMapFilter('online')">Online</button>
+      <button class="chip" data-mf="offline" onclick="setMapFilter('offline')">Offline</button>
+      <button class="chip" data-mf="alert" onclick="setMapFilter('alert')">Alert</button>
+      <button class="chip" data-mf="located" onclick="setMapFilter('located')">Ada Lokasi</button>
+    </div>
+
+    <div class="group">
+      <div class="group-body" id="mapList" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ANALYTICS ============ -->
+  <section id="s-analytics" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Analitik</div>
+        <div class="s-title-sub" id="chartCountSub">—</div>
+      </div>
+      <button class="btn btn-primary btn-icon sm" onclick="openChart()" aria-label="Tambah Diagram">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+
+    <div class="ana-head">
+      <div class="dd">
+        <button class="dd-trigger" id="tabTrigger" onclick="toggleTabMenu(event)">
+          <i class="fa-solid fa-layer-group"></i>
+          <span class="dd-label" id="tabLabel">Default</span>
+          <i class="fa-solid fa-chevron-down dd-chev"></i>
+        </button>
+        <div class="dd-menu" id="tabMenu"></div>
+      </div>
+      <div class="dd" style="flex:0 0 auto;width:auto;">
+        <button class="dd-trigger" id="timeTrigger" onclick="toggleTimeMenu(event)" style="min-width:110px;">
+          <i class="fa-regular fa-clock"></i>
+          <span class="dd-label" id="timeLabel" style="flex:0;">24 Jam</span>
+          <i class="fa-solid fa-chevron-down dd-chev"></i>
+        </button>
+        <div class="dd-menu" id="timeMenu" style="right:0;left:auto;min-width:170px;width:auto;">
+          <div class="dd-item" data-min="5"><i class="fa-regular fa-clock"></i> 5 Menit</div>
+          <div class="dd-item" data-min="10"><i class="fa-regular fa-clock"></i> 10 Menit</div>
+          <div class="dd-item" data-min="30"><i class="fa-regular fa-clock"></i> 30 Menit</div>
+          <div class="dd-divider"></div>
+          <div class="dd-item" data-min="60"><i class="fa-regular fa-hourglass-half"></i> 1 Jam</div>
+          <div class="dd-item" data-min="180"><i class="fa-regular fa-hourglass-half"></i> 3 Jam</div>
+          <div class="dd-item" data-min="360"><i class="fa-regular fa-hourglass-half"></i> 6 Jam</div>
+          <div class="dd-item" data-min="720"><i class="fa-regular fa-hourglass"></i> 12 Jam</div>
+          <div class="dd-divider"></div>
+          <div class="dd-item active" data-min="1440"><i class="fa-regular fa-calendar"></i> 24 Jam</div>
+          <div class="dd-item" data-min="10080"><i class="fa-regular fa-calendar-days"></i> 7 Hari</div>
+          <div class="dd-item" data-min="43200"><i class="fa-regular fa-calendar"></i> 30 Hari</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="chartsList">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ ATTENDANCE ============ -->
+  <section id="s-attendance" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Absensi</div>
+        <div class="s-title-sub" id="attendSub">—</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-soft" onclick="exportAttend()" title="Export CSV">
+          <i class="fa-solid fa-download"></i>
+        </button>
+        <button class="btn-soft" onclick="openCardholder()" title="Daftar Kartu">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="stat-grid cols-3">
+      <div class="stat" onclick="openStatDetail('hadir')">
+        <div class="stat-num ok" id="sHadir">0</div>
+        <div class="stat-label">Hadir</div>
+      </div>
+      <div class="stat" onclick="openStatDetail('total')">
+        <div class="stat-num" id="sKartu">0</div>
+        <div class="stat-label">Kartu</div>
+      </div>
+      <div class="stat" onclick="openStatDetail('belum')">
+        <div class="stat-num warn" id="sUnknown">0</div>
+        <div class="stat-label">Unknown</div>
+      </div>
+    </div>
+
+    <div class="attend-tabs">
+      <button class="attend-tab active" data-t="report" onclick="setAttendView('report')">Laporan</button>
+      <button class="attend-tab" data-t="history" onclick="setAttendView('history')">Riwayat</button>
+    </div>
+
+    <div class="date-row">
+      <input type="date" id="dateStart" onchange="loadAttend()">
+      <input type="date" id="dateEnd" onchange="loadAttend()">
+    </div>
+
+    <div class="group">
+      <div class="group-body" id="attendList" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DEVICES ============ -->
+  <section id="s-devices" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Device</div>
+        <div class="s-title-sub" id="deviceSubFull">—</div>
+      </div>
+      <button class="btn btn-primary btn-icon sm" onclick="openAddDevice()" aria-label="Tambah">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+
+    <div class="chips" id="deviceChips">
+      <button class="chip active" data-f="all" onclick="setFilterFull('all')">Semua</button>
+      <button class="chip" data-f="online" onclick="setFilterFull('online')">Online</button>
+      <button class="chip" data-f="offline" onclick="setFilterFull('offline')">Offline</button>
+      <button class="chip" data-f="alert" onclick="setFilterFull('alert')">Alert</button>
+    </div>
+
+    <div class="group">
+      <div class="group-body" id="deviceListFull" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ALERTS ============ -->
+  <section id="s-alerts" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Alert</div>
+        <div class="s-title-sub" id="alertSub">—</div>
+      </div>
+      <button class="btn-soft" onclick="loadAlerts()">
+        <i class="fa-solid fa-rotate"></i>
+      </button>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-num" id="aTotal">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num crit" id="aDanger">0</div>
+        <div class="stat-label">Bahaya</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num warn" id="aWarning">0</div>
+        <div class="stat-label">Peringatan</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num info" id="aInfo">0</div>
+        <div class="stat-label">Info</div>
+      </div>
+    </div>
+
+    <div class="chips" id="alertStatusChips" style="margin-bottom:8px;">
+      <button class="chip active" data-s="all" onclick="setAlertStatus('all')">Semua</button>
+      <button class="chip" data-s="active" onclick="setAlertStatus('active')">Aktif</button>
+      <button class="chip" data-s="resolved" onclick="setAlertStatus('resolved')">Selesai</button>
+    </div>
+    <div class="chips" id="alertSevChips">
+      <button class="chip active" data-sv="" onclick="setAlertSev('')">Semua</button>
+      <button class="chip" data-sv="danger" onclick="setAlertSev('danger')">Bahaya</button>
+      <button class="chip" data-sv="warning" onclick="setAlertSev('warning')">Peringatan</button>
+      <button class="chip" data-sv="info" onclick="setAlertSev('info')">Info</button>
+    </div>
+
+    <div class="search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="alertSearch" placeholder="Cari alert...">
+    </div>
+
+    <div class="group" id="alertsGroup">
+      <div class="group-body" id="alertsList" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ BOTTOM TABBAR ============ -->
+<nav class="tabs">
+  <button class="tab active" data-tab="dashboard" onclick="go('dashboard')">
+    <i class="fa-solid fa-house"></i><span>Home</span>
+  </button>
+  <button class="tab" data-tab="map" onclick="go('map')">
+    <i class="fa-solid fa-map"></i><span>Peta</span>
+  </button>
+  <button class="tab" data-tab="analytics" onclick="go('analytics')">
+    <i class="fa-solid fa-chart-line"></i><span>Analitik</span>
+  </button>
+  <button class="tab" data-tab="attendance" onclick="go('attendance')">
+    <i class="fa-solid fa-id-card"></i><span>Absensi</span>
+  </button>
+  <button class="tab" data-tab="devices" onclick="go('devices')">
+    <i class="fa-solid fa-microchip"></i><span>Device</span>
+  </button>
+  <button class="tab" data-tab="alerts" onclick="go('alerts')">
+    <i class="fa-solid fa-bell"></i><span>Alert</span>
+    <span class="tab-badge hidden" id="tabAlertBadge">0</span>
+  </button>
+</nav>
+
+<!-- ============ MODALS ============ -->
+
+<!-- Add Device -->
+<div class="modal" id="m-add">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3>Tambah Perangkat</h3>
+      <button class="modal-close" onclick="closeModal('m-add')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="field"><label>Device ID</label><input type="text" id="addId" placeholder="ESP32-001"></div>
+    <div class="field"><label>Nama</label><input type="text" id="addName" placeholder="Sensor Suhu Server"></div>
+    <div class="field">
+      <label>Tipe</label>
+      <select id="addType">
+        <option>ESP32</option><option>ESP8266</option><option>Arduino</option>
+        <option>Raspberry Pi</option><option>RFID Reader</option><option>Other</option>
+      </select>
+    </div>
+    <div class="field"><label>Lokasi</label><input type="text" id="addLocation" placeholder="Ruang Server"></div>
+
+    <div class="field-divider">Konfigurasi Monitoring</div>
+    <div class="field">
+      <label>Interval Kirim (detik)</label>
+      <input type="number" id="addInterval" value="60" min="10" max="86400">
+      <small>60 = tiap menit, 3600 = tiap jam</small>
+    </div>
+    <div class="field">
+      <label>Offline Timeout (detik)</label>
+      <input type="number" id="addTimeout" placeholder="Auto: 3x interval" min="10" max="604800">
+    </div>
+
+    <div class="field-divider">Custom Alert Thresholds</div>
+    <div class="field">
+      <div class="field-row">
+        <label>Batas alert per sensor</label>
+        <span class="field-hint">Kosong = global</span>
+      </div>
+      <div id="addRules" class="rules"><div class="rule-empty">Belum ada custom rule</div></div>
+      <button class="rule-add" onclick="addRule('add')">
+        <i class="fa-solid fa-plus"></i> Tambah Sensor
+      </button>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-add')">Batal</button>
+      <button class="btn btn-primary" onclick="submitAddDevice()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Config -->
+<div class="modal" id="m-edit">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3>Konfigurasi</h3>
+      <button class="modal-close" onclick="closeModal('m-edit')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <input type="hidden" id="editId">
+    <div class="field">
+      <label>Interval Kirim (detik)</label>
+      <input type="number" id="editInterval" min="10" max="86400">
+    </div>
+    <div class="field">
+      <label>Offline Timeout (detik)</label>
+      <input type="number" id="editTimeout" min="10" max="604800">
+    </div>
+    <div class="field-divider">Custom Alert Thresholds</div>
+    <div class="field">
+      <div class="field-row">
+        <label>Batas alert per sensor</label>
+        <span class="field-hint">Kosong = global</span>
+      </div>
+      <div id="editRules" class="rules"><div class="rule-empty">Belum ada custom rule</div></div>
+      <button class="rule-add" onclick="addRule('edit')">
+        <i class="fa-solid fa-plus"></i> Tambah Sensor
+      </button>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-edit')">Batal</button>
+      <button class="btn btn-primary" onclick="submitEditConfig()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chart -->
+<div class="modal" id="m-chart">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="chartModalTitle">Tambah Diagram</h3>
+      <button class="modal-close" onclick="closeModal('m-chart')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <input type="hidden" id="editChartId">
+    <div class="field"><label>Judul Diagram</label><input type="text" id="chartTitle" placeholder="Contoh: Suhu Ruang Server"></div>
+    <div class="field">
+      <div class="field-row">
         <label>Pilih Perangkat</label>
-        <select id="mChartDeviceSelect"><option value="">Pilih Perangkat...</option></select>
+        <span class="field-hint">Bisa pilih beberapa</span>
       </div>
-      <div class="form-group">
-        <label>Tipe Diagram</label>
-        <select id="mChartTypeSelect">
-          <optgroup label="Dasar">
-            <option value="line">Line Chart</option>
-            <option value="bar">Bar Chart</option>
-            <option value="area">Area Chart</option>
-          </optgroup>
-          <optgroup label="Statistik">
-            <option value="doughnut">Doughnut Chart</option>
-            <option value="pie">Pie Chart</option>
-            <option value="polarArea">Polar Area</option>
-            <option value="radar">Radar Chart</option>
-          </optgroup>
-          <optgroup label="Khusus">
-            <option value="horizontalBar">Horizontal Bar</option>
-            <option value="stackedBar">Stacked Bar</option>
-            <option value="stackedArea">Stacked Area</option>
-          </optgroup>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Data yang Ditampilkan</label>
-        <div class="mobile-checkbox-grid" id="mChartDataCheckboxes"></div>
-      </div>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="closeMChartModal()">Batal</button>
-        <button class="btn btn-success" onclick="saveMChart()"><i class="fa-solid fa-check"></i> Simpan</button>
-      </div>
+      <div class="cb-grid" id="chartDeviceCbs"></div>
+    </div>
+    <div class="field">
+      <label>Tipe Diagram</label>
+      <select id="chartType">
+        <optgroup label="Dasar">
+          <option value="line">Line Chart</option><option value="bar">Bar Chart</option><option value="area">Area Chart</option>
+        </optgroup>
+        <optgroup label="Statistik">
+          <option value="doughnut">Doughnut</option><option value="pie">Pie</option>
+          <option value="polarArea">Polar Area</option><option value="radar">Radar</option>
+        </optgroup>
+        <optgroup label="Khusus">
+          <option value="horizontalBar">Horizontal Bar</option>
+          <option value="stackedBar">Stacked Bar</option>
+          <option value="stackedArea">Stacked Area</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="field">
+      <label>Data yang Ditampilkan</label>
+      <div class="cb-grid" id="chartDataCbs"></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-chart')">Batal</button>
+      <button class="btn btn-primary" onclick="saveChart()">Simpan</button>
     </div>
   </div>
+</div>
 
-  <div class="mobile-modal" id="mApiKeyModal">
-    <div class="mobile-modal-content">
-      <div class="sheet-handle-area"><div class="sheet-handle"></div></div>
-      <h3 style="margin-bottom:10px;font-size:16px;font-weight:800;color:var(--text);">API Key</h3>
-      <p style="font-size:12px;color:var(--text-2);margin-bottom:10px;">Simpan API Key ini - hanya muncul sekali:</p>
-      <div class="api-key-box">
-        <code id="mApiKeyDisplay"></code>
-        <button class="btn btn-primary" style="flex:0 0 auto;padding:8px 12px;font-size:11px;min-height:auto;" onclick="copyMApiKey()">Copy</button>
-      </div>
-      <button class="btn btn-primary" style="width:100%;margin-top:16px;" onclick="closeApiKeyModal()">Saya Sudah Simpan</button>
+<!-- API Key -->
+<div class="modal" id="m-apikey">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3>API Key</h3>
+      <button class="modal-close" onclick="closeApiKeyModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;line-height:1.5;">
+      Simpan API Key ini, hanya muncul sekali:
+    </p>
+    <div style="background:var(--surface-2);border-radius:12px;padding:15px;display:flex;gap:10px;align-items:center;border:1px solid var(--border-soft);">
+      <code id="apiKeyValue" style="flex:1;font-size:12.5px;color:var(--text);word-break:break-all;font-family:var(--mono);line-height:1.5;font-weight:600;"></code>
+      <button class="btn-soft" onclick="copyApiKey()" style="flex-shrink:0;padding:9px 13px;">
+        <i class="fa-solid fa-copy"></i>
+      </button>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="closeApiKeyModal()">Saya Sudah Simpan</button>
     </div>
   </div>
+</div>
 
-  <script>
-    const CSRF_TOKEN = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+<!-- Delete -->
+<div class="modal" id="m-delete">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="deleteTitle">Hapus</h3>
+      <button class="modal-close" onclick="closeModal('m-delete')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p id="deleteText" style="font-size:13.5px;color:var(--text-2);margin-bottom:16px;line-height:1.5;"></p>
+    <div class="field">
+      <label id="deleteLabel" style="color:var(--crit);">Ketik untuk konfirmasi</label>
+      <input type="text" id="deleteInput" autocomplete="off">
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-delete')">Batal</button>
+      <button class="btn btn-danger" id="deleteConfirm" disabled onclick="confirmDelete()">Hapus</button>
+    </div>
+  </div>
+</div>
 
-    async function apiRequest(url, options = {}) {
-      const method = (options.method || 'GET').toUpperCase();
-      const headers = {
-        'Accept': 'application/json',
-        ...(options.headers || {})
-      };
-      if (options.body && !headers['Content-Type']) {
-        headers['Content-Type'] = 'application/json';
-      }
-      if (['POST', 'PUT', 'DELETE', 'PATCH'].includes(method)) {
-        headers['X-CSRFToken'] = CSRF_TOKEN;
-      }
-      return fetch(url, { ...options, method, headers, credentials: 'same-origin' });
-    }
+<!-- Cardholder -->
+<div class="modal" id="m-card">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3>Daftarkan Kartu</h3>
+      <button class="modal-close" onclick="closeModal('m-card')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="field">
+      <label>UID Kartu</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="cardUid" placeholder="0x010dd605" style="flex:1;">
+        <button class="btn-soft" onclick="captureLastTap()" style="flex-shrink:0;padding:0 14px;" title="Tap terakhir">
+          <i class="fa-solid fa-crosshairs"></i>
+        </button>
+      </div>
+    </div>
+    <div class="field"><label>Nama Pemilik</label><input type="text" id="cardNama" placeholder="Nama lengkap"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-card')">Batal</button>
+      <button class="btn btn-primary" onclick="submitCardholder()">Simpan</button>
+    </div>
+  </div>
+</div>
 
-    let mMap;
-    let mDevices = [];
-    let isFabOpen = false;
-    let mCharts = [];
-    let mChartIdCounter = 0;
-    let mGlobalTimeMinutes = 1440;
-    let mCurrentFilter = 'all';
-    let mCurrentFilterFull = 'all';
-    let mCurrentDashboardId = null;
-    let mDashboardInterval = null;
+<!-- Stat Detail -->
+<div class="modal" id="m-stat">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="statTitle">Detail</h3>
+      <button class="modal-close" onclick="closeModal('m-stat')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="statBody" style="display:flex;flex-direction:column;">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
 
-    const M_CHART_COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#f97316', '#a855f7', '#06b6d4', '#eab308', '#84cc16'];
-    const M_DATA_KEYS = {
-      temperature: { label: 'Suhu', unit: '°C', color: '#ef4444' },
-      humidity: { label: 'Kelembaban', unit: '%', color: '#3b82f6' },
-      gas_level: { label: 'Gas', unit: '%', color: '#f97316' },
-      smoke: { label: 'Asap', unit: 'ppm', color: '#a855f7' },
-      motion: { label: 'Gerakan', unit: '', color: '#06b6d4' },
-      rfid: { label: 'RFID', unit: '', color: '#84cc16' },
-      moisture: { label: 'K. Tanah', unit: '%', color: '#0ea5e9' },
-      lux: { label: 'Cahaya', unit: 'lux', color: '#eab308' },
-      co2: { label: 'CO2', unit: 'ppm', color: '#22c55e' }
+<!-- Tab Modal -->
+<div class="modal" id="m-tab">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="tabModalTitle">Tab Analitik</h3>
+      <button class="modal-close" onclick="closeModal('m-tab')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <input type="hidden" id="tabMode" value="new">
+    <input type="hidden" id="tabId" value="">
+    <div class="field"><label>Nama Tab</label><input type="text" id="tabName" placeholder="Contoh: Suhu"></div>
+    <div class="actions" style="align-items:center;">
+      <button class="btn btn-danger hidden" id="tabDeleteBtn" style="flex:0 0 auto;padding:12px 14px;" onclick="deleteTab()">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+      <button class="btn btn-ghost" onclick="closeModal('m-tab')">Batal</button>
+      <button class="btn btn-primary" onclick="saveTab()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Action Sheet -->
+<div class="modal" id="m-sheet">
+  <div class="modal-inner" style="padding-top:14px;">
+    <div class="modal-head" style="margin-bottom:8px;">
+      <h3 id="sheetTitle" style="font-size:15px;">Device</h3>
+      <button class="modal-close" onclick="closeModal('m-sheet')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <button class="sheet-item" onclick="sheetAction('detail')">
+        <i class="fa-solid fa-circle-info"></i> Lihat Detail
+      </button>
+      <button class="sheet-item" onclick="sheetAction('config')">
+        <i class="fa-solid fa-sliders"></i> Konfigurasi
+      </button>
+      <button class="sheet-item warn" onclick="sheetAction('key')">
+        <i class="fa-solid fa-key"></i> Regenerate API Key
+      </button>
+      <button class="sheet-item danger" onclick="sheetAction('delete')">
+        <i class="fa-solid fa-trash"></i> Hapus Perangkat
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   NEXUS Mobile v3 — Logic
+   ============================================================ */
+const CSRF = (document.querySelector('meta[name="csrf-token"]')||{}).content||'';
+
+async function api(url, opts = {}){
+  const m = (opts.method||'GET').toUpperCase();
+  const h = { 'Accept':'application/json', ...(opts.headers||{}) };
+  if(opts.body && !h['Content-Type']) h['Content-Type'] = 'application/json';
+  if(['POST','PUT','DELETE','PATCH'].includes(m)) h['X-CSRFToken'] = CSRF;
+  return fetch(url, { ...opts, method:m, headers:h, credentials:'same-origin' });
+}
+
+/* ===== State ===== */
+let devices = [];
+let filterDash = 'all', filterDev = 'all';
+let charts = [], timeMinutes = 1440;
+let dashboardId = null, currentTabId = null, tabs = [];
+let attendanceView = 'report';
+let alerts = [], alertStatus = 'all', alertSev = '', alertSearch = '';
+let sheetDeviceId = null;
+let pendingRedirect = null;
+
+// Map
+let map = null, mapMarkers = {}, mapReady = false;
+let selDeviceId = null, selLat = null, selLng = null, selMarker = null, mapDirty = false;
+let mapFilter = 'all', mapSearch = '';
+
+/* Sensor data keys — palette vibrant */
+const DATA_KEYS = {
+  temperature:{label:'Suhu',unit:'°C',color:'#ef6a6a'},
+  humidity:{label:'Kelembaban',unit:'%',color:'#5b9eff'},
+  gas_level:{label:'Gas',unit:'%',color:'#f59e0b'},
+  smoke:{label:'Asap',unit:'ppm',color:'#a78bfa'},
+  motion:{label:'Gerakan',unit:'',color:'#22d3ee'},
+  rfid:{label:'RFID',unit:'',color:'#a3e635'},
+  moisture:{label:'K. Tanah',unit:'%',color:'#38bdf8'},
+  lux:{label:'Cahaya',unit:'lux',color:'#f0b547'},
+  co2:{label:'CO2',unit:'ppm',color:'#3ecf8e'},
+  voc:{label:'VOC',unit:'ppb',color:'#b078f0'},
+  air_quality:{label:'Kualitas Udara',unit:'AQI',color:'#5b9eff'},
+};
+const PRESETS = {
+  temperature:{label:'Suhu',defaults:{healthy:{min:20,max:26},warning:{min:15,max:30},danger:{min:10,max:35}}},
+  humidity:{label:'Kelembaban',defaults:{healthy:{min:40,max:70},warning:{min:30,max:80},danger:{min:20,max:90}}},
+  gas_level:{label:'Level Gas',defaults:{healthy:{min:0,max:70},warning:{min:0,max:85},danger:{min:0,max:100}}},
+  co2:{label:'CO2',defaults:{healthy:{min:300,max:1000},warning:{min:300,max:1500},danger:{min:300,max:5000}}},
+  moisture:{label:'K. Tanah',defaults:{healthy:{min:40,max:70},warning:{min:30,max:80},danger:{min:20,max:90}}},
+  lux:{label:'Cahaya',defaults:{healthy:{min:100,max:800},warning:{min:50,max:1000},danger:{min:0,max:2000}}},
+};
+const COLORS = ['#ef6a6a','#5b9eff','#3ecf8e','#f59e0b','#a78bfa','#22d3ee','#f0b547','#a3e635'];
+
+/* ===== Helpers ===== */
+const esc = s => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
+const fmtUp = s => {
+  if(!s) return '-';
+  s = parseInt(s)||0;
+  const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60);
+  if(d>0) return `${d}h ${h}j`;
+  if(h>0) return `${h}j ${m}m`;
+  return `${m}m`;
+};
+const fmtTime = iso => {
+  if(!iso) return '-';
+  try{ const d = new Date(String(iso).replace(' ','T')+'+07:00');
+    return d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'});
+  }catch(e){ return '-'; }
+};
+const fmtDateSplit = iso => {
+  if(!iso) return {date:'-',time:'-'};
+  try{ const d = new Date(String(iso).replace(' ','T')+'+07:00');
+    return {
+      date: d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',timeZone:'Asia/Jakarta'}),
+      time: d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',second:'2-digit',timeZone:'Asia/Jakarta'})
     };
+  }catch(e){ return {date:'-',time:'-'}; }
+};
+const deviceStatus = d => {
+  if(d.status === 'offline') return 'offline';
+  if(d.has_alert && d.top_alert_severity) return d.top_alert_severity;
+  return d.status || 'offline';
+};
 
-    function lockBodyScroll() {
-      document.body.classList.add('modal-open');
-    }
-    function unlockBodyScrollIfNoModal() {
-      if (!document.querySelector('.mobile-modal.active')) {
-        document.body.classList.remove('modal-open');
-      }
-    }
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transition = 'opacity .3s';
+    setTimeout(() => t.remove(), 300);
+  }, 1800);
+}
 
-    function setMFilter(filter) {
-      mCurrentFilter = filter;
-      document.querySelectorAll('#mFilterBar .mobile-filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.filter === filter);
+/* ===== Modal ===== */
+function openModal(id){
+  const el = document.getElementById(id);
+  if(el){ el.classList.add('open'); document.body.classList.add('modal-open'); }
+}
+function closeModal(id){
+  const el = document.getElementById(id);
+  if(el) el.classList.remove('open');
+  if(!document.querySelector('.modal.open')) document.body.classList.remove('modal-open');
+}
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => { if(e.target === m) closeModal(m.id); });
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape'){
+    document.querySelectorAll('.modal.open').forEach(m => closeModal(m.id));
+    document.querySelectorAll('.dd-menu.open').forEach(m => m.classList.remove('open'));
+  }
+});
+
+/* ===== Theme ===== */
+(function initTheme(){
+  const t = localStorage.getItem('nexus-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  document.querySelector('meta[name="theme-color"]').content = t === 'light' ? '#f8fafc' : '#1a1d23';
+  updateThemeIcon();
+})();
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('nexus-theme', next);
+  document.querySelector('meta[name="theme-color"]').content = next === 'light' ? '#f8fafc' : '#1a1d23';
+  updateThemeIcon();
+  if(document.getElementById('s-analytics').classList.contains('active')) loadCharts();
+}
+function updateThemeIcon(){
+  const i = document.getElementById('themeIcon');
+  if(i) i.className = document.documentElement.getAttribute('data-theme') === 'light'
+    ? 'fa-solid fa-sun' : 'fa-solid fa-moon';
+}
+
+/* ===== Nav ===== */
+function go(name, opts = {}){
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('s-' + name);
+  if(el) el.classList.add('active');
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+
+  if(opts.filter) setFilterFull(opts.filter);
+
+  if(name === 'dashboard'){ loadDashboard(); loadActivity(); }
+  else if(name === 'map') setTimeout(() => initMap(), 100);
+  else if(name === 'analytics') loadTabs().then(() => { if(currentTabId) loadCharts(); });
+  else if(name === 'attendance') loadAttend();
+  else if(name === 'devices') renderDevicesFull();
+  else if(name === 'alerts') loadAlerts();
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+function logout(){ if(confirm('Logout dari NEXUS?')) window.location.href = '/logout'; }
+function openDevice(id){
+  try{ sessionStorage.setItem('nexus_back_url', '/mobile'); }catch(e){}
+  window.location.href = '/device/' + encodeURIComponent(id);
+}
+
+/* ===== Dashboard ===== */
+async function loadDashboard(){
+  try{
+    const r = await api('/api/v1/dashboard');
+    const d = await r.json();
+    if(!d.success) return;
+    devices = d.devices || [];
+
+    document.getElementById('sTotal').textContent = d.summary.total_devices;
+    document.getElementById('sOnline').textContent = d.summary.online_devices;
+    document.getElementById('sOffline').textContent = d.summary.offline_devices;
+    document.getElementById('sAlert').textContent = d.summary.active_alerts || 0;
+
+    const badge = document.getElementById('tabAlertBadge');
+    if(d.summary.active_alerts > 0){
+      badge.textContent = d.summary.active_alerts;
+      badge.classList.remove('hidden');
+    } else badge.classList.add('hidden');
+
+    updateRing(d.summary);
+    updateCounts();
+    renderDevices();
+    renderDevicesFull();
+
+    if(document.getElementById('s-map').classList.contains('active')){
+      loadMapMarkers(); renderMapList();
+    }
+  }catch(e){ console.error(e); }
+}
+function updateRing(s){
+  const healthy = s.healthy_devices ?? 0, total = s.total_devices ?? 0;
+  const pct = total > 0 ? Math.round((healthy/total)*100) : 0;
+  const circ = 2*Math.PI*42, offset = circ - (pct/100)*circ;
+  const ring = document.getElementById('ringProg');
+  if(ring){ ring.setAttribute('stroke-dasharray', circ.toFixed(1)); ring.style.strokeDashoffset = offset; }
+  document.getElementById('ringPct').textContent = pct + '%';
+  document.getElementById('ringTitle').textContent = total > 0 ? `${healthy} perangkat sehat` : 'Belum ada perangkat';
+  document.getElementById('ringCaption').textContent = total > 0
+    ? `dari ${total} perangkat terdaftar`
+    : 'Tambahkan perangkat untuk memulai monitoring';
+}
+function updateCounts(){
+  const online = devices.filter(d => d.status === 'online').length;
+  const offline = devices.filter(d => d.status === 'offline').length;
+  const alert = devices.filter(d => d.has_alert === true).length;
+  document.getElementById('cAll').textContent = devices.length;
+  document.getElementById('cOnline').textContent = online;
+  document.getElementById('cOffline').textContent = offline;
+  document.getElementById('cAlert').textContent = alert;
+  document.getElementById('deviceCountSub').textContent = `${devices.length} perangkat terdaftar`;
+  document.getElementById('deviceSubFull').textContent = `${devices.length} perangkat`;
+}
+
+function setFilter(f){
+  filterDash = f;
+  document.querySelectorAll('#filterChips .chip').forEach(c => c.classList.toggle('active', c.dataset.f === f));
+  renderDevices();
+}
+function setFilterFull(f){
+  filterDev = f;
+  document.querySelectorAll('#deviceChips .chip').forEach(c => c.classList.toggle('active', c.dataset.f === f));
+  renderDevicesFull();
+}
+function filterList(list, f){
+  if(f === 'online') return list.filter(d => d.status === 'online');
+  if(f === 'offline') return list.filter(d => d.status === 'offline');
+  if(f === 'alert') return list.filter(d => d.has_alert === true);
+  return list;
+}
+function renderDevices(){ renderDeviceRows(filterList(devices, filterDash), 'deviceList'); }
+function renderDevicesFull(){ renderDeviceRows(filterList(devices, filterDev), 'deviceListFull'); }
+
+function renderDeviceRows(list, targetId){
+  const c = document.getElementById(targetId);
+  if(!c) return;
+  if(!list.length){
+    c.innerHTML = '<div class="empty"><i class="fa-solid fa-microchip"></i><div class="empty-title">Tidak ada perangkat</div></div>';
+    return;
+  }
+  c.innerHTML = list.map(d => {
+    const st = deviceStatus(d);
+    const wifi = d.latest_wifi_ssid || '—';
+    const uptime = fmtUp(d.latest_uptime_seconds || 0);
+    return `<div class="row" onclick="openDevice('${esc(d.device_id)}')">
+      <span class="row-status ${st}"></span>
+      <div class="row-main">
+        <div class="row-title">${esc(d.device_name)}</div>
+        <div class="row-sub">${esc(d.device_id)} · ${esc(wifi)} · ${uptime}</div>
+      </div>
+      <button class="row-more" onclick="event.stopPropagation();openSheet('${esc(d.device_id)}')">
+        <i class="fa-solid fa-ellipsis"></i>
+      </button>
+    </div>`;
+  }).join('');
+}
+
+/* ===== Activity ===== */
+async function loadActivity(){
+  const c = document.getElementById('activityList');
+  if(!c) return;
+  try{
+    const r = await api('/api/v1/alerts/all?limit=15');
+    const d = await r.json();
+    const events = [];
+    if(d.success && Array.isArray(d.alerts)){
+      d.alerts.slice(0,8).forEach(a => events.push({
+        sev: a.severity || 'info',
+        title: a.device_name || a.device_id,
+        msg: a.message || a.alert_type,
+        ts: a.created_at,
+        dev: a.device_id
+      }));
+    }
+    devices.forEach(x => {
+      if(!x.last_seen) return;
+      events.push({
+        sev: x.status === 'online' ? 'online' : 'offline',
+        title: x.device_name,
+        msg: x.status === 'online' ? 'Baru saja online' : 'Terakhir terlihat',
+        ts: x.last_seen,
+        dev: x.device_id
       });
-      renderMFilteredDevices();
+    });
+    events.sort((a,b) => new Date(b.ts) - new Date(a.ts));
+    const top = events.slice(0, 8);
+    if(!top.length){
+      c.innerHTML = '<div class="empty" style="padding:30px;"><div class="empty-title">Belum ada aktivitas</div></div>';
+      return;
     }
+    const icons = {danger:'fa-fire',warning:'fa-triangle-exclamation',info:'fa-circle-info',online:'fa-circle-check',offline:'fa-power-off'};
+    c.innerHTML = top.map(ev => `
+      <div class="activity-item" onclick="openDevice('${esc(ev.dev)}')">
+        <div class="activity-icon ${ev.sev}"><i class="fa-solid ${icons[ev.sev] || 'fa-bell'}"></i></div>
+        <div class="activity-body">
+          <div class="activity-text"><strong>${esc(ev.title)}</strong> — ${esc(String(ev.msg).slice(0,70))}</div>
+          <div class="activity-time">${fmtTime(ev.ts)}</div>
+        </div>
+      </div>
+    `).join('');
+  }catch(e){ c.innerHTML = '<div class="empty" style="padding:30px;"><div class="empty-title">Gagal memuat</div></div>'; }
+}
 
-    function setMFilterFull(filter) {
-      mCurrentFilterFull = filter;
-      document.querySelectorAll('#mFilterBarFull .mobile-filter-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.filter === filter);
-      });
-      renderMFilteredDevicesFull();
+/* ===== Map ===== */
+function initMap(force){
+  if(mapReady && !force){
+    if(map) setTimeout(() => map.invalidateSize(), 100);
+    return;
+  }
+  if(force && map){ try{ map.remove(); }catch(e){} map = null; mapMarkers = {}; mapReady = false; }
+  const el = document.getElementById('mMapFull'); if(!el) return;
+  map = L.map('mMapFull', {zoomControl:true, attributionControl:false}).setView([-2.5489,118.0149], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+  map.on('click', e => { if(selDeviceId) placeMarker(e.latlng.lat, e.latlng.lng); });
+  mapReady = true;
+  setTimeout(() => map.invalidateSize(), 150);
+  loadMapMarkers(); renderMapList();
+}
+function mapStyle(d){
+  if(d.status === 'offline') return {color:'#ef6a6a', label:'OFF'};
+  if(d.has_alert && d.top_alert_severity){
+    if(d.top_alert_severity === 'danger') return {color:'#ef6a6a', label:'ALERT'};
+    if(d.top_alert_severity === 'warning') return {color:'#f0b547', label:'WARN'};
+    if(d.top_alert_severity === 'info') return {color:'#5b9eff', label:'INFO'};
+  }
+  if(d.status === 'online') return {color:'#3ecf8e', label:'ON'};
+  return {color:'#7a8290', label:'—'};
+}
+function loadMapMarkers(){
+  if(!map) return;
+  Object.values(mapMarkers).forEach(m => { try{ map.removeLayer(m); }catch(e){} });
+  mapMarkers = {};
+  devices.forEach(d => {
+    if(!d.latitude || !d.longitude || (d.latitude === 0 && d.longitude === 0)) return;
+    const s = mapStyle(d);
+    const m = L.circleMarker([d.latitude,d.longitude], {radius:7, color:s.color, fillColor:s.color, fillOpacity:.9, weight:2}).addTo(map);
+    m.bindPopup(`<b>${esc(d.device_name)}</b><br><span style="font-size:11px;color:#888;">${esc(d.device_id)}</span>`);
+    mapMarkers[d.device_id] = m;
+  });
+}
+function setMapFilter(f){
+  mapFilter = f;
+  document.querySelectorAll('#mapChips .chip').forEach(c => c.classList.toggle('active', c.dataset.mf === f));
+  renderMapList();
+}
+document.getElementById('mapSearch').addEventListener('input', e => {
+  mapSearch = e.target.value.toLowerCase().trim(); renderMapList();
+});
+function renderMapList(){
+  const c = document.getElementById('mapList'); if(!c) return;
+  let list = devices.slice();
+  if(mapFilter === 'online') list = list.filter(d => d.status === 'online');
+  else if(mapFilter === 'offline') list = list.filter(d => d.status === 'offline');
+  else if(mapFilter === 'alert') list = list.filter(d => d.has_alert === true);
+  else if(mapFilter === 'located') list = list.filter(d => d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0));
+  if(mapSearch) list = list.filter(d =>
+    (d.device_name||'').toLowerCase().includes(mapSearch) ||
+    (d.device_id||'').toLowerCase().includes(mapSearch));
+
+  if(!list.length){
+    c.innerHTML = '<div class="empty"><i class="fa-solid fa-map"></i><div class="empty-title">Tidak ada device</div></div>';
+    return;
+  }
+  c.innerHTML = list.map(d => {
+    const s = mapStyle(d);
+    const hasLoc = d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0);
+    return `<div class="row" onclick="selectMapDevice('${esc(d.device_id)}')">
+      <span class="row-status" style="background:${s.color};box-shadow:0 0 0 3px ${s.color}22;"></span>
+      <div class="row-main">
+        <div class="row-title">${esc(d.device_name)}</div>
+        <div class="row-sub">${esc(d.device_id)}${!hasLoc ? ' · belum ada lokasi' : ''}</div>
+      </div>
+      <i class="fa-solid fa-chevron-right row-chevron"></i>
+    </div>`;
+  }).join('');
+}
+function selectMapDevice(id){
+  const d = devices.find(x => x.device_id === id); if(!d) return;
+  selDeviceId = id; mapDirty = false;
+  selLat = null; selLng = null;
+  const hasLoc = d.latitude && d.longitude && !(d.latitude === 0 && d.longitude === 0);
+  if(hasLoc){
+    selLat = d.latitude; selLng = d.longitude;
+    if(map) map.flyTo([d.latitude,d.longitude], 14, {duration:.8});
+  } else if(map){
+    const c = map.getCenter();
+    placeMarker(c.lat, c.lng);
+  }
+  updateMapBanner(); renderMapList();
+}
+function placeMarker(lat, lng){
+  if(!map) return;
+  selLat = lat; selLng = lng;
+  if(selMarker) selMarker.setLatLng([lat,lng]);
+  else{
+    selMarker = L.marker([lat,lng], {draggable:true}).addTo(map);
+    selMarker.on('dragend', e => {
+      const p = e.target.getLatLng();
+      selLat = p.lat; selLng = p.lng; mapDirty = true; updateMapBanner();
+    });
+  }
+  mapDirty = true; updateMapBanner();
+}
+function updateMapBanner(){
+  const b = document.getElementById('mapBanner');
+  if(!selDeviceId){ b.classList.add('hidden'); return; }
+  const d = devices.find(x => x.device_id === selDeviceId); if(!d){ b.classList.add('hidden'); return; }
+  const s = mapStyle(d);
+  b.classList.remove('hidden');
+  document.getElementById('mapBannerName').textContent = d.device_name;
+  document.getElementById('mapBannerDot').style.background = s.color;
+  const coordEl = document.getElementById('mapBannerCoord');
+  coordEl.innerHTML = selLat != null
+    ? `${selLat.toFixed(5)}, ${selLng.toFixed(5)}${mapDirty ? ' · belum disimpan' : ''}`
+    : 'Belum ada koordinat';
+  document.getElementById('mapSaveBtn').disabled = !(selLat != null && mapDirty);
+}
+function clearMapSel(){
+  if(mapDirty && !confirm('Batalkan perubahan?')) return;
+  selDeviceId = null; selLat = null; selLng = null; mapDirty = false;
+  if(selMarker && map){ map.removeLayer(selMarker); selMarker = null; }
+  updateMapBanner(); renderMapList();
+}
+async function saveMapLoc(){
+  if(!selDeviceId || selLat == null) return;
+  const r = await api(`/api/v1/devices/${encodeURIComponent(selDeviceId)}`, {
+    method:'PUT', body:JSON.stringify({latitude:selLat, longitude:selLng})
+  });
+  const d = await r.json();
+  if(d.success){
+    const dev = devices.find(x => x.device_id === selDeviceId);
+    if(dev){ dev.latitude = selLat; dev.longitude = selLng; }
+    mapDirty = false; updateMapBanner(); loadMapMarkers(); toast('Lokasi tersimpan');
+  } else alert(d.error || 'Gagal');
+}
+
+/* ===== Analytics ===== */
+function toggleTabMenu(e){
+  e.stopPropagation();
+  document.getElementById('tabMenu').classList.toggle('open');
+  document.getElementById('timeMenu').classList.remove('open');
+}
+function toggleTimeMenu(e){
+  e.stopPropagation();
+  document.getElementById('timeMenu').classList.toggle('open');
+  document.getElementById('tabMenu').classList.remove('open');
+}
+document.addEventListener('click', e => {
+  ['tabMenu','timeMenu'].forEach(id => {
+    const m = document.getElementById(id); if(!m) return;
+    const trig = document.getElementById(id === 'tabMenu' ? 'tabTrigger' : 'timeTrigger');
+    if(m.classList.contains('open') && !m.contains(e.target) && !trig.contains(e.target))
+      m.classList.remove('open');
+  });
+});
+document.querySelectorAll('#timeMenu .dd-item').forEach(item => {
+  item.addEventListener('click', () => {
+    const m = parseInt(item.dataset.min);
+    timeMinutes = m;
+    document.querySelectorAll('#timeMenu .dd-item').forEach(b => b.classList.toggle('active', parseInt(b.dataset.min) === m));
+    const label = m < 60 ? `${m} Menit` : m < 1440 ? `${Math.round(m/60)} Jam` : m < 10080 ? `${Math.round(m/1440)} Hari` : m < 43200 ? `${Math.round(m/10080)} Minggu` : `${Math.round(m/43200)} Bulan`;
+    document.getElementById('timeLabel').textContent = label;
+    document.getElementById('timeMenu').classList.remove('open');
+    loadCharts();
+  });
+});
+
+async function loadTabs(){
+  try{
+    const r = await api('/api/v1/dashboards');
+    const d = await r.json();
+    if(!d.success || !d.dashboards.length){ tabs = []; return; }
+    const def = d.dashboards.find(x => x.is_default) || d.dashboards[0];
+    dashboardId = def.id;
+    const tr = await api(`/api/v1/dashboards/${def.id}/analytics-tabs`);
+    const td = await tr.json();
+    tabs = td.success ? (td.tabs || []) : [];
+    if(!currentTabId && tabs.length) currentTabId = tabs[0].id;
+    renderTabs();
+  }catch(e){ console.error(e); }
+}
+function renderTabs(){
+  const label = document.getElementById('tabLabel'), menu = document.getElementById('tabMenu');
+  const cur = tabs.find(t => t.id === currentTabId);
+  label.textContent = cur ? cur.name : 'Pilih Tab';
+  let html = tabs.map(t => `
+    <div class="dd-item ${t.id === currentTabId ? 'active' : ''}" onclick="switchTab(${t.id})">
+      <i class="fa-solid ${esc(t.icon || 'fa-chart-line')}"></i>
+      <span>${esc(t.name)}</span>
+      <div class="dd-actions">
+        <button onclick="event.stopPropagation();openTabModal('edit',${t.id},'${esc(t.name)}')"><i class="fa-solid fa-pen"></i></button>
+      </div>
+    </div>
+  `).join('');
+  html += `<div class="dd-divider"></div><div class="dd-add" onclick="openTabModal('new')"><i class="fa-solid fa-plus"></i> Tambah Tab</div>`;
+  menu.innerHTML = html;
+}
+function switchTab(id){
+  currentTabId = id; renderTabs();
+  document.getElementById('tabMenu').classList.remove('open');
+  loadCharts();
+}
+function openTabModal(mode, id, name){
+  document.getElementById('tabModalTitle').textContent = mode === 'edit' ? 'Edit Tab' : 'Tambah Tab';
+  document.getElementById('tabMode').value = mode;
+  document.getElementById('tabId').value = id || '';
+  document.getElementById('tabName').value = name || '';
+  document.getElementById('tabDeleteBtn').classList.toggle('hidden', mode !== 'edit');
+  openModal('m-tab');
+}
+async function saveTab(){
+  const mode = document.getElementById('tabMode').value;
+  const id = document.getElementById('tabId').value;
+  const name = document.getElementById('tabName').value.trim();
+  if(!name){ alert('Nama tab wajib'); return; }
+  let url, method;
+  if(mode === 'edit' && id){ url = `/api/v1/analytics-tabs/${id}`; method = 'PUT'; }
+  else{ url = `/api/v1/dashboards/${dashboardId}/analytics-tabs`; method = 'POST'; }
+  const r = await api(url, {method, body:JSON.stringify({name, icon:'fa-chart-line'})});
+  const d = await r.json();
+  if(d.success){ closeModal('m-tab'); await loadTabs(); if(d.id) currentTabId = d.id; loadCharts(); }
+  else alert(d.error || 'Gagal');
+}
+async function deleteTab(){
+  const id = document.getElementById('tabId').value; if(!id) return;
+  if(!confirm('Hapus tab ini beserta diagramnya?')) return;
+  const r = await api(`/api/v1/analytics-tabs/${id}`, {method:'DELETE'});
+  const d = await r.json();
+  if(d.success){ closeModal('m-tab'); currentTabId = null; await loadTabs(); if(tabs.length) switchTab(tabs[0].id); else loadCharts(); }
+  else alert(d.error || 'Gagal');
+}
+
+const toChart = t => ({line_chart:'line', bar_chart:'bar', area_chart:'area', doughnut_chart:'doughnut', pie_chart:'pie', polar_area:'polarArea', radar_chart:'radar', horizontal_bar:'horizontalBar', stacked_bar:'stackedBar', stacked_area:'stackedArea'}[t] || 'line');
+const toWidget = t => ({line:'line_chart', bar:'bar_chart', area:'area_chart', doughnut:'doughnut_chart', pie:'pie_chart', polarArea:'polar_area', radar:'radar_chart', horizontalBar:'horizontal_bar', stackedBar:'stacked_bar', stackedArea:'stacked_area'}[t] || 'line_chart');
+
+async function loadCharts(){
+  const c = document.getElementById('chartsList'); if(!c) return;
+  if(!currentTabId){
+    document.getElementById('chartCountSub').textContent = 'Belum ada tab';
+    c.innerHTML = '<div class="empty"><i class="fa-solid fa-chart-column"></i><div class="empty-title">Belum ada tab</div></div>';
+    return;
+  }
+  c.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try{
+    const r = await api(`/api/v1/dashboards/${dashboardId}/analytics-tabs/${currentTabId}/widgets`);
+    const d = await r.json();
+    if(!d.success){
+      c.innerHTML = '<div class="empty"><i class="fa-solid fa-triangle-exclamation"></i><div class="empty-title">Gagal memuat</div></div>';
+      return;
     }
-
-    function getMDeviceDisplayStatus(device) {
-      if (device.status === 'offline') return 'offline';
-      if (device.has_alert && device.top_alert_severity) return device.top_alert_severity;
-      return device.status || 'offline';
+    const widgets = d.widgets || [];
+    charts.forEach(ch => { if(ch.chartInstance) try{ ch.chartInstance.destroy(); }catch(e){} });
+    charts = widgets.map(w => {
+      const cfg = w.config || {};
+      const devs = Array.isArray(cfg.devices) && cfg.devices.length ? cfg.devices : (w.device_id ? [w.device_id] : []);
+      return {id:`chart_${w.id}`, widgetId:w.id, title:w.title, deviceIds:devs, chartType:toChart(w.widget_type), showData:cfg.show_data || {}, chartInstance:null};
+    });
+    document.getElementById('chartCountSub').textContent = `${charts.length} diagram`;
+    if(!charts.length){
+      c.innerHTML = '<div class="empty"><i class="fa-solid fa-chart-column"></i><div class="empty-title">Belum ada diagram</div><div class="empty-sub">Tap + untuk menambahkan</div></div>';
+      return;
     }
-
-    function filterMDevicesByStatus(devices, filter) {
-      switch(filter) {
-        case 'online': return devices.filter(d => d.status === 'online');
-        case 'offline': return devices.filter(d => d.status === 'offline');
-        case 'alert': return devices.filter(d => d.has_alert === true);
-        default: return devices;
-      }
-    }
-
-    function renderMFilteredDevices() {
-      const filtered = filterMDevicesByStatus(mDevices, mCurrentFilter);
-      renderMDeviceList(filtered, 'mDeviceList');
-    }
-
-    function renderMFilteredDevicesFull() {
-      const filtered = filterMDevicesByStatus(mDevices, mCurrentFilterFull);
-      renderMDeviceList(filtered, 'mDeviceListFull');
-    }
-
-    function updateMFilterCounts() {
-      const onlineCount = mDevices.filter(d => d.status === 'online').length;
-      const offlineCount = mDevices.filter(d => d.status === 'offline').length;
-      const alertCount = mDevices.filter(d => d.has_alert === true).length;
-
-      const setText = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-      setText('mFilterCountAll', mDevices.length);
-      setText('mFilterCountOnline', onlineCount);
-      setText('mFilterCountOffline', offlineCount);
-      setText('mFilterCountAlert', alertCount);
-    }
-
-    function logoutM() { window.location.href = '/logout'; }
-
-    function toggleFabMenu() {
-      isFabOpen = !isFabOpen;
-      const menu = document.getElementById('fabMenu');
-      const btn = document.getElementById('fabButton');
-      if (isFabOpen) { menu.classList.add('open'); btn.classList.add('open'); }
-      else { menu.classList.remove('open'); btn.classList.remove('open'); }
-    }
-
-    function openAddDeviceFromFab() {
-      if (isFabOpen) toggleFabMenu();
-      showMSection('devices');
-      setTimeout(() => { openAddModal(); }, 150);
-    }
-
-    function openAddChartFromFab() {
-      if (isFabOpen) toggleFabMenu();
-      showMSection('analytics');
-      setTimeout(() => { openMChartModal(); }, 150);
-    }
-
-    function updateMobileTime() {
-      const now = new Date();
-      document.getElementById('mobileTime').textContent = now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) + ' WIB';
-    }
-    updateMobileTime();
-    setInterval(updateMobileTime, 1000);
-
-    function showMSection(section) {
-      document.getElementById('mDashboardSection').style.display = section === 'dashboard' ? 'block' : 'none';
-      document.getElementById('mDevicesSection').style.display = section === 'devices' ? 'block' : 'none';
-      document.getElementById('mAnalyticsSection').style.display = section === 'analytics' ? 'block' : 'none';
-
-      document.querySelectorAll('.bottom-nav-item').forEach((item, i) => {
-        const sections = ['dashboard', 'analytics', 'devices', 'logout'];
-        item.classList.toggle('active', sections[i] === section);
-      });
-
-      if (section === 'analytics') loadMCharts();
-      if (section === 'dashboard' && mMap) setTimeout(() => mMap.invalidateSize(), 100);
-    }
-
-    function initMobileMap() {
-      mMap = L.map('mobileMap', { zoomControl: true }).setView([-2.5489, 118.0149], 5);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(mMap);
-    }
-
-    function loadMMarkers() {
-      if (!mMap) return;
-      mMap.eachLayer(layer => {
-        if (layer instanceof L.CircleMarker) mMap.removeLayer(layer);
-      });
-      mDevices.forEach(d => {
-        if (d.latitude && d.longitude) {
-          let color = '#e08080';
-          if (d.status === 'offline') color = '#e08080';
-          else if (d.status === 'online') color = '#5fbb86';
-          if (d.has_alert) {
-            if (d.top_alert_severity === 'danger') color = '#e08080';
-            else if (d.top_alert_severity === 'warning') color = '#e0a45c';
-            else if (d.top_alert_severity === 'info') color = '#7fa8d9';
-          }
-          L.circleMarker([d.latitude, d.longitude], { radius: 7, color, fillColor: color, fillOpacity: 0.75, weight: 2 })
-            .addTo(mMap).bindPopup(`<b>${escapeMHtml(d.device_name)}</b><br>${escapeMHtml(d.device_id)}`);
-        }
-      });
-    }
-
-    function escapeMHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = String(str ?? '');
-      return div.innerHTML;
-    }
-
-    function formatMUptime(seconds) {
-      if (!seconds) return '-';
-      seconds = parseInt(seconds) || 0;
-      const d = Math.floor(seconds / 86400);
-      const h = Math.floor((seconds % 86400) / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      if (d > 0) return `${d}h ${h}j`;
-      if (h > 0) return `${h}j ${m}m`;
-      return `${m}m`;
-    }
-
-    async function loadMDashboard() {
-      try {
-        const res = await apiRequest('/api/v1/dashboard');
-        const data = await res.json();
-        if (data.success) {
-          mDevices = data.devices;
-          document.getElementById('mTotalDevices').textContent = data.summary.total_devices;
-          document.getElementById('mOnlineDevices').textContent = data.summary.online_devices;
-          document.getElementById('mOfflineDevices').textContent = data.summary.offline_devices;
-          document.getElementById('mActiveAlerts').textContent = data.summary.active_alerts || 0;
-          loadMMarkers();
-          updateMFilterCounts();
-          renderMFilteredDevices();
-          renderMFilteredDevicesFull();
-        }
-      } catch (e) { console.error(e); }
-    }
-
-    function renderMDeviceList(devices, elementId) {
-      const container = document.getElementById(elementId);
-      if (!container) return;
-      const list = Array.isArray(devices) ? devices : [];
-      if (list.length === 0) {
-        container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);font-size:12.5px;">Tidak ada perangkat</div>';
-        return;
-      }
-      container.innerHTML = '';
-      list.forEach(d => {
-        const uptime = formatMUptime(d.latest_uptime_seconds || 0);
-        const wifi = d.latest_wifi_ssid || '-';
-        const displayStatus = getMDeviceDisplayStatus(d);
-
-        let label = displayStatus;
-        if (displayStatus === 'danger') label = 'BAHAYA';
-        else if (displayStatus === 'warning') label = 'PERINGATAN';
-        else if (displayStatus === 'info') label = 'INFO';
-        else if (displayStatus === 'online') label = 'ONLINE';
-        else if (displayStatus === 'offline') label = 'OFFLINE';
-
-        const card = document.createElement('div');
-        card.className = 'device-card';
-        card.dataset.deviceId = d.device_id;
-        card.onclick = () => viewMDevice(d.device_id);
-        card.innerHTML = `
-          <div class="card-header">
-            <div>
-              <div class="device-name">${escapeMHtml(d.device_name)}</div>
-              <div class="device-id">${escapeMHtml(d.device_id)}</div>
-            </div>
-            <span class="status-badge ${displayStatus}"><span class="status-dot"></span>${label}</span>
+    c.innerHTML = charts.map(ch => `
+      <div class="chart-card" id="${ch.id}">
+        <div class="chart-head">
+          <div class="chart-info">
+            <div class="chart-title">${esc(ch.title)}</div>
+            <div class="chart-sub">${esc(ch.deviceIds.join(', '))}</div>
           </div>
-          <div class="device-info">
-            <span><i class="fa-solid fa-wifi"></i> ${escapeMHtml(wifi)}</span>
-            <span><i class="fa-regular fa-clock"></i> ${uptime}</span>
+          <div class="chart-actions">
+            <button class="chart-act" onclick="openChart('${ch.id}')"><i class="fa-solid fa-pen"></i></button>
+            <button class="chart-act danger" onclick="removeChart('${ch.id}')"><i class="fa-solid fa-trash"></i></button>
           </div>
-        `;
-        container.appendChild(card);
-      });
-    }
+        </div>
+        <div class="chart-canvas"><canvas id="${ch.id}_c"></canvas></div>
+      </div>
+    `).join('');
+    await loadChartsData();
+  }catch(e){ console.error(e); c.innerHTML = '<div class="empty"><div class="empty-title">Koneksi gagal</div></div>'; }
+}
+async function loadChartsData(){
+  const devSet = new Set();
+  charts.forEach(ch => ch.deviceIds.forEach(d => devSet.add(d)));
+  if(!devSet.size) return;
+  const hours = Math.max(1, Math.ceil(timeMinutes/60));
+  const limit = Math.min(Math.max(hours*60, 500), 5000);
+  const results = await Promise.all(Array.from(devSet).map(did =>
+    api(`/api/v1/devices/${encodeURIComponent(did)}/history?hours=${hours}&limit=${limit}`)
+      .then(r => r.json())
+      .then(j => ({did, data: j.success ? (j.history || []) : []}))
+      .catch(() => ({did, data: []}))
+  ));
+  const hist = {}; results.forEach(r => { hist[r.did] = r.data; });
+  charts.forEach(ch => renderChart(ch, hist));
+}
+function renderChart(ch, hist){
+  const canvas = document.getElementById(`${ch.id}_c`); if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if(ch.chartInstance) try{ ch.chartInstance.destroy(); }catch(e){}
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  const gridC = isLight ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.07)';
+  const labelC = isLight ? 'rgba(71,85,105,.85)' : 'rgba(173,181,194,.8)';
+  const activeKeys = Object.entries(ch.showData).filter(([k,v]) => v).map(([k]) => k);
 
-    function viewMDevice(id) { window.location.href = `/device/${encodeURIComponent(id)}`; }
-
-    function setMTimeRange(minutes) {
-      mGlobalTimeMinutes = minutes;
-      document.querySelectorAll('.mobile-time-btn').forEach(btn => {
-        btn.classList.toggle('active', parseInt(btn.dataset.minutes) === minutes);
-      });
-      loadMCharts();
-    }
-
-    async function loadMCharts() {
-      const container = document.getElementById('mChartsList');
-
-      try {
-        const res = await apiRequest('/api/v1/dashboards');
-        const listData = await res.json();
-        if (!listData.success || !listData.dashboards.length) {
-          container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);">Tidak ada dashboard</div>';
-          return;
-        }
-
-        const defaultDash = listData.dashboards.find(d => d.is_default) || listData.dashboards[0];
-        mCurrentDashboardId = defaultDash.id;
-
-        const detailRes = await apiRequest(`/api/v1/dashboards/${defaultDash.id}`);
-        const detailData = await detailRes.json();
-        if (!detailData.success) {
-          container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--text-3);">Gagal memuat</div>';
-          return;
-        }
-
-        mCharts = detailData.widgets.map(w => ({
-          id: `mchart_${w.id}`,
-          widgetId: w.id,
-          title: w.title,
-          deviceId: w.device_id,
-          chartType: mapMWidgetTypeToChartType(w.widget_type),
-          showData: (w.config && w.config.show_data) || {},
-          chartInstance: null,
-        }));
-
-        if (mCharts.length === 0) {
-          container.innerHTML = `
-            <div style="text-align:center;padding:30px;color:var(--text-3);">
-              <i class="fa-solid fa-chart-column" style="font-size:30px;margin-bottom:10px;display:block;"></i>
-              <p style="font-size:13px;font-weight:600;">Belum ada diagram</p>
-              <p style="font-size:11px;margin-top:4px;">Klik tombol + untuk menambahkan diagram</p>
-            </div>
-          `;
-          return;
-        }
-
-        mCharts.forEach(c => {
-          if (c.chartInstance) {
-            try { c.chartInstance.destroy(); } catch (e) {}
-          }
-        });
-
-        container.innerHTML = '';
-        mCharts.forEach(chart => {
-          const card = document.createElement('div');
-          card.className = 'mobile-chart-card';
-          card.id = chart.id;
-          card.innerHTML = `
-            <div class="mobile-chart-header">
-              <div class="mobile-chart-title">${escapeMHtml(chart.title)}</div>
-              <div class="mobile-chart-actions">
-                <button class="mobile-chart-btn edit" data-action="edit" data-chart-id="${chart.id}"><i class="fa-solid fa-pen"></i></button>
-                <button class="mobile-chart-btn delete" data-action="delete" data-chart-id="${chart.id}"><i class="fa-solid fa-trash"></i></button>
-              </div>
-            </div>
-            <div class="mobile-chart-canvas">
-              <canvas id="${chart.id}_canvas"></canvas>
-            </div>
-          `;
-          container.appendChild(card);
-
-          const editBtn = card.querySelector('.edit');
-          const deleteBtn = card.querySelector('.delete');
-
-          if (editBtn) editBtn.addEventListener('click', function(e) { e.stopPropagation(); openMEditChart(chart.id); });
-          if (deleteBtn) deleteBtn.addEventListener('click', function(e) { e.stopPropagation(); removeMChart(chart.id); });
-
-          loadMChartData(chart);
-        });
-      } catch (e) {
-        console.error('[Mobile] loadMCharts error:', e);
-        container.innerHTML = '<div style="text-align:center;padding:30px;color:var(--accent-crit);">Koneksi gagal. Coba muat ulang.</div>';
-      }
-    }
-
-    function mapMWidgetTypeToChartType(widgetType) {
-      const map = {
-        'line_chart': 'line', 'bar_chart': 'bar', 'area_chart': 'area',
-        'doughnut_chart': 'doughnut', 'pie_chart': 'pie',
-        'polar_area': 'polarArea', 'radar_chart': 'radar',
-        'horizontal_bar': 'horizontalBar', 'stacked_bar': 'stackedBar',
-        'stacked_area': 'stackedArea',
-      };
-      return map[widgetType] || 'line';
-    }
-
-    function mapMChartTypeToWidgetType(chartType) {
-      const map = {
-        'line': 'line_chart', 'bar': 'bar_chart', 'area': 'area_chart',
-        'doughnut': 'doughnut_chart', 'pie': 'pie_chart',
-        'polarArea': 'polar_area', 'radar': 'radar_chart',
-        'horizontalBar': 'horizontal_bar', 'stackedBar': 'stacked_bar',
-        'stackedArea': 'stacked_area',
-      };
-      return map[chartType] || 'line_chart';
-    }
-
-    function openMChartModal() {
-      document.getElementById('mChartModalTitle').textContent = 'Tambah Diagram';
-      document.getElementById('mEditChartId').value = '';
-      document.getElementById('mChartTitle').value = '';
-
-      const select = document.getElementById('mChartDeviceSelect');
-      select.innerHTML = '<option value="">Pilih Perangkat...</option>';
-      mDevices.forEach(d => {
-        select.innerHTML += `<option value="${escapeMHtml(d.device_id)}">${escapeMHtml(d.device_name)} (${escapeMHtml(d.device_id)})</option>`;
-      });
-
-      document.getElementById('mChartTypeSelect').value = 'line';
-      generateMDataCheckboxes({ temperature: true });
-      document.getElementById('mChartModal').classList.add('active');
-      lockBodyScroll();
-    }
-
-    function openMEditChart(chartId) {
-      const chart = mCharts.find(c => c.id === chartId);
-      if (!chart) return;
-
-      document.getElementById('mChartModalTitle').textContent = 'Edit Diagram';
-      document.getElementById('mEditChartId').value = chartId;
-      document.getElementById('mChartTitle').value = chart.title;
-
-      const select = document.getElementById('mChartDeviceSelect');
-      select.innerHTML = '<option value="">Pilih Perangkat...</option>';
-      mDevices.forEach(d => {
-        const selected = d.device_id === chart.deviceId ? 'selected' : '';
-        select.innerHTML += `<option value="${escapeMHtml(d.device_id)}" ${selected}>${escapeMHtml(d.device_name)} (${escapeMHtml(d.device_id)})</option>`;
-      });
-
-      document.getElementById('mChartTypeSelect').value = chart.chartType;
-      generateMDataCheckboxes(chart.showData);
-      document.getElementById('mChartModal').classList.add('active');
-      lockBodyScroll();
-    }
-
-    function closeMChartModal() {
-      document.getElementById('mChartModal').classList.remove('active');
-      unlockBodyScrollIfNoModal();
-    }
-
-    function generateMDataCheckboxes(selectedData = {}) {
-      const container = document.getElementById('mChartDataCheckboxes');
-      container.innerHTML = '';
-
-      Object.entries(M_DATA_KEYS).forEach(([key, info]) => {
-        const isChecked = selectedData[key] || false;
-        const item = document.createElement('label');
-        item.className = 'mobile-checkbox-item';
-        item.innerHTML = `
-          <input type="checkbox" class="m-chart-checkbox" data-key="${key}" ${isChecked ? 'checked' : ''}>
-          <span class="data-color" style="background:${info.color};"></span>
-          <span>${info.label}</span>
-        `;
-        container.appendChild(item);
-      });
-    }
-
-    async function saveMChart() {
-      const editId = document.getElementById('mEditChartId').value;
-      const title = document.getElementById('mChartTitle').value.trim() || 'Diagram';
-      const deviceId = document.getElementById('mChartDeviceSelect').value;
-      const chartType = document.getElementById('mChartTypeSelect').value;
-
-      const showData = {};
-      document.querySelectorAll('.m-chart-checkbox').forEach(cb => {
-        showData[cb.dataset.key] = cb.checked;
-      });
-
-      if (!deviceId) { alert('Pilih perangkat terlebih dahulu!'); return; }
-      if (!Object.values(showData).some(v => v)) { alert('Pilih minimal satu jenis data!'); return; }
-
-      const widgetType = mapMChartTypeToWidgetType(chartType);
-
-      if (editId) {
-        const chart = mCharts.find(c => c.id === editId);
-        if (!chart) return;
-
-        await apiRequest(`/api/v1/widgets/${chart.widgetId}`, {
-          method: 'PUT',
-          body: JSON.stringify({
-            title: title,
-            device_id: deviceId,
-            widget_type: widgetType,
-            config: { show_data: showData },
-          }),
-        });
-
-        closeMChartModal();
-        loadMCharts();
-      } else {
-        const res = await apiRequest(`/api/v1/dashboards/${mCurrentDashboardId}/widgets`, {
-          method: 'POST',
-          body: JSON.stringify({
-            widget_type: widgetType,
-            title: title,
-            device_id: deviceId,
-            config: { show_data: showData },
-            grid_x: 0, grid_y: 0, grid_w: 2, grid_h: 2,
-          }),
-        });
-        const data = await res.json();
-        if (!data.success) {
-          alert(data.error || 'Gagal menyimpan');
-          return;
-        }
-        closeMChartModal();
-        loadMCharts();
-      }
-    }
-
-    async function removeMChart(chartId) {
-      const chart = mCharts.find(c => c.id === chartId);
-      if (!chart) return;
-      if (!confirm(`Hapus diagram "${chart.title}"?`)) return;
-
-      await apiRequest(`/api/v1/widgets/${chart.widgetId}`, { method: 'DELETE' });
-      loadMCharts();
-    }
-
-    async function loadMChartData(chart) {
-      try {
-        const hours = Math.max(1, Math.ceil(mGlobalTimeMinutes / 60));
-        const limit = Math.min(Math.max(hours * 60, 500), 5000);
-        const res = await apiRequest(`/api/v1/devices/${encodeURIComponent(chart.deviceId)}/history?hours=${hours}&limit=${limit}`);
-        const data = await res.json();
-
-        if (!data.success || !data.history || data.history.length === 0) return;
-
-        const now = new Date();
-        const cutoffTime = new Date(now.getTime() - mGlobalTimeMinutes * 60 * 1000);
-        const filteredHistory = data.history.filter(item => {
-          try { return new Date(String(item.timestamp).replace(' ', 'T') + '+07:00') >= cutoffTime; }
-          catch (e) { return false; }
-        });
-
-        const canvas = document.getElementById(`${chart.id}_canvas`);
-        if (!canvas) return;
-        const ctx = canvas.getContext('2d');
-
-        const labels = filteredHistory.map(item => {
-          try {
-            return new Date(String(item.timestamp).replace(' ', 'T') + '+07:00').toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-          } catch (e) { return ''; }
-        });
-
-        const datasets = [];
-        const activeDataKeys = Object.entries(chart.showData).filter(([key, val]) => val).map(([key]) => key);
-
-        activeDataKeys.forEach((dataKey, index) => {
-          const info = M_DATA_KEYS[dataKey];
-          if (!info) return;
-          const values = filteredHistory.map(item => item.data?.[dataKey] ?? null);
-          if (!values.some(v => v !== null)) return;
-
-          const color = M_CHART_COLORS[index % M_CHART_COLORS.length];
-          datasets.push({
-            label: info.label, data: values,
-            borderColor: color, backgroundColor: color + '30',
-            fill: chart.chartType === 'area' || chart.chartType === 'stackedArea',
-            tension: 0.35,
-            pointRadius: 2, pointHoverRadius: 5,
-            pointBackgroundColor: color, pointBorderColor: color,
-            pointBorderWidth: 1, borderWidth: 2
-          });
-        });
-
-        if (datasets.length === 0) return;
-
-        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-        const gridColor = isLight ? 'rgba(0,0,0,0.10)' : 'rgba(255,255,255,0.10)';
-        const labelColor = isLight ? 'rgba(74,84,98,0.75)' : 'rgba(168,176,188,0.7)';
-        const tooltipBg = isLight ? 'rgba(255,255,255,0.98)' : 'rgba(28,32,39,0.98)';
-        const tooltipBorder = isLight ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.1)';
-        const tooltipTitleColor = isLight ? '#1a1d23' : '#e8ebef';
-        const tooltipBodyColor = isLight ? 'rgba(74,84,98,0.9)' : 'rgba(168,176,188,0.9)';
-
-        let chartType = chart.chartType;
-        if (chartType === 'area' || chartType === 'stackedArea') chartType = 'line';
-        if (chartType === 'horizontalBar' || chartType === 'stackedBar') chartType = 'bar';
-
-        if (chart.chartInstance) {
-          try { chart.chartInstance.destroy(); } catch (e) {}
-        }
-
-        const chartInstance = new Chart(ctx, {
-          type: chartType,
-          data: { labels, datasets },
-          options: {
-            responsive: true, maintainAspectRatio: false,
-            interaction: { mode: 'index', intersect: false, axis: 'x' },
-            plugins: {
-              legend: {
-                labels: { color: labelColor, font: { size: 9, weight: '600' }, boxWidth: 10, padding: 8, usePointStyle: true, pointStyle: 'circle' }
-              },
-              tooltip: {
-                enabled: true, backgroundColor: tooltipBg,
-                titleColor: tooltipTitleColor, bodyColor: tooltipBodyColor,
-                borderColor: tooltipBorder, borderWidth: 1,
-                padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
-                titleFont: { size: 10, weight: '700' }, bodyFont: { size: 9 },
-                position: 'average', intersect: false, mode: 'index'
-              }
-            },
-            hover: { mode: 'index', intersect: false, animationDuration: 100 },
-            scales: {
-              x: { grid: { color: gridColor, drawBorder: true, borderColor: gridColor }, ticks: { color: labelColor, font: { size: 9 }, maxTicksLimit: 6 } },
-              y: { grid: { color: gridColor, drawBorder: true, borderColor: gridColor }, ticks: { color: labelColor, font: { size: 9 } }, beginAtZero: true }
-            }
-          }
-        });
-
-        const chartIndex = mCharts.findIndex(c => c.id === chart.id);
-        if (chartIndex !== -1) mCharts[chartIndex].chartInstance = chartInstance;
-      } catch (e) { console.error('Error loading mobile chart:', e); }
-    }
-
-    function openAddModal() {
-      document.getElementById('mAddModal').classList.add('active');
-      lockBodyScroll();
-    }
-    function closeAddModal() {
-      document.getElementById('mAddModal').classList.remove('active');
-      unlockBodyScrollIfNoModal();
-    }
-    function openApiKeyModal() {
-      document.getElementById('mApiKeyModal').classList.add('active');
-      lockBodyScroll();
-    }
-    function closeApiKeyModal() {
-      document.getElementById('mApiKeyModal').classList.remove('active');
-      unlockBodyScrollIfNoModal();
-    }
-
-    async function addMobileDevice() {
-      const deviceId = document.getElementById('mAddId').value.trim();
-      const deviceName = document.getElementById('mAddName').value.trim();
-      if (!deviceId || !deviceName) { alert('ID dan Nama wajib diisi!'); return; }
-
-      try {
-        const res = await apiRequest('/api/v1/devices', {
-          method: 'POST',
-          body: JSON.stringify({
-            device_id: deviceId, device_name: deviceName,
-            device_type: document.getElementById('mAddType').value,
-            location: document.getElementById('mAddLocation').value
-          })
-        });
-        const data = await res.json();
-        if (data.success) {
-          closeAddModal();
-          document.getElementById('mAddId').value = '';
-          document.getElementById('mAddName').value = '';
-          document.getElementById('mAddLocation').value = '';
-          document.getElementById('mApiKeyDisplay').textContent = data.device.api_key;
-          openApiKeyModal();
-          loadMDashboard();
-        } else {
-          const errMsg = typeof data.error === 'object' ? Object.values(data.error).flat().join(', ') : data.error;
-          alert(errMsg || 'Gagal menambahkan perangkat');
-        }
-      } catch (e) { console.error(e); alert('Terjadi kesalahan'); }
-    }
-
-    function copyMApiKey() {
-      const apiKey = document.getElementById('mApiKeyDisplay').textContent;
-      if (navigator.clipboard) {
-        navigator.clipboard.writeText(apiKey);
-      } else {
-        const textarea = document.createElement('textarea');
-        textarea.value = apiKey;
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      }
-      alert('API Key disalin!');
-    }
-
-    function toggleTheme() {
-      const currentTheme = document.documentElement.getAttribute('data-theme');
-      const newTheme = currentTheme === 'light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', newTheme);
-      localStorage.setItem('nexus-theme', newTheme);
-      updateMobileThemeUI(newTheme);
-      if (isFabOpen) toggleFabMenu();
-      setTimeout(() => {
-        const analytics = document.getElementById('mAnalyticsSection');
-        if (analytics && analytics.style.display !== 'none') loadMCharts();
-      }, 100);
-    }
-
-    function updateMobileThemeUI(theme) {
-      const icon = document.getElementById('mobileThemeIcon');
-      const label = document.getElementById('mobileThemeLabel');
-      if (theme === 'light') {
-        icon.className = 'fa-solid fa-sun';
-        label.textContent = 'Tema Terang';
-      } else {
-        icon.className = 'fa-solid fa-moon';
-        label.textContent = 'Tema Gelap';
-      }
-    }
-
-    function loadMobileTheme() {
-      const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-      updateMobileThemeUI(savedTheme);
-    }
-
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        document.querySelectorAll('.mobile-modal.active').forEach(m => m.classList.remove('active'));
-        unlockBodyScrollIfNoModal();
-      }
-    });
-
-    document.querySelectorAll('.mobile-modal').forEach(modal => {
-      modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-          modal.classList.remove('active');
-          unlockBodyScrollIfNoModal();
-        }
+  if(['doughnut','pie','polarArea','radar'].includes(ch.chartType)){
+    const labels = [], vals = [];
+    ch.deviceIds.forEach(did => {
+      const h = hist[did] || []; if(!h.length) return;
+      const last = h[h.length - 1];
+      const dn = devices.find(x => x.device_id === did)?.device_name || did;
+      activeKeys.forEach(k => {
+        const info = DATA_KEYS[k]; if(!info) return;
+        const v = last.data?.[k];
+        if(v != null){ labels.push(ch.deviceIds.length > 1 ? `${dn} — ${info.label}` : info.label); vals.push(v); }
       });
     });
+    if(!vals.length) return;
+    ch.chartInstance = new Chart(ctx, {
+      type: ch.chartType,
+      data: {labels, datasets: [{data: vals, backgroundColor: vals.map((_,i) => COLORS[i%COLORS.length] + '99'), borderColor: vals.map((_,i) => COLORS[i%COLORS.length]), borderWidth: 2}]},
+      options: {responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{position:'bottom', labels:{color:labelC, font:{size:9, weight:'600'}, boxWidth:10, padding:6, usePointStyle:true, pointStyle:'circle'}}}}
+    });
+    return;
+  }
 
-    window.addEventListener('beforeunload', () => {
-      if (mDashboardInterval) clearInterval(mDashboardInterval);
-      mCharts.forEach(c => {
-        if (c.chartInstance) {
-          try { c.chartInstance.destroy(); } catch (e) {}
-        }
+  const tsSet = new Set();
+  ch.deviceIds.forEach(did => (hist[did] || []).forEach(it => tsSet.add(it.timestamp)));
+  if(!tsSet.size) return;
+  const cutoff = Date.now() - timeMinutes*60*1000;
+  const allTs = Array.from(tsSet).sort();
+  const inRange = allTs.filter(ts => new Date(String(ts).replace(' ','T')+'+07:00').getTime() >= cutoff);
+  const usedTs = (inRange.length ? inRange : allTs).slice(-200);
+  const labels = usedTs.map(ts => { try{ return new Date(String(ts).replace(' ','T')+'+07:00').toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}); }catch(e){ return ''; } });
+  const datasets = []; let ci = 0;
+  ch.deviceIds.forEach(did => {
+    const h = hist[did] || []; if(!h.length) return;
+    const dn = devices.find(x => x.device_id === did)?.device_name || did;
+    const tsMap = {}; h.forEach(it => { tsMap[it.timestamp] = it.data || {}; });
+    activeKeys.forEach(k => {
+      const info = DATA_KEYS[k]; if(!info) return;
+      const values = usedTs.map(ts => { const o = tsMap[ts]; return o ? (o[k] ?? null) : null; });
+      if(!values.some(v => v != null)) return;
+      const color = COLORS[ci % COLORS.length]; ci++;
+      const isArea = ch.chartType === 'area' || ch.chartType === 'stackedArea';
+      datasets.push({
+        label: ch.deviceIds.length > 1 ? `${dn} — ${info.label}` : `${info.label} (${info.unit})`,
+        data: values, borderColor: color, backgroundColor: isArea ? color+'30' : color+'99',
+        fill: isArea, tension: .35, pointRadius: 2, pointHoverRadius: 5,
+        pointBackgroundColor: color, borderWidth: 2, spanGaps: true
       });
     });
+  });
+  if(!datasets.length) return;
+  let type = ch.chartType;
+  if(type === 'area' || type === 'stackedArea') type = 'line';
+  if(type === 'horizontalBar' || type === 'stackedBar') type = 'bar';
+  ch.chartInstance = new Chart(ctx, {
+    type,
+    data: {labels, datasets},
+    options: {responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index', intersect:false},
+      indexAxis: ch.chartType === 'horizontalBar' ? 'y' : 'x',
+      plugins:{legend:{labels:{color:labelC, font:{size:9, weight:'600'}, boxWidth:10, padding:8, usePointStyle:true, pointStyle:'circle'}}},
+      scales:{
+        x:{grid:{color:gridC}, ticks:{color:labelC, font:{size:9}, maxTicksLimit:6}},
+        y:{grid:{color:gridC}, ticks:{color:labelC, font:{size:9}}, beginAtZero:true}
+      }
+    }
+  });
+}
 
-    loadMobileTheme();
-    initMobileMap();
-    loadMDashboard();
-    mDashboardInterval = setInterval(loadMDashboard, 30000);
-  </script>
+/* ===== Chart Modal ===== */
+function genChartDeviceCbs(sel = []){
+  const c = document.getElementById('chartDeviceCbs'); if(!c) return;
+  const s = new Set(sel);
+  if(!devices.length){ c.innerHTML = '<div style="padding:8px;color:var(--text-3);font-size:11px;grid-column:1/-1;">Belum ada perangkat</div>'; return; }
+  c.innerHTML = devices.map(d => `<label class="cb"><input type="checkbox" class="chart-dev" data-id="${esc(d.device_id)}" ${s.has(d.device_id)?'checked':''}><span>${esc(d.device_name)}</span></label>`).join('');
+}
+function genChartDataCbs(sel = {}){
+  const c = document.getElementById('chartDataCbs'); if(!c) return;
+  c.innerHTML = Object.entries(DATA_KEYS).map(([k,i]) =>
+    `<label class="cb"><input type="checkbox" class="chart-data" data-key="${k}" ${sel[k]?'checked':''}><span class="dot-color" style="background:${i.color};"></span><span>${i.label}</span></label>`
+  ).join('');
+}
+function openChart(id){
+  if(!currentTabId){ alert('Buat tab analitik dulu'); go('analytics'); return; }
+  if(id){
+    const ch = charts.find(c => c.id === id); if(!ch) return;
+    document.getElementById('chartModalTitle').textContent = 'Edit Diagram';
+    document.getElementById('editChartId').value = id;
+    document.getElementById('chartTitle').value = ch.title;
+    document.getElementById('chartType').value = ch.chartType;
+    genChartDeviceCbs(ch.deviceIds);
+    genChartDataCbs(ch.showData);
+  } else {
+    document.getElementById('chartModalTitle').textContent = 'Tambah Diagram';
+    document.getElementById('editChartId').value = '';
+    document.getElementById('chartTitle').value = '';
+    document.getElementById('chartType').value = 'line';
+    genChartDeviceCbs(devices[0] ? [devices[0].device_id] : []);
+    genChartDataCbs({temperature:true});
+  }
+  openModal('m-chart');
+}
+async function saveChart(){
+  const editId = document.getElementById('editChartId').value;
+  const title = document.getElementById('chartTitle').value.trim() || 'Diagram';
+  const chartType = document.getElementById('chartType').value;
+  const deviceIds = []; document.querySelectorAll('.chart-dev:checked').forEach(cb => deviceIds.push(cb.dataset.id));
+  const showData = {}; document.querySelectorAll('.chart-data').forEach(cb => { showData[cb.dataset.key] = cb.checked; });
+  if(!deviceIds.length){ alert('Pilih minimal 1 perangkat'); return; }
+  if(!Object.values(showData).some(v => v)){ alert('Pilih minimal 1 jenis data'); return; }
+  const wt = toWidget(chartType);
+  const config = {show_data: showData, devices: deviceIds};
+  let url, method;
+  if(editId){ const ch = charts.find(c => c.id === editId); if(!ch) return; url = `/api/v1/widgets/${ch.widgetId}`; method = 'PUT'; }
+  else{ url = `/api/v1/dashboards/${dashboardId}/widgets`; method = 'POST'; }
+  const body = {title, device_id: deviceIds[0], widget_type: wt, config};
+  if(!editId) Object.assign(body, {grid_x:0, grid_y:0, grid_w:6, grid_h:2, analytics_tab_id:currentTabId});
+  const r = await api(url, {method, body:JSON.stringify(body)});
+  const d = await r.json();
+  if(d.success){ closeModal('m-chart'); loadCharts(); toast(editId ? 'Diagram diupdate' : 'Diagram ditambahkan'); }
+  else alert(d.error || 'Gagal');
+}
+async function removeChart(id){
+  const ch = charts.find(c => c.id === id); if(!ch) return;
+  if(!confirm(`Hapus diagram "${ch.title}"?`)) return;
+  await api(`/api/v1/widgets/${ch.widgetId}`, {method:'DELETE'});
+  loadCharts();
+}
+
+/* ===== Attendance ===== */
+function setAttendView(v){
+  attendanceView = v;
+  document.querySelectorAll('.attend-tab').forEach(t => t.classList.toggle('active', t.dataset.t === v));
+  loadAttend();
+}
+async function loadAttend(){
+  const c = document.getElementById('attendList'); if(!c) return;
+  c.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try{
+    const sr = await api('/api/v1/attendance/stats');
+    const sd = await sr.json();
+    if(sd.success){
+      document.getElementById('sHadir').textContent = sd.stats.hadir_hari_ini || 0;
+      document.getElementById('sKartu').textContent = sd.stats.total_kartu_aktif || 0;
+      document.getElementById('sUnknown').textContent = sd.stats.kartu_belum_terdaftar || 0;
+      document.getElementById('attendSub').textContent = `${sd.stats.hadir_hari_ini || 0} hadir hari ini`;
+    }
+  }catch(e){}
+
+  const start = document.getElementById('dateStart').value, end = document.getElementById('dateEnd').value;
+  try{
+    if(attendanceView === 'report'){
+      const params = new URLSearchParams(); if(start) params.set('start', start); if(end) params.set('end', end);
+      const r = await api(`/api/v1/attendance/report?${params}`);
+      const d = await r.json();
+      const rows = d.success ? (d.report || []) : [];
+      if(!rows.length){ c.innerHTML = '<div class="empty"><i class="fa-solid fa-clipboard-list"></i><div class="empty-title">Belum ada laporan</div></div>'; return; }
+      c.innerHTML = rows.map(r => {
+        const ci = r.check_in ? r.check_in.split(' ')[1] : '-';
+        const co = (r.check_out && r.check_out !== r.check_in) ? r.check_out.split(' ')[1] : '-';
+        return `<div class="attend-item">
+          <div class="attend-head">
+            <div class="attend-name">${esc(r.nama)}</div>
+            <div class="attend-time">${esc(r.day)}</div>
+          </div>
+          <div class="attend-uid">${esc(r.uid)}</div>
+          <div class="attend-grid">
+            <div><div class="attend-cell-label">Masuk</div><div class="attend-cell-val ok">${ci}</div></div>
+            <div><div class="attend-cell-label">Keluar</div><div class="attend-cell-val warn">${co}</div></div>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      const r = await api('/api/v1/attendance?limit=200');
+      const d = await r.json();
+      let rows = d.success ? (d.attendance || []) : [];
+      if(start || end){
+        const st = start ? new Date(start+'T00:00:00+07:00').getTime() : 0;
+        const en = end ? new Date(end+'T23:59:59+07:00').getTime() : Infinity;
+        rows = rows.filter(x => {
+          const t = new Date(String(x.timestamp).replace(' ','T')+'+07:00').getTime();
+          return t >= st && t <= en;
+        });
+      }
+      if(!rows.length){ c.innerHTML = '<div class="empty"><i class="fa-solid fa-id-card"></i><div class="empty-title">Belum ada aktivitas</div></div>'; return; }
+      c.innerHTML = rows.map(r => {
+        const dt = fmtDateSplit(r.timestamp);
+        return `<div class="attend-item">
+          <div class="attend-head">
+            <div class="attend-name">${esc(r.nama)}</div>
+            <div class="attend-time">${dt.date} ${dt.time}</div>
+          </div>
+          <div class="attend-grid">
+            <div><div class="attend-cell-label">UID</div><div class="attend-cell-val">${esc(r.uid)}</div></div>
+            <div><div class="attend-cell-label">Device</div><div class="attend-cell-val">${esc(r.device_id)}</div></div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){ c.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>'; }
+}
+function exportAttend(){
+  const start = document.getElementById('dateStart').value, end = document.getElementById('dateEnd').value;
+  const params = new URLSearchParams(); if(start) params.set('start', start); if(end) params.set('end', end);
+  window.location.href = '/api/v1/attendance/export?' + params.toString();
+}
+async function captureLastTap(){
+  const r = await api('/api/v1/attendance/last-unknown');
+  const d = await r.json();
+  if(d.success && d.uid) document.getElementById('cardUid').value = d.uid;
+  else alert('Belum ada kartu asing');
+}
+function openCardholder(){
+  document.getElementById('cardUid').value = '';
+  document.getElementById('cardNama').value = '';
+  openModal('m-card');
+}
+async function submitCardholder(){
+  const uid = document.getElementById('cardUid').value.trim();
+  const nama = document.getElementById('cardNama').value.trim();
+  if(!uid || !nama){ alert('UID dan Nama wajib diisi'); return; }
+  const r = await api('/api/v1/cardholders', {method:'POST', body:JSON.stringify({uid, nama})});
+  const d = await r.json();
+  if(d.success){ closeModal('m-card'); loadAttend(); toast('Kartu terdaftar'); }
+  else alert(d.error || 'Gagal');
+}
+async function openStatDetail(type){
+  const title = document.getElementById('statTitle');
+  const body = document.getElementById('statBody');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  openModal('m-stat');
+  try{
+    if(type === 'hadir'){
+      title.textContent = 'Hadir Hari Ini';
+      const r = await api('/api/v1/attendance/today');
+      const d = await r.json();
+      const rows = d.success ? (d.hadir || []) : [];
+      if(!rows.length){ body.innerHTML = '<div class="empty"><div class="empty-title">Belum ada tap</div></div>'; return; }
+      body.innerHTML = rows.map(x => `<div class="attend-item" style="padding:12px 0;">
+        <div class="attend-head"><div class="attend-name">${esc(x.nama)}</div><div class="attend-time">${fmtDateSplit(x.pertama_tap).time}</div></div>
+        <div class="attend-uid">${esc(x.uid)}</div>
+      </div>`).join('');
+    } else if(type === 'total'){
+      title.textContent = 'Total Kartu Aktif';
+      const r = await api('/api/v1/cardholders');
+      const d = await r.json();
+      const rows = d.success ? (d.cardholders || []) : [];
+      if(!rows.length){ body.innerHTML = '<div class="empty"><div class="empty-title">Belum ada kartu</div></div>'; return; }
+      body.innerHTML = rows.map(x => `<div class="attend-item" style="padding:12px 0;">
+        <div class="attend-head">
+          <div class="attend-name">${esc(x.nama)}</div>
+          <button class="chart-act danger" onclick="deleteCardholder('${esc(x.uid)}')"><i class="fa-solid fa-trash"></i></button>
+        </div>
+        <div class="attend-uid">${esc(x.uid)}</div>
+      </div>`).join('');
+    } else {
+      title.textContent = 'Kartu Belum Terdaftar';
+      const r = await api('/api/v1/attendance/unregistered');
+      const d = await r.json();
+      const rows = d.success ? (d.kartu || []) : [];
+      if(!rows.length){ body.innerHTML = '<div class="empty"><div class="empty-title">Semua kartu terdaftar</div></div>'; return; }
+      body.innerHTML = rows.map(x => {
+        const dt = fmtDateSplit(x.terakhir_tap);
+        return `<div class="attend-item" style="padding:12px 0;">
+          <div class="attend-head">
+            <div class="attend-name mono" style="font-family:var(--mono);font-size:13px;">${esc(x.uid)}</div>
+            <button class="btn-soft" style="flex-shrink:0;padding:6px 12px;font-size:11.5px;" onclick="closeModal('m-stat');openCardholder();setTimeout(()=>{document.getElementById('cardUid').value='${esc(x.uid)}';},150)">Daftar</button>
+          </div>
+          <div class="attend-time" style="text-align:left;">${dt.date} ${dt.time}</div>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){ body.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>'; }
+}
+async function deleteCardholder(uid){
+  if(!confirm('Hapus kartu ini?')) return;
+  await api(`/api/v1/cardholders/${encodeURIComponent(uid)}`, {method:'DELETE'});
+  openStatDetail('total');
+}
+
+/* ===== Alerts ===== */
+function setAlertStatus(s){
+  alertStatus = s;
+  document.querySelectorAll('#alertStatusChips .chip').forEach(c => c.classList.toggle('active', c.dataset.s === s));
+  loadAlerts();
+}
+function setAlertSev(s){
+  alertSev = s;
+  document.querySelectorAll('#alertSevChips .chip').forEach(c => c.classList.toggle('active', c.dataset.sv === s));
+  loadAlerts();
+}
+document.getElementById('alertSearch').addEventListener('input', e => {
+  clearTimeout(window.__aST);
+  window.__aST = setTimeout(() => { alertSearch = e.target.value.trim(); renderAlerts(); }, 200);
+});
+
+async function loadAlerts(){
+  const c = document.getElementById('alertsList'); if(!c) return;
+  try{
+    const sr = await api('/api/v1/alerts/stats');
+    const sd = await sr.json();
+    if(sd.success){
+      document.getElementById('aTotal').textContent = sd.summary.total;
+      document.getElementById('aDanger').textContent = sd.summary.danger;
+      document.getElementById('aWarning').textContent = sd.summary.warning;
+      document.getElementById('aInfo').textContent = sd.summary.info;
+      document.getElementById('alertSub').textContent = `${sd.summary.total} alert aktif`;
+    }
+    const params = new URLSearchParams();
+    if(alertStatus !== 'all') params.set('status', alertStatus);
+    if(alertSev) params.set('severity', alertSev);
+    params.set('limit', '500');
+    const r = await api(`/api/v1/alerts/all?${params}`);
+    const d = await r.json();
+    alerts = d.success ? (d.alerts || []) : [];
+    renderAlerts();
+  }catch(e){ c.innerHTML = '<div class="empty"><div class="empty-title">Koneksi gagal</div></div>'; }
+}
+const ackId = a => a.alert_id != null ? a.alert_id : a.id;
+function renderAlerts(){
+  const c = document.getElementById('alertsList'); if(!c) return;
+  let list = alerts;
+  if(alertSearch){
+    const t = alertSearch.toLowerCase();
+    list = list.filter(a =>
+      (a.device_name||'').toLowerCase().includes(t) ||
+      (a.device_id||'').toLowerCase().includes(t) ||
+      (a.message||'').toLowerCase().includes(t) ||
+      (a.alert_type||'').toLowerCase().includes(t));
+  }
+  if(!list.length){
+    c.innerHTML = '<div class="empty"><i class="fa-solid fa-bell-slash"></i><div class="empty-title">Tidak ada alert</div></div>';
+    return;
+  }
+  c.innerHTML = list.map(a => {
+    const active = a.is_still_active === 1;
+    const sev = a.severity || 'info';
+    const healthy = sev === 'healthy';
+    const cls = healthy ? 'resolved' : (active ? sev : 'resolved');
+    const id = ackId(a);
+    const canAck = active && !healthy && id != null;
+    return `<div class="alert-item ${cls}">
+      <div class="alert-head">
+        <span class="alert-sev ${sev}">${sev}</span>
+        <span class="alert-head-type">${esc(a.alert_type || '')}</span>
+      </div>
+      <div class="alert-title">${esc(a.label || a.alert_type)}</div>
+      <div class="alert-msg">${esc(a.message || '-')}</div>
+      <div class="alert-meta">
+        <span><i class="fa-solid fa-microchip"></i> ${esc(a.device_name || a.device_id)}</span>
+        <span class="dot"></span>
+        <span>${fmtTime(a.created_at)}</span>
+      </div>
+      ${(active || canAck) ? `<div class="alert-actions">
+        <button onclick="openDevice('${esc(a.device_id)}')"><i class="fa-solid fa-eye"></i> Detail</button>
+        ${canAck ? `<button class="ok" onclick="ackAlert(${id})"><i class="fa-solid fa-check"></i> Tandai</button>` : ''}
+      </div>` : ''}
+    </div>`;
+  }).join('');
+}
+async function ackAlert(id){
+  const r = await api(`/api/v1/alerts/${id}/acknowledge`, {method:'POST'});
+  const d = await r.json();
+  if(d.success){ loadAlerts(); toast('Alert ditandai selesai'); }
+  else alert('Gagal');
+}
+
+/* ===== Device CRUD ===== */
+function openAddDevice(){
+  document.getElementById('addId').value = '';
+  document.getElementById('addName').value = '';
+  document.getElementById('addLocation').value = '';
+  document.getElementById('addInterval').value = '60';
+  document.getElementById('addTimeout').value = '';
+  document.getElementById('addRules').innerHTML = '<div class="rule-empty">Belum ada custom rule</div>';
+  openModal('m-add');
+}
+async function submitAddDevice(){
+  const id = document.getElementById('addId').value.trim();
+  const name = document.getElementById('addName').value.trim();
+  if(!id || !name){ alert('ID dan Nama wajib diisi'); return; }
+  const payload = {
+    device_id: id, device_name: name,
+    device_type: document.getElementById('addType').value,
+    location: document.getElementById('addLocation').value,
+    expected_interval: parseInt(document.getElementById('addInterval').value) || 60,
+  };
+  const to = document.getElementById('addTimeout').value;
+  if(to) payload.offline_timeout = parseInt(to);
+  const rules = collectRules('add'); if(rules) payload.alert_rules = rules;
+  try{
+    const r = await api('/api/v1/devices', {method:'POST', body:JSON.stringify(payload)});
+    const d = await r.json();
+    if(d.success){
+      closeModal('m-add');
+      document.getElementById('apiKeyValue').textContent = d.device.api_key;
+      pendingRedirect = d.device.device_id;
+      openModal('m-apikey');
+      loadDashboard();
+    } else {
+      const msg = typeof d.error === 'object' ? Object.values(d.error).flat().join(', ') : d.error;
+      alert(msg || 'Gagal');
+    }
+  }catch(e){ alert('Error: ' + e.message); }
+}
+function copyApiKey(){
+  const k = document.getElementById('apiKeyValue').textContent;
+  if(navigator.clipboard) navigator.clipboard.writeText(k).then(() => toast('API Key disalin'));
+  else alert('Copy manual: ' + k);
+}
+function closeApiKeyModal(){
+  closeModal('m-apikey');
+  if(pendingRedirect){
+    const id = pendingRedirect; pendingRedirect = null;
+    setTimeout(() => openDevice(id), 200);
+  }
+}
+async function openSheet(id){
+  const d = devices.find(x => x.device_id === id); if(!d) return;
+  sheetDeviceId = id;
+  document.getElementById('sheetTitle').textContent = d.device_name;
+  openModal('m-sheet');
+}
+function sheetAction(action){
+  const id = sheetDeviceId;
+  closeModal('m-sheet');
+  if(!id) return;
+  setTimeout(() => {
+    if(action === 'detail') openDevice(id);
+    else if(action === 'config') openEditConfig(id);
+    else if(action === 'key') regenKey(id);
+    else if(action === 'delete') openDelete(id);
+  }, 180);
+}
+async function regenKey(id){
+  if(!confirm(`Regenerate API Key untuk "${id}"?\n\nKey lama tidak akan berfungsi lagi.`)) return;
+  const r = await api(`/api/v1/devices/${encodeURIComponent(id)}/regenerate-key`, {method:'POST'});
+  const d = await r.json();
+  if(d.success){
+    document.getElementById('apiKeyValue').textContent = d.api_key;
+    pendingRedirect = null;
+    openModal('m-apikey');
+    loadDashboard();
+  } else alert(d.error || 'Gagal');
+}
+async function openEditConfig(id){
+  try{
+    const r = await api(`/api/v1/devices/${encodeURIComponent(id)}`);
+    const d = await r.json();
+    if(!d.success){ alert('Gagal memuat'); return; }
+    const dev = d.device;
+    document.getElementById('editId').value = id;
+    document.getElementById('editInterval').value = dev.expected_interval || 60;
+    document.getElementById('editTimeout').value = dev.offline_timeout || 900;
+    populateRules('edit', dev.alert_rules);
+    openModal('m-edit');
+  }catch(e){ alert('Error: ' + e.message); }
+}
+async function submitEditConfig(){
+  const id = document.getElementById('editId').value; if(!id) return;
+  const rules = collectRules('edit');
+  const payload = {
+    expected_interval: parseInt(document.getElementById('editInterval').value) || 60,
+    offline_timeout: parseInt(document.getElementById('editTimeout').value) || 900,
+    alert_rules: rules,
+  };
+  const r = await api(`/api/v1/devices/${encodeURIComponent(id)}`, {method:'PUT', body:JSON.stringify(payload)});
+  const d = await r.json();
+  if(d.success){ closeModal('m-edit'); loadDashboard(); toast('Tersimpan'); }
+  else alert(d.error || 'Gagal');
+}
+
+/* ===== Delete ===== */
+let delTarget = null;
+function openDelete(id){
+  const d = devices.find(x => x.device_id === id);
+  const name = d ? d.device_name : id;
+  delTarget = id;
+  document.getElementById('deleteTitle').textContent = 'Hapus Perangkat';
+  document.getElementById('deleteText').textContent = `Perangkat "${name}" akan dihapus permanen. Tindakan ini tidak bisa dibatalkan.`;
+  document.getElementById('deleteLabel').innerHTML = `Ketik <span class="mono" style="color:var(--text);background:var(--surface-2);padding:3px 8px;border-radius:6px;">${esc(id)}</span> untuk konfirmasi`;
+  document.getElementById('deleteInput').value = '';
+  document.getElementById('deleteInput').placeholder = `Ketik ${id}...`;
+  document.getElementById('deleteConfirm').disabled = true;
+  openModal('m-delete');
+}
+document.getElementById('deleteInput').addEventListener('input', e => {
+  document.getElementById('deleteConfirm').disabled = e.target.value.trim() !== (delTarget || '');
+});
+async function confirmDelete(){
+  if(!delTarget) return;
+  const input = document.getElementById('deleteInput').value.trim();
+  if(input !== delTarget){ alert('Konfirmasi salah'); return; }
+  const r = await api(`/api/v1/devices/${encodeURIComponent(delTarget)}`, {method:'DELETE'});
+  const d = await r.json();
+  if(d.success){ closeModal('m-delete'); delTarget = null; loadDashboard(); toast('Perangkat dihapus'); }
+  else alert(d.error || 'Gagal');
+}
+
+/* ===== Alert Rules Builder ===== */
+function addRule(mode){
+  const c = document.getElementById(mode === 'add' ? 'addRules' : 'editRules'); if(!c) return;
+  const empty = c.querySelector('.rule-empty'); if(empty) empty.remove();
+  const used = Array.from(c.querySelectorAll('.rule-select')).map(s => s.value);
+  const avail = Object.keys(PRESETS).find(k => !used.includes(k)) || Object.keys(PRESETS)[0];
+  const p = PRESETS[avail];
+  const item = document.createElement('div');
+  item.className = 'rule';
+  item.innerHTML = `
+    <div class="rule-head">
+      <select class="rule-select">${Object.entries(PRESETS).map(([k,v]) => `<option value="${k}" ${k===avail?'selected':''}>${v.label}</option>`).join('')}</select>
+      <button class="rule-remove" onclick="this.closest('.rule').remove();checkRulesEmpty('${mode}')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    ${sevRow('healthy', p.defaults.healthy)}
+    ${sevRow('warning', p.defaults.warning)}
+    ${sevRow('danger', p.defaults.danger)}
+  `;
+  c.appendChild(item);
+  item.querySelector('.rule-select').addEventListener('change', function(){
+    const pr = PRESETS[this.value];
+    item.querySelectorAll('.rule-sev').forEach(row => {
+      const sev = Array.from(row.classList).find(x => ['healthy','warning','danger'].includes(x));
+      if(sev && pr.defaults[sev]){
+        row.querySelector('[data-field="min"]').value = pr.defaults[sev].min;
+        row.querySelector('[data-field="max"]').value = pr.defaults[sev].max;
+      }
+    });
+  });
+}
+const sevRow = (sev, v) => `<div class="rule-sev ${sev}">
+  <div class="rule-sev-label"><span class="dot"></span>${sev === 'healthy' ? 'Normal' : sev === 'warning' ? 'Warning' : 'Bahaya'}</div>
+  <input type="number" step="0.1" data-field="min" value="${v.min}">
+  <input type="number" step="0.1" data-field="max" value="${v.max}">
+</div>`;
+function checkRulesEmpty(mode){
+  const c = document.getElementById(mode === 'add' ? 'addRules' : 'editRules');
+  if(c && !c.querySelector('.rule')) c.innerHTML = '<div class="rule-empty">Belum ada custom rule</div>';
+}
+function collectRules(mode){
+  const c = document.getElementById(mode === 'add' ? 'addRules' : 'editRules'); if(!c) return null;
+  const rules = {};
+  c.querySelectorAll('.rule').forEach(item => {
+    const key = item.querySelector('.rule-select').value;
+    const rule = {};
+    item.querySelectorAll('.rule-sev').forEach(row => {
+      const sev = Array.from(row.classList).find(x => ['healthy','warning','danger'].includes(x));
+      if(!sev) return;
+      const mn = parseFloat(row.querySelector('[data-field="min"]').value);
+      const mx = parseFloat(row.querySelector('[data-field="max"]').value);
+      if(!isNaN(mn) && !isNaN(mx)) rule[sev] = {min:mn, max:mx};
+    });
+    if(Object.keys(rule).length) rules[key] = rule;
+  });
+  return Object.keys(rules).length ? rules : null;
+}
+function populateRules(mode, rules){
+  const c = document.getElementById(mode === 'add' ? 'addRules' : 'editRules'); if(!c) return;
+  c.innerHTML = '';
+  if(!rules || !Object.keys(rules).length){
+    c.innerHTML = '<div class="rule-empty">Belum ada custom rule</div>'; return;
+  }
+  Object.entries(rules).forEach(([key, rule]) => {
+    const item = document.createElement('div');
+    item.className = 'rule';
+    item.innerHTML = `
+      <div class="rule-head">
+        <select class="rule-select">${Object.entries(PRESETS).map(([k,v]) => `<option value="${k}" ${k===key?'selected':''}>${v.label}</option>`).join('')}</select>
+        <button class="rule-remove" onclick="this.closest('.rule').remove();checkRulesEmpty('${mode}')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      ${rule.healthy ? sevRow('healthy', rule.healthy) : ''}
+      ${rule.warning ? sevRow('warning', rule.warning) : ''}
+      ${rule.danger ? sevRow('danger', rule.danger) : ''}
+    `;
+    c.appendChild(item);
+  });
+}
+
+/* ===== Init ===== */
+loadDashboard();
+setInterval(loadDashboard, 30000);
+setInterval(() => { if(document.getElementById('s-dashboard').classList.contains('active')) loadActivity(); }, 60000);
+setInterval(() => { if(document.getElementById('s-alerts').classList.contains('active')) loadAlerts(); }, 20000);
+setInterval(() => { if(document.getElementById('s-attendance').classList.contains('active')) loadAttend(); }, 15000);
+</script>
 </body>
 </html>

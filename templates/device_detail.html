@@ -1,572 +1,1042 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" data-theme="dark">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a1d23">
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Detail Perangkat — NEXUS</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-:root {
-  --bg: #09090b;
-  --surface: #131316;
-  --surface-2: #1c1c1f;
-  --hairline: #27272a;
-  --hairline-soft: #1c1c1f;
-  --text: #fafafa;
-  --text-2: #a1a1aa;
-  --text-3: #52525b;
-  --primary: #fafafa;
-  --primary-fg: #09090b;
-  --accent-ok: #22c55e;
-  --accent-warn: #f97316;
-  --accent-crit: #ef4444;
-  --accent-info: #3b82f6;
-  --accent-ok-bg: rgba(34, 197, 94, 0.12);
-  --accent-warn-bg: rgba(249, 115, 22, 0.12);
-  --accent-crit-bg: rgba(239, 68, 68, 0.12);
-  --accent-info-bg: rgba(59, 130, 246, 0.12);
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  --mono: 'JetBrains Mono', monospace;
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+/* ==========================================================
+   NEXUS — Device Detail v3
+   Palette lebih kontras & nyaman di mata
+   ========================================================== */
+
+:root{
+  --bg:#14171c;
+  --surface:#1c2027;
+  --surface-2:#232830;
+  --surface-3:#2c323c;
+
+  --border:#2c323c;
+  --border-soft:#232830;
+
+  --text:#e8ebef;
+  --text-2:#a8b0bc;
+  --text-3:#6f7885;
+
+  --ok:#5fbb86;      --ok-bg:rgba(95,187,134,.14);
+  --warn:#e0a45c;    --warn-bg:rgba(224,164,92,.14);
+  --crit:#e08080;    --crit-bg:rgba(224,128,128,.14);
+  --info:#7fa8d9;    --info-bg:rgba(127,168,217,.14);
+
+  --primary:#e8ebef;
+  --primary-hover:#d4d8de;
+  --primary-fg:#14171c;
+
+  --overlay:rgba(0,0,0,.7);
+
+  --radius-sm:8px;
+  --radius:12px;
+  --radius-lg:16px;
+  --radius-xl:20px;
+
+  --font:'Inter',-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,monospace;
+  --ease:cubic-bezier(.4,0,.2,1);
+
+  --hdr-h:56px;
 }
-[data-theme="light"] {
-  --bg: #fafafa;
-  --surface: #ffffff;
-  --surface-2: #f4f4f5;
-  --hairline: #e4e4e7;
-  --hairline-soft: #f0f0f2;
-  --text: #09090b;
-  --text-2: #52525b;
-  --text-3: #a1a1aa;
-  --primary: #09090b;
-  --primary-fg: #ffffff;
+
+[data-theme="light"]{
+  --bg:#f7f8fa;
+  --surface:#ffffff;
+  --surface-2:#f1f3f7;
+  --surface-3:#e4e7ee;
+
+  --border:#dfe3ea;
+  --border-soft:#ebeff4;
+
+  --text:#1a1d23;
+  --text-2:#4a5462;
+  --text-3:#7a8494;
+
+  --ok:#3d8b5f;      --ok-bg:rgba(61,139,95,.10);
+  --warn:#b8752a;    --warn-bg:rgba(184,117,42,.10);
+  --crit:#b54848;    --crit-bg:rgba(181,72,72,.10);
+  --info:#3f6ba0;    --info-bg:rgba(63,107,160,.10);
+
+  --primary:#2b3340;
+  --primary-hover:#3a4453;
+  --primary-fg:#ffffff;
+
+  --overlay:rgba(15,18,25,.35);
 }
-* { margin: 0; padding: 0; box-sizing: border-box; -webkit-font-smoothing: antialiased; }
-body {
-  font-family: var(--font);
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  transition: background 0.2s ease, color 0.2s ease;
+
+/* ---------- Reset ---------- */
+*{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;-webkit-tap-highlight-color:transparent;}
+body{
+  font-family:var(--font);background:var(--bg);color:var(--text);
+  min-height:100vh;transition:background .2s,color .2s;
+  font-size:14px;line-height:1.45;
 }
-.hero {
-  padding: 28px 26px 56px;
-  border-bottom: 1px solid var(--hairline-soft);
+button{font-family:inherit;cursor:pointer;background:none;border:none;color:inherit;}
+input,select{font-family:inherit;}
+
+/* ---------- Header ---------- */
+.hdr{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:0 16px;height:var(--hdr-h);
+  border-bottom:1px solid var(--border-soft);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  background:color-mix(in srgb, var(--bg) 85%, transparent);
 }
-.hero-content {
-  max-width: 1080px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
+.hdr-back{
+  display:inline-flex;align-items:center;gap:7px;
+  color:var(--text-2);font-size:13.5px;font-weight:600;
+  padding:7px 11px;border-radius:9px;margin-left:-8px;
+  transition:background .15s,color .15s;
 }
-.hero-left { display: flex; align-items: center; gap: 15px; }
-.device-avatar {
-  width: 52px;
-  height: 52px;
-  border-radius: 15px;
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: var(--text);
-  flex-shrink: 0;
+.hdr-back:active{background:var(--surface-2);color:var(--text);}
+.hdr-back i{font-size:12px;}
+.hdr-actions{display:flex;gap:4px;}
+.hdr-btn{
+  width:38px;height:38px;border-radius:10px;color:var(--text-2);
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  transition:background .15s,color .15s;
 }
-.hero-title h1 { font-size: 22px; font-weight: 800; margin-bottom: 6px; color: var(--text); }
-.hero-meta { display: flex; gap: 15px; font-size: 12px; color: var(--text-3); font-weight: 600; flex-wrap: wrap; }
-.hero-meta span { display: flex; align-items: center; gap: 6px; }
-.hero-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-.back-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 18px;
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: 12px;
-  color: var(--text-2);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s var(--ease);
-  font-family: inherit;
+.hdr-btn:active{background:var(--surface-2);color:var(--text);}
+
+/* ---------- Main ---------- */
+main{
+  padding:18px 16px 44px;
+  max-width:720px;margin:0 auto;
 }
-.back-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--text-3); }
-.back-btn.primary { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
-.back-btn.primary:hover { background: var(--text-2); }
-.back-btn.danger { color: var(--accent-crit); border-color: rgba(239, 68, 68, 0.3); }
-.back-btn.danger:hover { background: var(--accent-crit-bg); }
-.container {
-  max-width: 1080px;
-  margin: -30px auto 40px;
-  padding: 0 22px;
-  position: relative;
-  z-index: 3;
-  display: grid;
-  gap: 18px;
+
+/* ---------- Device hero ---------- */
+.device-hero{
+  display:flex;align-items:center;gap:14px;
+  margin-bottom:18px;padding:2px;
 }
-.card {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-xl);
-  padding: 24px;
-  animation: rise 0.3s var(--ease) backwards;
+.device-icon{
+  width:56px;height:56px;border-radius:15px;flex-shrink:0;
+  background:var(--surface);color:var(--info);
+  display:flex;align-items:center;justify-content:center;font-size:24px;
+  border:1px solid var(--border-soft);
 }
-@keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-.card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 18px;
-  flex-wrap: wrap;
-  gap: 10px;
+.device-title{flex:1;min-width:0;}
+.device-title h1{
+  font-size:22px;font-weight:800;letter-spacing:-.02em;
+  color:var(--text);line-height:1.15;
+  overflow:hidden;text-overflow:ellipsis;
 }
-.card-title {
-  font-size: 14.5px;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--text);
+.device-title .device-id{
+  font-size:12.5px;color:var(--text-2);font-family:var(--mono);
+  margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font-weight:500;
 }
-.card-title i { color: var(--text-2); }
-.live-indicator {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 5px 12px;
-  background: var(--accent-ok-bg);
-  border: 1px solid rgba(34, 197, 94, 0.25);
-  border-radius: 20px;
-  font-size: 10px;
-  font-weight: 800;
-  color: var(--accent-ok);
-  text-transform: uppercase;
+
+/* ---------- Status bar ---------- */
+.status-bar{
+  display:flex;align-items:center;gap:13px;
+  padding:15px 16px;background:var(--surface);
+  border-radius:var(--radius-lg);margin-bottom:14px;
+  border-left:3px solid var(--text-3);
 }
-.live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--accent-ok);
-  animation: pulse 2s infinite;
+.status-bar.ok{border-left-color:var(--ok);}
+.status-bar.warn{border-left-color:var(--warn);}
+.status-bar.crit{border-left-color:var(--crit);}
+.status-bar.info{border-left-color:var(--info);}
+.status-pulse{
+  width:11px;height:11px;border-radius:50%;flex-shrink:0;
 }
-@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-.info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
-.info-item label {
-  display: block;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 6px;
+.status-pulse.online{background:var(--ok);box-shadow:0 0 0 4px var(--ok-bg);}
+.status-pulse.offline{background:var(--crit);box-shadow:0 0 0 4px var(--crit-bg);}
+.status-pulse.danger{background:var(--crit);box-shadow:0 0 0 4px var(--crit-bg);}
+.status-pulse.warning{background:var(--warn);box-shadow:0 0 0 4px var(--warn-bg);}
+.status-pulse.info{background:var(--info);box-shadow:0 0 0 4px var(--info-bg);}
+.status-info{flex:1;min-width:0;}
+.status-label{
+  font-size:14px;font-weight:700;color:var(--text);
+  line-height:1.25;letter-spacing:-.01em;
 }
-.info-item .value { font-size: 14px; font-weight: 600; color: var(--text); }
-.info-item .value.mono { font-family: var(--mono); font-size: 12.5px; }
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 11px;
-  border-radius: 20px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: capitalize;
+.status-sub{
+  font-size:12px;color:var(--text-2);margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;font-weight:500;
 }
-.status-badge.online { background: var(--accent-ok-bg); color: var(--accent-ok); }
-.status-badge.offline { background: var(--accent-crit-bg); color: var(--accent-crit); }
-.status-badge.danger { background: var(--accent-crit-bg); color: var(--accent-crit); border: 1px solid rgba(239, 68, 68, 0.3); }
-.status-badge.warning { background: var(--accent-warn-bg); color: var(--accent-warn); border: 1px solid rgba(249, 115, 22, 0.3); }
-.status-badge.info { background: var(--accent-info-bg); color: var(--accent-info); border: 1px solid rgba(59, 130, 246, 0.3); }
-.status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-.status-badge.online .status-dot { animation: pulse 2s infinite; }
-.sensor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
-.sensor-card {
-  background: var(--surface-2);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  padding: 18px;
+.live-badge{
+  display:inline-flex;align-items:center;gap:5px;
+  font-size:10px;font-weight:800;color:var(--ok);
+  text-transform:uppercase;letter-spacing:.06em;
+  padding:4px 9px;background:var(--ok-bg);border-radius:8px;
+  flex-shrink:0;
 }
-.sensor-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 11px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  margin-bottom: 12px;
+.live-badge::before{
+  content:'';width:5px;height:5px;border-radius:50%;background:var(--ok);
+  animation:pulseDot 1.5s ease-in-out infinite;
 }
-.sensor-name {
-  font-size: 11px;
-  color: var(--text-3);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-weight: 700;
-  margin-bottom: 5px;
+@keyframes pulseDot{
+  0%,100%{opacity:1;transform:scale(1);}
+  50%{opacity:.4;transform:scale(.85);}
 }
-.sensor-value { font-size: 26px; font-weight: 800; font-family: var(--mono); line-height: 1.1; color: var(--text); }
-.sensor-unit { font-size: 11px; color: var(--text-3); font-weight: 600; margin-top: 2px; margin-bottom: 12px; }
-.sensor-gauge { height: 4px; border-radius: 3px; background: var(--hairline); overflow: hidden; }
-.sensor-gauge-fill { height: 100%; border-radius: 3px; transition: width 0.6s var(--ease); }
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 50px 20px;
-  gap: 14px;
+
+/* ---------- Group ---------- */
+.group{
+  background:var(--surface);border-radius:var(--radius-lg);
+  overflow:hidden;margin-bottom:14px;
+  border:1px solid var(--border-soft);
 }
-.spinner {
-  width: 26px;
-  height: 26px;
-  border: 2.5px solid var(--hairline);
-  border-top-color: var(--text);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.group-header{
+  padding:15px 16px 10px;
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-.loading-text { font-size: 12.5px; color: var(--text-3); font-weight: 600; }
-.empty-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 50px 20px;
-  text-align: center;
-  gap: 8px;
+.group-title{
+  font-size:11px;font-weight:700;color:var(--text-2);
+  text-transform:uppercase;letter-spacing:.06em;
+  display:flex;align-items:center;gap:7px;
 }
-.empty-state i { font-size: 30px; color: var(--text-3); margin-bottom: 6px; }
-.empty-state h3 { font-size: 15px; font-weight: 700; color: var(--text); }
-.empty-state p { font-size: 12.5px; color: var(--text-3); }
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-thumb { background: var(--hairline); border-radius: 3px; }
-@media (max-width: 600px) {
-  .hero { padding: 22px 18px 50px; }
-  .container { margin: -26px auto 30px; padding: 0 14px; }
-  .card { padding: 18px; border-radius: 18px; }
-  .hero-actions { width: 100%; }
-  .back-btn { flex: 1; justify-content: center; }
+.group-title i{font-size:12px;color:var(--text-3);}
+.group-meta{
+  font-size:11px;color:var(--text-3);font-family:var(--mono);font-weight:500;
+}
+.group-body{
+  padding:0 16px 16px;
+}
+
+/* ---------- Info rows ---------- */
+.info-list{display:flex;flex-direction:column;}
+.info-row{
+  display:flex;align-items:flex-start;justify-content:space-between;
+  gap:12px;padding:12px 0;position:relative;
+}
+.info-row:not(:last-child)::after{
+  content:'';position:absolute;left:0;right:0;bottom:0;
+  height:1px;background:var(--border-soft);
+}
+.info-label{
+  font-size:12.5px;color:var(--text-2);font-weight:500;
+  flex-shrink:0;padding-top:1px;
+}
+.info-value{
+  font-size:13.5px;font-weight:600;color:var(--text);
+  text-align:right;word-break:break-word;min-width:0;
+  max-width:62%;
+}
+.info-value.mono{font-family:var(--mono);font-size:12.5px;font-weight:500;}
+.info-value.muted{color:var(--text-3);font-weight:500;font-style:italic;}
+
+/* ---------- Alert items ---------- */
+.alert-item{
+  padding:13px 0;position:relative;
+}
+.alert-item:not(:last-child)::after{
+  content:'';position:absolute;left:0;right:0;bottom:0;
+  height:1px;background:var(--border-soft);
+}
+.alert-head{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.alert-sev{
+  font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;
+  padding:3px 7px;border-radius:6px;
+}
+.alert-sev.danger{background:var(--crit-bg);color:var(--crit);}
+.alert-sev.warning{background:var(--warn-bg);color:var(--warn);}
+.alert-sev.info{background:var(--info-bg);color:var(--info);}
+.alert-sev.healthy{background:var(--ok-bg);color:var(--ok);}
+.alert-head-type{
+  font-size:11.5px;color:var(--text-3);font-family:var(--mono);font-weight:500;
+}
+.alert-msg{
+  font-size:13.5px;color:var(--text);line-height:1.45;
+  word-break:break-word;font-weight:500;
+}
+.alert-meta{
+  display:flex;align-items:center;gap:8px;margin-top:7px;
+  font-size:11px;color:var(--text-3);flex-wrap:wrap;
+  font-family:var(--mono);
+}
+
+/* ---------- Sensor grid ---------- */
+.sensor-grid{
+  display:grid;grid-template-columns:repeat(2,1fr);gap:10px;
+}
+.sensor-card{
+  background:var(--surface-2);border-radius:var(--radius);
+  padding:14px;border:1px solid var(--border-soft);
+  transition:transform .15s;
+}
+.sensor-card:active{transform:scale(.98);}
+.sensor-head{display:flex;align-items:center;gap:9px;margin-bottom:11px;}
+.sensor-icon{
+  width:30px;height:30px;border-radius:9px;
+  display:flex;align-items:center;justify-content:center;font-size:13px;
+  flex-shrink:0;
+}
+.sensor-name{
+  font-size:10.5px;color:var(--text-2);font-weight:700;
+  text-transform:uppercase;letter-spacing:.05em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  flex:1;min-width:0;
+}
+.sensor-value{
+  font-size:25px;font-weight:800;font-family:var(--mono);
+  line-height:1.05;color:var(--text);letter-spacing:-.02em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.sensor-unit{
+  font-size:11.5px;color:var(--text-3);font-weight:600;
+  margin-top:3px;margin-bottom:11px;
+}
+.sensor-gauge{
+  height:4px;border-radius:2px;background:var(--surface-3);
+  overflow:hidden;
+}
+.sensor-gauge-fill{
+  height:100%;border-radius:2px;
+  transition:width .6s var(--ease);
+  box-shadow:0 0 8px currentColor;
+}
+
+/* ---------- Action rows ---------- */
+.action-row{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:14px 0;position:relative;cursor:pointer;
+  transition:opacity .15s;
+}
+.action-row:not(:last-child)::after{
+  content:'';position:absolute;left:0;right:0;bottom:0;
+  height:1px;background:var(--border-soft);
+}
+.action-row:active{opacity:.65;}
+.action-row-left{display:flex;align-items:center;gap:12px;flex:1;min-width:0;}
+.action-row i.icon{
+  width:32px;height:32px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:13px;flex-shrink:0;
+  background:var(--surface-2);color:var(--text-2);
+  border:1px solid var(--border-soft);
+}
+.action-row.danger i.icon{
+  background:var(--crit-bg);color:var(--crit);
+  border-color:transparent;
+}
+.action-row-text{min-width:0;flex:1;}
+.action-row-title{
+  font-size:13.5px;font-weight:600;color:var(--text);
+  line-height:1.3;
+}
+.action-row-sub{
+  font-size:11.5px;color:var(--text-3);margin-top:2px;
+  overflow:hidden;text-overflow:ellipsis;
+}
+.action-row.danger .action-row-title{color:var(--crit);}
+.action-row-chevron{
+  color:var(--text-3);font-size:11px;opacity:.6;flex-shrink:0;
+}
+
+/* ---------- Empty / loading ---------- */
+.loading{
+  padding:40px 20px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:12px;
+  color:var(--text-2);font-size:12.5px;font-weight:600;
+}
+.spinner{
+  width:22px;height:22px;border:2.5px solid var(--border);
+  border-top-color:var(--text-2);border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.empty{
+  padding:34px 20px;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:7px;
+}
+.empty i{
+  font-size:28px;color:var(--text-3);opacity:.55;margin-bottom:4px;
+}
+.empty-title{font-size:14px;font-weight:600;color:var(--text-2);}
+.empty-sub{font-size:12.5px;color:var(--text-3);}
+
+/* ---------- Buttons ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  padding:12px 18px;border-radius:11px;
+  font-size:14px;font-weight:600;min-height:44px;
+  transition:background .15s,transform .1s,opacity .15s;
+}
+.btn:active{transform:scale(.97);}
+.btn-primary{background:var(--primary);color:var(--primary-fg);}
+.btn-ghost{background:var(--surface-2);color:var(--text-2);border:1px solid var(--border-soft);}
+.btn-ghost:active{background:var(--surface-3);color:var(--text);}
+.btn-danger{background:var(--crit);color:#fff;}
+.btn-soft{
+  background:var(--surface-2);color:var(--text-2);
+  padding:8px 13px;border-radius:9px;font-size:12.5px;
+  min-height:auto;border:1px solid var(--border-soft);
+}
+.btn-soft:active{background:var(--surface-3);color:var(--text);}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn:disabled:active{transform:none;}
+
+/* ---------- Modal ---------- */
+.modal{
+  position:fixed;inset:0;background:var(--overlay);
+  z-index:9999;display:none;align-items:center;justify-content:center;
+  padding:16px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+}
+.modal.open{display:flex;}
+.modal-inner{
+  background:var(--surface);color:var(--text);
+  width:100%;max-width:460px;
+  border-radius:var(--radius-xl);
+  padding:24px;
+  animation:pop .2s var(--ease);
+  max-height:90vh;overflow-y:auto;
+  box-shadow:0 24px 60px rgba(0,0,0,.6);
+  border:1px solid var(--border-soft);
+}
+@keyframes pop{
+  from{opacity:0;transform:scale(.96) translateY(6px);}
+  to{opacity:1;transform:scale(1) translateY(0);}
+}
+.modal-head{
+  display:flex;align-items:center;justify-content:space-between;
+  gap:10px;margin-bottom:16px;
+}
+.modal-head h3{
+  font-size:16.5px;font-weight:800;letter-spacing:-.02em;
+  display:flex;align-items:center;gap:10px;
+}
+.modal-head h3 i{color:var(--text-2);font-size:16px;}
+.modal-close{
+  width:32px;height:32px;border-radius:9px;
+  color:var(--text-2);display:flex;align-items:center;justify-content:center;
+  font-size:14px;flex-shrink:0;
+  transition:background .15s,color .15s;
+}
+.modal-close:active{background:var(--surface-2);color:var(--text);}
+.modal-desc{
+  font-size:13.5px;color:var(--text-2);line-height:1.5;
+  margin-bottom:18px;
+}
+.modal-field{margin-bottom:14px;}
+.modal-field label{
+  display:block;font-size:11px;font-weight:700;
+  color:var(--text-2);text-transform:uppercase;letter-spacing:.05em;
+  margin-bottom:8px;
+}
+.modal-field input{
+  width:100%;padding:13px 14px;
+  background:var(--surface-2);color:var(--text);
+  border-radius:11px;font-size:14.5px;outline:none;
+  border:1px solid var(--border-soft);
+  transition:border-color .15s,background .15s;
+}
+.modal-field input:focus{
+  border-color:var(--info);
+  background:var(--surface);
+}
+.modal-field input::placeholder{color:var(--text-3);}
+.modal-field code{
+  background:var(--surface-3);padding:3px 8px;border-radius:6px;
+  font-family:var(--mono);font-size:12.5px;color:var(--text);
+  font-weight:600;
+}
+.modal-actions{
+  display:flex;gap:8px;margin-top:20px;
+}
+.modal-actions .btn{flex:1;}
+
+/* API key display */
+.api-key-box{
+  background:var(--surface-2);border-radius:12px;
+  padding:15px;display:flex;gap:10px;align-items:center;
+  border:1px solid var(--border-soft);
+}
+.api-key-box code{
+  flex:1;font-size:12.5px;color:var(--text);
+  word-break:break-all;font-family:var(--mono);line-height:1.5;
+  font-weight:600;
+}
+
+/* ---------- Toast ---------- */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--surface-3);color:var(--text);
+  padding:11px 20px;border-radius:22px;
+  font-size:13px;font-weight:600;white-space:nowrap;
+  box-shadow:0 10px 28px rgba(0,0,0,.45);
+  z-index:99999;animation:pop .2s var(--ease);
+  max-width:90vw;overflow:hidden;text-overflow:ellipsis;
+  border:1px solid var(--border);
+}
+
+/* ---------- Responsive ---------- */
+@media(min-width:640px){
+  .sensor-grid{grid-template-columns:repeat(3,1fr);}
+  .device-title h1{font-size:24px;}
+}
+@media(min-width:900px){
+  main{padding:26px 24px 60px;}
+  .sensor-grid{grid-template-columns:repeat(4,1fr);}
+  .device-hero{gap:20px;}
+  .device-icon{width:64px;height:64px;font-size:28px;border-radius:18px;}
+}
+@media(max-width:380px){
+  .sensor-grid{grid-template-columns:1fr 1fr;gap:8px;}
+  .sensor-card{padding:12px;}
+  .sensor-value{font-size:22px;}
 }
 </style>
 </head>
 <body>
-  <div class="hero">
-    <div class="hero-content">
-      <div class="hero-left">
-        <div class="device-avatar"><i class="fa-solid fa-satellite-dish"></i></div>
-        <div>
-          <h1 id="deviceName">Memuat...</h1>
-          <div class="hero-meta">
-            <span><i class="fa-solid fa-fingerprint"></i> <span id="deviceIdDisplay">{{ device_id }}</span></span>
-            <span><i class="fa-regular fa-clock"></i> <span id="lastUpdate">--:--:--</span></span>
+
+<!-- ============ HEADER ============ -->
+<header class="hdr">
+  <button class="hdr-back" id="btnBack">
+    <i class="fa-solid fa-chevron-left"></i>
+    <span>Kembali</span>
+  </button>
+  <div class="hdr-actions">
+    <button class="hdr-btn" onclick="toggleTheme()" aria-label="Toggle Theme">
+      <i class="fa-solid fa-moon" id="themeIcon"></i>
+    </button>
+    <button class="hdr-btn" id="btnExport" aria-label="Export Data">
+      <i class="fa-solid fa-download"></i>
+    </button>
+  </div>
+</header>
+
+<!-- ============ MAIN ============ -->
+<main>
+
+  <!-- Device hero -->
+  <div class="device-hero">
+    <div class="device-icon"><i class="fa-solid fa-microchip"></i></div>
+    <div class="device-title">
+      <h1 id="deviceName">Memuat...</h1>
+      <div class="device-id" id="deviceIdDisplay">{{ device_id }}</div>
+    </div>
+  </div>
+
+  <!-- Status bar -->
+  <div class="status-bar" id="statusBar">
+    <span class="status-pulse offline" id="statusPulse"></span>
+    <div class="status-info">
+      <div class="status-label" id="statusLabel">Memuat...</div>
+      <div class="status-sub" id="statusSub">—</div>
+    </div>
+    <span class="live-badge" id="liveBadge" style="display:none;">Live</span>
+  </div>
+
+  <!-- Alert -->
+  <div class="group" id="alertGroup">
+    <div class="group-header">
+      <div class="group-title"><i class="fa-solid fa-bell"></i> Alert Aktif</div>
+      <span class="group-meta" id="alertCount"></span>
+    </div>
+    <div class="group-body" id="alertBody">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div class="group">
+    <div class="group-header">
+      <div class="group-title"><i class="fa-solid fa-circle-info"></i> Informasi</div>
+    </div>
+    <div class="group-body" id="infoBody">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Sensor -->
+  <div class="group">
+    <div class="group-header">
+      <div class="group-title"><i class="fa-solid fa-wave-square"></i> Data Sensor</div>
+      <span class="group-meta" id="sensorMeta"></span>
+    </div>
+    <div class="group-body" id="sensorBody">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="group">
+    <div class="group-header">
+      <div class="group-title"><i class="fa-solid fa-sliders"></i> Pengaturan</div>
+    </div>
+    <div class="group-body" style="padding-top:0;">
+      <div class="action-row" onclick="regenKey()">
+        <div class="action-row-left">
+          <i class="icon fa-solid fa-key"></i>
+          <div class="action-row-text">
+            <div class="action-row-title">Regenerate API Key</div>
+            <div class="action-row-sub">Buat key baru, key lama tidak akan berfungsi</div>
           </div>
         </div>
+        <i class="fa-solid fa-chevron-right action-row-chevron"></i>
       </div>
-      <div class="hero-actions">
-        <button class="back-btn" id="btnRegenerateKey" title="Regenerate API Key">
-          <i class="fa-solid fa-key"></i> Regenerate
-        </button>
-        <button class="back-btn" id="btnExport" title="Export Data">
-          <i class="fa-solid fa-download"></i> Export
-        </button>
-        <button class="back-btn" id="btnBack" title="Kembali">
-          <i class="fa-solid fa-arrow-left"></i> <span id="backLabel">Kembali</span>
-        </button>
+      <div class="action-row danger" onclick="openDelete()">
+        <div class="action-row-left">
+          <i class="icon fa-solid fa-trash"></i>
+          <div class="action-row-text">
+            <div class="action-row-title">Hapus Perangkat</div>
+            <div class="action-row-sub">Hapus permanen beserta data sensor</div>
+          </div>
+        </div>
+        <i class="fa-solid fa-chevron-right action-row-chevron"></i>
       </div>
     </div>
   </div>
 
-  <div class="container">
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa-solid fa-bell"></i> Alert Aktif</div>
-      </div>
-      <div id="activeAlertsContent">
-        <div class="loading-state"><div class="spinner"></div><div class="loading-text">Memuat...</div></div>
-      </div>
-    </div>
+</main>
 
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa-solid fa-circle-info"></i> Informasi Perangkat</div>
-        <span class="live-indicator" id="liveIndicator" style="display:none;"><span class="live-dot"></span> Live</span>
-      </div>
-      <div id="infoContent"><div class="loading-state"><div class="spinner"></div><div class="loading-text">Memuat...</div></div></div>
+<!-- ============ MODAL: API Key ============ -->
+<div class="modal" id="m-key">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3><i class="fa-solid fa-key"></i> API Key Baru</h3>
+      <button class="modal-close" onclick="closeModal('m-key')"><i class="fa-solid fa-xmark"></i></button>
     </div>
-
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fa-solid fa-wave-square"></i> Data Sensor Terbaru</div>
-        <span style="font-size:11px;color:var(--text-3);font-weight:600;" id="sensorMeta"></span>
-      </div>
-      <div id="sensorContent"><div class="loading-state"><div class="spinner"></div><div class="loading-text">Memuat...</div></div></div>
+    <p class="modal-desc">
+      Simpan key ini, hanya muncul sekali. Update firmware perangkat dengan key baru.
+    </p>
+    <div class="api-key-box">
+      <code id="keyValue"></code>
+      <button class="btn-soft" onclick="copyKey()" style="flex-shrink:0;padding:9px 13px;" title="Copy">
+        <i class="fa-solid fa-copy"></i>
+      </button>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('m-key')">Saya Sudah Simpan</button>
     </div>
   </div>
+</div>
 
-  <script>
-    const deviceId = '{{ device_id }}';
-    const CSRF_TOKEN = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+<!-- ============ MODAL: Delete ============ -->
+<div class="modal" id="m-del">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3><i class="fa-solid fa-trash" style="color:var(--crit);"></i> Hapus Perangkat</h3>
+      <button class="modal-close" onclick="closeModal('m-del')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p class="modal-desc" id="delDesc">
+      Perangkat ini akan dihapus permanen beserta semua data sensornya.
+    </p>
+    <div class="modal-field">
+      <label id="delLabel">Ketik untuk konfirmasi</label>
+      <input type="text" id="delInput" placeholder="Ketik Device ID..." autocomplete="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-del')">Batal</button>
+      <button class="btn btn-danger" id="delBtn" disabled onclick="confirmDelete()">
+        Hapus
+      </button>
+    </div>
+  </div>
+</div>
 
-    // Token warna sensor (konsisten dengan dashboard.js)
-    const SENSOR_META = {
-      temperature: { icon: 'fa-temperature-half', color: '#ef4444', unit: '°C', range: [0, 50] },
-      humidity: { icon: 'fa-droplet', color: '#3b82f6', unit: '%', range: [0, 100] },
-      moisture: { icon: 'fa-water', color: '#0ea5e9', unit: '%', range: [0, 100] },
-      lux: { icon: 'fa-sun', color: '#eab308', unit: 'lux', range: [0, 1000] },
-      co2: { icon: 'fa-cloud', color: '#22c55e', unit: 'ppm', range: [0, 2000] },
-      voc: { icon: 'fa-wind', color: '#a855f7', unit: 'ppb', range: [0, 500] },
-      gas_level: { icon: 'fa-fire', color: '#f97316', unit: 'ppm', range: [0, 100] },
-      air_quality: { icon: 'fa-lungs', color: '#3b82f6', unit: 'AQI', range: [0, 500] },
-      smoke: { icon: 'fa-smog', color: '#a855f7', unit: 'ppm', range: [0, 1000] },
-      motion: { icon: 'fa-person-running', color: '#06b6d4', unit: '', range: [0, 1] },
-    };
+<script>
+/* ============================================================
+   NEXUS Device Detail — v3
+   ============================================================ */
+const deviceId = '{{ device_id }}';
+const CSRF = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
 
-    function getSensorMeta(key) {
-      return SENSOR_META[key] || { icon: 'fa-microchip', color: '#a1a1aa', unit: '', range: [0, 100] };
-    }
+/* ---------- Sensor meta (palette vibrant) ---------- */
+const SENSOR_META = {
+  temperature: {icon:'fa-temperature-half', color:'#ef6a6a', unit:'°C', range:[0,50]},
+  humidity:    {icon:'fa-droplet',          color:'#5b9eff', unit:'%',  range:[0,100]},
+  moisture:    {icon:'fa-water',            color:'#38bdf8', unit:'%',  range:[0,100]},
+  lux:         {icon:'fa-sun',              color:'#f0b547', unit:'lux',range:[0,1000]},
+  co2:         {icon:'fa-cloud',            color:'#3ecf8e', unit:'ppm',range:[0,2000]},
+  voc:         {icon:'fa-wind',             color:'#b078f0', unit:'ppb',range:[0,500]},
+  gas_level:   {icon:'fa-fire',             color:'#f59e0b', unit:'ppm',range:[0,100]},
+  air_quality: {icon:'fa-lungs',            color:'#5b9eff', unit:'AQI',range:[0,500]},
+  smoke:       {icon:'fa-smog',             color:'#a78bfa', unit:'ppm',range:[0,1000]},
+  motion:      {icon:'fa-person-running',   color:'#22d3ee', unit:'',   range:[0,1]},
+  rfid:        {icon:'fa-id-card',          color:'#a3e635', unit:'',   range:[0,1]},
+};
+const getSensor = k => SENSOR_META[k] || {icon:'fa-microchip', color:'#adb5c2', unit:'', range:[0,100]};
+const gaugePct = (k,v) => {
+  const [a,b] = getSensor(k).range;
+  return Math.min(100, Math.max(0, ((v-a)/(b-a))*100));
+};
 
-    function getGaugePercent(key, value) {
-      const meta = getSensorMeta(key);
-      const [min, max] = meta.range;
-      return Math.min(100, Math.max(0, ((value - min) / (max - min)) * 100));
-    }
+/* ---------- Helpers ---------- */
+const esc = s => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
+const fmtUp = s => {
+  if(!s && s !== 0) return '—';
+  s = parseInt(s) || 0;
+  if(s < 60) return `${s}s`;
+  const d = Math.floor(s/86400), h = Math.floor((s%86400)/3600), m = Math.floor((s%3600)/60);
+  if(d > 0) return `${d}h ${h}j`;
+  if(h > 0) return `${h}j ${m}m`;
+  return `${m}m`;
+};
+const fmtTime = iso => {
+  if(!iso) return '—';
+  try{
+    const d = new Date(String(iso).replace(' ','T') + '+07:00');
+    return d.toLocaleString('id-ID', {
+      day:'2-digit', month:'short', year:'numeric',
+      hour:'2-digit', minute:'2-digit', second:'2-digit',
+      timeZone:'Asia/Jakarta'
+    }) + ' WIB';
+  }catch(e){ return '—'; }
+};
+const fmtRelative = iso => {
+  if(!iso) return '—';
+  try{
+    const d = new Date(String(iso).replace(' ','T') + '+07:00');
+    const diff = (Date.now() - d.getTime()) / 1000;
+    if(diff < 60) return 'baru saja';
+    if(diff < 3600) return `${Math.floor(diff/60)} mnt lalu`;
+    if(diff < 86400) return `${Math.floor(diff/3600)} jam lalu`;
+    if(diff < 604800) return `${Math.floor(diff/86400)} hari lalu`;
+    return d.toLocaleDateString('id-ID', {day:'2-digit', month:'short', timeZone:'Asia/Jakarta'});
+  }catch(e){ return '—'; }
+};
 
-    function formatUptime(seconds) {
-      if (!seconds && seconds !== 0) return '-';
-      seconds = parseInt(seconds) || 0;
-      if (seconds < 60) return `${seconds}s`;
-      const d = Math.floor(seconds / 86400);
-      const h = Math.floor((seconds % 86400) / 3600);
-      const m = Math.floor((seconds % 3600) / 60);
-      if (d > 0) return `${d}h ${h}j ${m}m`;
-      if (h > 0) return `${h}j ${m}m`;
-      return `${m}m`;
-    }
+function toast(msg){
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transition = 'opacity .3s';
+    setTimeout(() => t.remove(), 300);
+  }, 1800);
+}
 
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = String(str ?? '');
-      return div.innerHTML;
-    }
+/* ---------- Modal ---------- */
+function openModal(id){
+  const el = document.getElementById(id);
+  if(el){ el.classList.add('open'); document.body.style.overflow = 'hidden'; }
+}
+function closeModal(id){
+  const el = document.getElementById(id);
+  if(el) el.classList.remove('open');
+  if(!document.querySelector('.modal.open')) document.body.style.overflow = '';
+}
+document.querySelectorAll('.modal').forEach(m => {
+  m.addEventListener('click', e => { if(e.target === m) closeModal(m.id); });
+});
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') document.querySelectorAll('.modal.open').forEach(m => closeModal(m.id));
+});
 
-    // Theme
-    (function() {
-      const savedTheme = localStorage.getItem('nexus-theme') || 'dark';
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    })();
+/* ---------- Theme ---------- */
+(function initTheme(){
+  const t = localStorage.getItem('nexus-theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+  document.querySelector('meta[name="theme-color"]').content = t === 'light' ? '#f8fafc' : '#1a1d23';
+  updateThemeIcon();
+})();
+function toggleTheme(){
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('nexus-theme', next);
+  document.querySelector('meta[name="theme-color"]').content = next === 'light' ? '#f8fafc' : '#1a1d23';
+  updateThemeIcon();
+}
+function updateThemeIcon(){
+  const i = document.getElementById('themeIcon');
+  if(i) i.className = document.documentElement.getAttribute('data-theme') === 'light'
+    ? 'fa-solid fa-sun'
+    : 'fa-solid fa-moon';
+}
 
-    // Back navigation
-    function setupBackNavigation() {
-      const btnBack = document.getElementById('btnBack');
-      const backLabel = document.getElementById('backLabel');
-      if (!btnBack) return;
+/* ---------- Back navigation ---------- */
+(function setupBack(){
+  const btn = document.getElementById('btnBack');
+  let back = '/mobile';
+  try{
+    const stored = sessionStorage.getItem('nexus_back_url');
+    if(stored && stored.startsWith('/')) back = stored;
+  }catch(e){}
+  btn.onclick = () => {
+    try{ sessionStorage.removeItem('nexus_back_url'); }catch(e){}
+    window.location.href = back;
+  };
+})();
 
-      const storedBackUrl = sessionStorage.getItem('nexus_back_url');
-      const referrer = document.referrer;
-      const currentOrigin = window.location.origin;
+/* ---------- Export ---------- */
+document.getElementById('btnExport').onclick = () => {
+  window.location.href = `/api/v1/devices/${encodeURIComponent(deviceId)}/export?format=csv&hours=24`;
+};
 
-      let backUrl = '/#dashboard';
-      let backLabelText = 'Kembali';
+/* ---------- Render: status ---------- */
+function renderStatus(device){
+  const bar = document.getElementById('statusBar');
+  const pulse = document.getElementById('statusPulse');
+  const label = document.getElementById('statusLabel');
+  const sub = document.getElementById('statusSub');
+  const live = document.getElementById('liveBadge');
 
-      if (storedBackUrl && storedBackUrl.startsWith('/')) {
-        backUrl = storedBackUrl;
-      } else if (referrer && referrer.startsWith(currentOrigin)) {
-        backUrl = referrer.replace(currentOrigin, '');
-      }
+  let statusClass = device.status || 'offline';
+  let statusText = statusClass.toUpperCase();
+  let subText = '';
+  let barClass = statusClass === 'online' ? 'ok' : 'crit';
 
-      if (backUrl.includes('/alerts') || backUrl.includes('#alerts')) backLabelText = 'Ke Alert';
-      else if (backUrl.includes('#devices')) backLabelText = 'Ke Perangkat';
-      else if (backUrl.includes('#attendance')) backLabelText = 'Ke Absensi';
-      else if (backUrl.includes('#map')) backLabelText = 'Ke Peta';
-      else if (backUrl.includes('#graph')) backLabelText = 'Ke Analitik';
-      else if (backUrl === '/#dashboard' || backUrl === '/') backLabelText = 'Ke Dashboard';
+  if(device.status === 'online'){
+    subText = `Aktif ${fmtRelative(device.last_seen)}`;
+  } else {
+    subText = device.last_seen
+      ? `Terakhir aktif ${fmtRelative(device.last_seen)}`
+      : 'Belum pernah aktif';
+  }
 
-      backLabel.textContent = backLabelText;
-      btnBack.addEventListener('click', () => {
-        sessionStorage.removeItem('nexus_back_url');
-        window.location.href = backUrl;
-      });
-    }
-    setupBackNavigation();
+  if(device.active_alerts && device.active_alerts.length > 0){
+    const top = device.active_alerts[0].severity;
+    statusClass = top;
+    if(top === 'danger'){ statusText = 'BAHAYA'; barClass = 'crit'; }
+    else if(top === 'warning'){ statusText = 'PERINGATAN'; barClass = 'warn'; }
+    else if(top === 'info'){ statusText = 'INFO'; barClass = 'info'; }
+    subText = `${device.active_alerts.length} alert • ${subText}`;
+  }
 
-    // Regenerate key
-    document.getElementById('btnRegenerateKey').addEventListener('click', async () => {
-      if (!confirm(`Regenerate API key untuk "${deviceId}"?\n\nKey lama tidak akan berfungsi lagi.`)) return;
-      try {
-        const res = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}/regenerate-key`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': CSRF_TOKEN },
-        });
-        const data = await res.json();
-        if (data.success) {
-          showNewKeyModal(data.api_key);
-        } else {
-          alert('Gagal: ' + (data.error || 'Unknown error'));
-        }
-      } catch (e) {
-        alert('Error: ' + e.message);
-      }
-    });
+  bar.className = 'status-bar ' + barClass;
+  pulse.className = 'status-pulse ' + statusClass;
+  label.textContent = statusText;
+  sub.textContent = subText;
+  live.style.display = device.status === 'online' ? 'inline-flex' : 'none';
+}
 
-    function showNewKeyModal(newKey) {
-      const modal = document.createElement('div');
-      modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;';
-      modal.innerHTML = `
-        <div style="background:var(--surface);border:1px solid var(--hairline);border-radius:20px;padding:26px;max-width:480px;width:100%;box-shadow:0 30px 70px rgba(0,0,0,.5);">
-          <h3 style="margin-bottom:12px;font-size:18px;font-weight:800;">API Key Baru</h3>
-          <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;">Simpan key ini - hanya muncul sekali:</p>
-          <div style="background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;padding:13px;font-family:var(--mono);font-size:11.5px;color:var(--text);word-break:break-all;margin-bottom:16px;">${escapeHtml(newKey)}</div>
-          <div style="display:flex;gap:8px;">
-            <button id="copyNewKey" class="back-btn primary" style="flex:1;justify-content:center;">Copy</button>
-            <button id="closeNewKey" class="back-btn" style="flex:1;justify-content:center;">Tutup</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(modal);
+/* ---------- Render: alerts ---------- */
+function renderAlerts(alerts){
+  const body = document.getElementById('alertBody');
+  const count = document.getElementById('alertCount');
 
-      modal.querySelector('#copyNewKey').addEventListener('click', () => {
-        navigator.clipboard.writeText(newKey).then(() => {
-          modal.querySelector('#copyNewKey').textContent = 'Tersalin!';
-          setTimeout(() => modal.querySelector('#copyNewKey').textContent = 'Copy', 1500);
-        });
-      });
-      modal.querySelector('#closeNewKey').addEventListener('click', () => modal.remove());
-    }
+  if(!alerts || !alerts.length){
+    count.textContent = '';
+    body.innerHTML = `
+      <div class="empty">
+        <i class="fa-solid fa-circle-check" style="color:var(--ok);opacity:1;"></i>
+        <div class="empty-title" style="color:var(--ok);">Semua Normal</div>
+        <div class="empty-sub">Tidak ada alert aktif</div>
+      </div>`;
+    return;
+  }
 
-    // Export
-    document.getElementById('btnExport').addEventListener('click', () => {
-      window.location.href = `/api/v1/devices/${encodeURIComponent(deviceId)}/export?format=csv&hours=24`;
-    });
+  count.textContent = `${alerts.length} alert`;
+  body.innerHTML = alerts.map(a => {
+    const sev = a.severity || 'info';
+    return `<div class="alert-item">
+      <div class="alert-head">
+        <span class="alert-sev ${sev}">${esc(sev)}</span>
+        <span class="alert-head-type">${esc(a.alert_type || '')}</span>
+      </div>
+      <div class="alert-msg">${esc(a.message || '—')}</div>
+      <div class="alert-meta">
+        <span>${fmtTime(a.created_at)}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
 
-    // Active alerts
-    function renderActiveAlerts(alerts) {
-      const container = document.getElementById('activeAlertsContent');
-      if (!container) return;
+/* ---------- Render: info ---------- */
+function renderInfo(device){
+  const wifi = device.latest_data?.wifi_ssid || null;
+  const uptime = fmtUp(device.latest_data?.uptime_seconds || 0);
+  const interval = fmtUp(device.expected_interval || 60);
+  const timeout = fmtUp(device.offline_timeout || 900);
+  const lastSeen = device.last_seen ? fmtTime(device.last_seen) : null;
 
-      if (!alerts || alerts.length === 0) {
-        container.innerHTML = `
-          <div class="empty-state" style="padding:30px;">
-            <i class="fa-solid fa-circle-check" style="color:var(--accent-ok);"></i>
-            <h3 style="color:var(--accent-ok);">Semua Normal</h3>
-            <p>Tidak ada alert aktif untuk perangkat ini</p>
-          </div>
-        `;
-        return;
-      }
+  const rows = [
+    {label:'ID Perangkat', value:device.device_id, mono:true},
+    {label:'Tipe', value:device.device_type || 'Universal'},
+    {label:'Lokasi', value:device.location || null, muted:!device.location, emptyText:'Belum diatur'},
+    {label:'WiFi SSID', value:wifi, mono:true, muted:!wifi, emptyText:'—'},
+    {label:'Uptime', value:uptime, mono:true},
+    {label:'Interval Kirim', value:interval, mono:true},
+    {label:'Offline Timeout', value:timeout, mono:true},
+    {label:'Terakhir Aktif', value:lastSeen, muted:!lastSeen, emptyText:'Belum pernah'},
+  ];
 
-      const severityIcon = { danger: 'fa-fire', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
-      const severityColorVar = { danger: '--accent-crit', warning: '--accent-warn', info: '--accent-info' };
+  if(device.description){
+    rows.push({label:'Deskripsi', value:device.description});
+  }
 
-      let html = '<div style="display:flex;flex-direction:column;gap:10px;">';
-      alerts.forEach(a => {
-        const varName = severityColorVar[a.severity] || '--accent-info';
-        const icon = severityIcon[a.severity] || 'fa-bell';
-        html += `
-          <div style="background:var(${varName}-bg);border:1px solid var(${varName});border-left:3px solid var(${varName});border-radius:11px;padding:12px 14px;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-              <i class="fa-solid ${icon}" style="color:var(${varName});font-size:12px;"></i>
-              <span style="font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(${varName});">${escapeHtml(a.severity)}</span>
-              <span style="font-size:10px;color:var(--text-3);font-family:var(--mono);">${escapeHtml(a.alert_type)}</span>
+  document.getElementById('infoBody').innerHTML = `
+    <div class="info-list">
+      ${rows.map(r => {
+        const cls = ['info-value', r.mono ? 'mono' : '', r.muted ? 'muted' : ''].filter(Boolean).join(' ');
+        const val = r.value ?? (r.emptyText || '—');
+        return `<div class="info-row">
+          <span class="info-label">${esc(r.label)}</span>
+          <span class="${cls}">${esc(val)}</span>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+/* ---------- Render: sensors ---------- */
+function renderSensors(device){
+  const body = document.getElementById('sensorBody');
+  const meta = document.getElementById('sensorMeta');
+
+  if(!device.latest_data?.data){
+    meta.textContent = '';
+    body.innerHTML = `
+      <div class="empty">
+        <i class="fa-solid fa-satellite-dish"></i>
+        <div class="empty-title">Belum Ada Data</div>
+        <div class="empty-sub">Perangkat belum mengirimkan data sensor</div>
+      </div>`;
+    return;
+  }
+
+  const sd = device.latest_data.data;
+  const entries = Object.entries(sd).filter(([k]) => k !== 'uid' && k !== 'card_id');
+
+  meta.textContent = device.latest_data.sensor_type || '';
+
+  if(!entries.length){
+    body.innerHTML = '<div class="empty"><div class="empty-title">Tidak ada data sensor</div></div>';
+    return;
+  }
+
+  body.innerHTML = `
+    <div class="sensor-grid">
+      ${entries.map(([k, v]) => {
+        const m = getSensor(k);
+        const label = k.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+        const pct = typeof v === 'number' ? gaugePct(k, v) : 0;
+        return `<div class="sensor-card">
+          <div class="sensor-head">
+            <div class="sensor-icon" style="background:${m.color}22;color:${m.color};">
+              <i class="fa-solid ${m.icon}"></i>
             </div>
-            <div style="font-size:12.5px;color:var(--text-2);font-weight:500;">${escapeHtml(a.message)}</div>
-            <div style="font-size:10px;color:var(--text-3);margin-top:4px;font-family:var(--mono);">${escapeHtml(String(a.created_at))}</div>
+            <div class="sensor-name">${esc(label)}</div>
           </div>
-        `;
-      });
-      html += '</div>';
-      container.innerHTML = html;
+          <div class="sensor-value" style="color:${m.color};">${esc(String(v))}</div>
+          <div class="sensor-unit">${esc(m.unit || '\u00A0')}</div>
+          <div class="sensor-gauge">
+            <div class="sensor-gauge-fill" style="width:${pct}%;background:${m.color};color:${m.color};"></div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+}
+
+/* ---------- Load ---------- */
+async function loadDetail(){
+  try{
+    const r = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}`);
+    const d = await r.json();
+
+    if(!d.success){
+      document.getElementById('statusLabel').textContent = 'Gagal memuat';
+      document.getElementById('statusSub').textContent = d.error || 'Perangkat tidak ditemukan';
+      return;
     }
 
-    // Load device detail
-    async function loadDeviceDetail() {
-      try {
-        const response = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}`);
-        const data = await response.json();
-        if (!data.success) return;
+    const dev = d.device;
+    document.getElementById('deviceName').textContent = dev.device_name || dev.device_id;
+    document.getElementById('deviceIdDisplay').textContent = dev.device_id;
 
-        const device = data.device;
-        document.getElementById('deviceName').textContent = device.device_name;
-        document.getElementById('deviceIdDisplay').textContent = device.device_id;
-        document.getElementById('lastUpdate').textContent = device.last_seen
-          ? new Date(String(device.last_seen).replace(' ', 'T') + '+07:00').toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' WIB'
-          : 'Belum pernah aktif';
+    renderStatus(dev);
+    renderAlerts(dev.active_alerts);
+    renderInfo(dev);
+    renderSensors(dev);
 
-        const liveInd = document.getElementById('liveIndicator');
-        liveInd.style.display = device.status === 'online' ? 'inline-flex' : 'none';
+  }catch(e){
+    console.error('[DeviceDetail]', e);
+    document.getElementById('infoBody').innerHTML = `
+      <div class="empty">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div class="empty-title">Koneksi Gagal</div>
+        <div class="empty-sub">Tidak dapat memuat data perangkat</div>
+      </div>`;
+  }
+}
 
-        let statusClass = device.status;
-        let statusLabel = device.status;
-        if (device.active_alerts && device.active_alerts.length > 0) {
-          const topSev = device.active_alerts[0].severity;
-          if (topSev === 'danger') { statusClass = 'danger'; statusLabel = 'BAHAYA'; }
-          else if (topSev === 'warning') { statusClass = 'warning'; statusLabel = 'PERINGATAN'; }
-        }
-
-        const statusHtml = `<span class="status-badge ${statusClass}"><span class="status-dot"></span>${escapeHtml(statusLabel)}</span>`;
-        const wifiSsid = device.latest_data ? (device.latest_data.wifi_ssid || '-') : '-';
-        const uptimeDisplay = formatUptime(device.latest_data ? (device.latest_data.uptime_seconds || 0) : 0);
-
-        document.getElementById('infoContent').innerHTML = `
-          <div class="info-grid">
-            <div class="info-item"><label>ID Perangkat</label><span class="value mono">${escapeHtml(device.device_id)}</span></div>
-            <div class="info-item"><label>Tipe</label><span class="value">${escapeHtml(device.device_type || 'Universal')}</span></div>
-            <div class="info-item"><label>Lokasi</label><span class="value">${escapeHtml(device.location || 'Belum diatur')}</span></div>
-            <div class="info-item"><label>Status</label>${statusHtml}</div>
-            <div class="info-item"><label>WiFi SSID</label><span class="value">${escapeHtml(wifiSsid)}</span></div>
-            <div class="info-item"><label>Uptime</label><span class="value">${uptimeDisplay}</span></div>
-            <div class="info-item"><label>Interval Kirim</label><span class="value">${formatUptime(device.expected_interval || 60)}</span></div>
-            <div class="info-item"><label>Offline Timeout</label><span class="value">${formatUptime(device.offline_timeout || 900)}</span></div>
-            <div class="info-item"><label>Terakhir Aktif</label><span class="value">${escapeHtml(String(device.last_seen || 'Belum pernah'))}</span></div>
-          </div>
-        `;
-
-        renderActiveAlerts(device.active_alerts);
-
-        if (device.latest_data && device.latest_data.data) {
-          const sensorData = device.latest_data.data;
-          let sensorHtml = '<div class="sensor-grid">';
-          for (const [key, value] of Object.entries(sensorData)) {
-            if (key === 'uid') continue;
-            const meta = getSensorMeta(key);
-            const displayName = key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
-            const gaugePercent = getGaugePercent(key, value);
-            sensorHtml += `
-              <div class="sensor-card">
-                <div class="sensor-icon" style="background:${meta.color}1f;color:${meta.color};">
-                  <i class="fa-solid ${meta.icon}"></i>
-                </div>
-                <div class="sensor-name">${escapeHtml(displayName)}</div>
-                <div class="sensor-value" style="color:${meta.color};">${escapeHtml(String(value))}</div>
-                <div class="sensor-unit">${escapeHtml(meta.unit)}</div>
-                <div class="sensor-gauge">
-                  <div class="sensor-gauge-fill" style="width:${gaugePercent}%;background:${meta.color};"></div>
-                </div>
-              </div>`;
-          }
-          sensorHtml += '</div>';
-          document.getElementById('sensorContent').innerHTML = sensorHtml;
-          document.getElementById('sensorMeta').textContent = `${device.latest_data.sensor_type || 'Unknown'} • ${device.latest_data.timestamp}`;
-        } else {
-          document.getElementById('sensorContent').innerHTML = `<div class="empty-state"><i class="fa-solid fa-satellite-dish"></i><h3>Belum Ada Data</h3><p>Perangkat belum mengirimkan data sensor</p></div>`;
-        }
-      } catch (error) {
-        document.getElementById('infoContent').innerHTML = `<div class="empty-state"><i class="fa-solid fa-triangle-exclamation"></i><h3>Koneksi Gagal</h3><p>Tidak dapat memuat data perangkat.</p></div>`;
-      }
+/* ---------- Regenerate key ---------- */
+async function regenKey(){
+  if(!confirm(`Regenerate API Key untuk "${deviceId}"?\n\nKey lama tidak akan berfungsi lagi.`)) return;
+  try{
+    const r = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}/regenerate-key`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json', 'X-CSRFToken': CSRF}
+    });
+    const d = await r.json();
+    if(d.success){
+      document.getElementById('keyValue').textContent = d.api_key;
+      openModal('m-key');
+    } else {
+      alert('Gagal: ' + (d.error || ''));
     }
+  }catch(e){ alert('Error: ' + e.message); }
+}
 
-    loadDeviceDetail();
-    setInterval(loadDeviceDetail, 10000);
-  </script>
+function copyKey(){
+  const key = document.getElementById('keyValue').textContent;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(key).then(() => toast('API Key disalin'));
+  } else {
+    alert('Copy manual:\n' + key);
+  }
+}
+
+/* ---------- Delete ---------- */
+function openDelete(){
+  document.getElementById('delDesc').textContent =
+    `Perangkat "${document.getElementById('deviceName').textContent}" akan dihapus permanen beserta semua data sensornya. Tindakan ini tidak dapat dibatalkan.`;
+  document.getElementById('delLabel').innerHTML =
+    `Ketik <code>${esc(deviceId)}</code> untuk konfirmasi`;
+  const input = document.getElementById('delInput');
+  input.value = '';
+  input.placeholder = `Ketik ${deviceId}...`;
+  document.getElementById('delBtn').disabled = true;
+  openModal('m-del');
+  setTimeout(() => input.focus(), 200);
+}
+
+document.getElementById('delInput').addEventListener('input', e => {
+  document.getElementById('delBtn').disabled = e.target.value.trim() !== deviceId;
+});
+
+async function confirmDelete(){
+  const input = document.getElementById('delInput').value.trim();
+  if(input !== deviceId){ alert('Konfirmasi salah'); return; }
+
+  const btn = document.getElementById('delBtn');
+  btn.disabled = true;
+  btn.textContent = 'Menghapus...';
+
+  try{
+    const r = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}`, {
+      method: 'DELETE',
+      headers: {'X-CSRFToken': CSRF}
+    });
+    const d = await r.json();
+    if(d.success){
+      closeModal('m-del');
+      try{ sessionStorage.removeItem('nexus_back_url'); }catch(e){}
+      toast('Perangkat dihapus');
+      setTimeout(() => window.location.href = '/mobile', 500);
+    } else {
+      alert('Gagal: ' + (d.error || ''));
+      btn.disabled = false;
+      btn.textContent = 'Hapus';
+    }
+  }catch(e){
+    alert('Error: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = 'Hapus';
+  }
+}
+
+/* ---------- Init ---------- */
+loadDetail();
+setInterval(loadDetail, 10000);
+</script>
 </body>
 </html>
