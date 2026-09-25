@@ -15,7 +15,6 @@ from app.alerts import create_offline_alert, clear_offline_alert
 
 logger = logging.getLogger('nexus')
 
-# ✅ FIX #5: shutdown_event dibuat fresh setiap start, tidak global mutable
 shutdown_event = threading.Event()
 _bg_lock_file = None
 _bg_lock_acquired = False
@@ -32,25 +31,41 @@ def _log_status_change(conn, device_id, status, reason=''):
         logger.error(f"Failed to log status change: {e}")
 
 
+def _compute_offline_timeout(device, config):
+    """Hitung offline timeout efektif.
+
+    Prioritas:
+      1. offline_timeout manual (jika di-set user)
+      2. auto = 2x expected_interval (auto-detected)
+      3. fallback: config.OFFLINE_TIMEOUT
+    """
+    manual = device['offline_timeout']
+    if manual is not None and manual > 0:
+        return manual
+
+    interval = device['expected_interval']
+    if interval is not None and interval > 0:
+        return max(10, interval * 2)
+
+    return config.OFFLINE_TIMEOUT
+
+
 def check_device_status():
     config = get_config()
     logger.info(f"Status checker started (interval={config.CHECK_INTERVAL}s, "
-                f"default_timeout={config.OFFLINE_TIMEOUT}s)")
+                f"fallback_timeout={config.OFFLINE_TIMEOUT}s)")
 
     while not shutdown_event.is_set():
         try:
             current_time = get_wib_time()
-            # Alert dibuat SETELAH koneksi ini commit & tutup. Sebelumnya
-            # create_offline_alert() membuka koneksi kedua saat koneksi ini masih
-            # menahan write-lock -> "database is locked" setelah 30 detik, dan alert
-            # offline tidak pernah terbuat.
             to_offline = []   # (device_id, severity)
             to_online = []    # device_id
 
             with get_db_context() as conn:
                 devices = conn.execute('''
                     SELECT device_id, last_seen, status,
-                           offline_timeout, offline_alert_severity
+                           offline_timeout, expected_interval,
+                           offline_alert_severity
                     FROM devices
                 ''').fetchall()
 
@@ -59,7 +74,7 @@ def check_device_status():
                     last_seen = device['last_seen']
                     current_status = device['status']
 
-                    timeout = device['offline_timeout'] or config.OFFLINE_TIMEOUT
+                    timeout = _compute_offline_timeout(device, config)
                     severity = device['offline_alert_severity'] or config.DEFAULT_OFFLINE_SEVERITY
 
                     if not last_seen:
@@ -80,7 +95,7 @@ def check_device_status():
                                      ('offline', device_id))
                         _log_status_change(conn, device_id, 'offline',
                                            f'timeout_{int(time_diff)}s')
-                        logger.info(f"Device {device_id} OFFLINE")
+                        logger.info(f"Device {device_id} OFFLINE (timeout={timeout}s)")
                         to_offline.append((device_id, severity))
 
                     elif time_diff <= timeout and current_status == 'offline':
@@ -91,9 +106,6 @@ def check_device_status():
                         to_online.append(device_id)
 
                     elif current_status == 'offline' and time_diff > timeout:
-                        # Self-healing: device sudah offline tapi alert untuk outage ini
-                        # belum pernah dibuat (mis. gagal karena bug lock sebelumnya).
-                        # Tidak membuat ulang alert yang sudah di-ack pada outage yang sama.
                         raised = conn.execute('''
                             SELECT 1 FROM alert_history
                             WHERE device_id = ? AND alert_type = 'offline'
@@ -106,7 +118,6 @@ def check_device_status():
 
                 conn.commit()
 
-            # Koneksi sudah ditutup -> aman menulis alert lewat koneksi lain.
             for device_id, severity in to_offline:
                 try:
                     create_offline_alert(device_id, severity)
@@ -299,12 +310,10 @@ def _acquire_background_lock():
             return False
 
 
-# ✅ FIX #5: reset shutdown_event sebelum start, dan guard double-start
 def start_background_tasks():
     global shutdown_event
 
     with _bg_lock:
-        # Reset event setiap start — fix untuk reload Gunicorn
         shutdown_event = threading.Event()
 
     if not _acquire_background_lock():

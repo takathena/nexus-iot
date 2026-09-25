@@ -344,7 +344,14 @@ const state = {
             });
             const top = events.slice(0, 12);
             if (top.length === 0) { container.innerHTML = `<div class="activity-empty">Belum ada aktivitas</div>`; return; }
-            const iconMap = { danger: 'fa-fire', warning: 'fa-triangle-exclamation', info: 'fa-circle-info', online: 'fa-circle-check', offline: 'fa-power-off' };
+            const iconMap = {
+                danger: 'fa-fire',
+                warning: 'fa-triangle-exclamation',
+                info: 'fa-circle-info',
+                online: 'fa-circle-check',
+                offline: 'fa-power-off',
+                healthy: 'fa-circle-check'
+            };
             container.innerHTML = top.map(ev => {
                 const sev = ev.severity || 'info';
                 const icon = iconMap[sev] || 'fa-bell';
@@ -632,8 +639,10 @@ const state = {
             const rows = res.data.report || [];
             if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><h3>Belum Ada Laporan</h3></div></td></tr>`; return; }
             tbody.innerHTML = rows.map(r => {
-                const ci = r.check_in ? r.check_in.split(' ')[1] : '-';
-                const co = (r.check_out && r.check_out !== r.check_in) ? r.check_out.split(' ')[1] : '-';
+            // Strip microseconds: "08:16:33.149472" → "08:16:33"
+            const cleanTime = (s) => s ? String(s).split(' ')[1]?.split('.')[0] || '-' : '-';
+            const ci = cleanTime(r.check_in);
+            const co = (r.check_out && r.check_out !== r.check_in) ? cleanTime(r.check_out) : '-';
                 return `<tr><td><span style="font-family:var(--mono);font-size:12px;">${escapeHtml(r.day)}</span></td><td>${escapeHtml(r.nama)}</td><td><span class="device-id">${escapeHtml(r.uid)}</span></td><td><span style="color:var(--accent-ok);font-weight:600;font-family:var(--mono);font-size:12px;">${ci}</span></td><td><span style="color:var(--accent-warn);font-weight:600;font-family:var(--mono);font-size:12px;">${co}</span></td></tr>`;
             }).join('');
         } else {
@@ -738,8 +747,11 @@ const state = {
     function openAddDeviceModal() {
         if (window.populateAlertRules) window.populateAlertRules('add', null);
         const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
-        setVal('addDeviceId', ''); setVal('addDeviceName', ''); setVal('addDeviceLocation', '');
-        setVal('addDeviceInterval', '60'); setVal('addDeviceOfflineTimeout', '');
+        setVal('addDeviceId', '');
+        setVal('addDeviceName', '');
+        setVal('addDeviceLocation', '');
+        // Interval auto-detect — tidak ada input
+        setVal('addDeviceOfflineTimeout', '');
         openModal('addDeviceModal');
     }
     async function addDevice() {
@@ -748,23 +760,29 @@ const state = {
         const deviceName = nameEl ? nameEl.value.trim() : '';
         if (!deviceId || !deviceName) { showToast('ID dan Nama wajib', 'error'); return; }
         const alertRules = window.collectAlertRules ? window.collectAlertRules('add') : null;
+
+        // expected_interval TIDAK dikirim — server akan auto-detect dari data
         const payload = {
-            device_id: deviceId, device_name: deviceName,
+            device_id: deviceId,
+            device_name: deviceName,
             device_type: ($('addDeviceType') || {}).value,
             location: (($('addDeviceLocation') || {}).value || '').trim(),
-            expected_interval: parseInt(($('addDeviceInterval') || {}).value) || 60,
         };
+
+        // Offline timeout OPSIONAL — kalau kosong, server hitung 2x interval
         const offlineTimeout = ($('addDeviceOfflineTimeout') || {}).value;
         if (offlineTimeout) payload.offline_timeout = parseInt(offlineTimeout);
+
         if (alertRules) payload.alert_rules = alertRules;
+
         const result = await API.addDevice(payload);
         if (result.success) {
             closeModal('addDeviceModal');
             const display = $('apiKeyDisplay'); if (display) display.textContent = result.data.device.api_key;
             openModal('apiKeyModal');
-            if (idEl) idEl.value = ''; if (nameEl) nameEl.value = '';
+            if (idEl) idEl.value = '';
+            if (nameEl) nameEl.value = '';
             const locEl = $('addDeviceLocation'); if (locEl) locEl.value = '';
-            const intEl = $('addDeviceInterval'); if (intEl) intEl.value = '60';
             const toEl = $('addDeviceOfflineTimeout'); if (toEl) toEl.value = '';
             if (window.populateAlertRules) window.populateAlertRules('add', null);
             loadDashboard();
@@ -783,8 +801,17 @@ const state = {
         const device = result.data.device;
         const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
         setVal('editConfigDeviceId', deviceId);
-        setVal('editDeviceInterval', device.expected_interval || 60);
-        setVal('editDeviceOfflineTimeout', device.offline_timeout || 900);
+
+        // Display interval (read-only, auto-detected)
+        const intervalDisplay = $('editDeviceIntervalDisplay');
+        if (intervalDisplay) {
+            const interval = device.expected_interval;
+            intervalDisplay.textContent = interval ? `${interval} detik` : 'Menunggu data...';
+        }
+
+        // Offline timeout: kosong kalau NULL (auto mode)
+        setVal('editDeviceOfflineTimeout', device.offline_timeout || '');
+
         if (window.populateAlertRules) window.populateAlertRules('edit', device.alert_rules);
         openModal('editDeviceConfigModal');
     }
@@ -792,11 +819,20 @@ const state = {
         const deviceId = ($('editConfigDeviceId') || {}).value;
         if (!deviceId) return;
         const alertRules = window.collectAlertRules ? window.collectAlertRules('edit') : null;
+
+        // expected_interval TIDAK dikirim — server maintain auto-detected value
         const payload = {
-            expected_interval: parseInt(($('editDeviceInterval') || {}).value) || 60,
-            offline_timeout: parseInt(($('editDeviceOfflineTimeout') || {}).value) || 900,
             alert_rules: alertRules,
         };
+
+        // Offline timeout: kalau kosong, kirim 0 untuk reset ke auto
+        const offlineTimeout = ($('editDeviceOfflineTimeout') || {}).value;
+        if (offlineTimeout) {
+            payload.offline_timeout = parseInt(offlineTimeout);
+        } else {
+            payload.offline_timeout = null;  // reset ke auto
+        }
+
         const result = await API.updateDevice(deviceId, payload);
         if (result.success) { closeModal('editDeviceConfigModal'); showToast('Tersimpan', 'success'); loadDashboard(); }
         else showToast(result.error || 'Gagal', 'error');

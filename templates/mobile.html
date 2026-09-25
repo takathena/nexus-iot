@@ -2649,8 +2649,9 @@ async function loadAttend(){
       const rows = d.success ? (d.report || []) : [];
       if(!rows.length){ c.innerHTML = '<div class="empty"><i class="fa-solid fa-clipboard-list"></i><div class="empty-title">Belum ada laporan</div></div>'; return; }
       c.innerHTML = rows.map(r => {
-        const ci = r.check_in ? r.check_in.split(' ')[1] : '-';
-        const co = (r.check_out && r.check_out !== r.check_in) ? r.check_out.split(' ')[1] : '-';
+      const cleanTime = (s) => s ? String(s).split(' ')[1]?.split('.')[0] || '-' : '-';
+      const ci = cleanTime(r.check_in);
+      const co = (r.check_out && r.check_out !== r.check_in) ? cleanTime(r.check_out) : '-';
         let duration = '-';
         if(r.check_in && r.check_out && r.check_in !== r.check_out){
           try{

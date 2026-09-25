@@ -447,10 +447,22 @@
         const bar = $('bulkActionBar');
         if (!bar) return;
         const activeAlerts = state.filtered.filter(a => a.is_still_active === 1 && a.severity !== 'healthy' && getAckId(a) !== null);
-        if (activeAlerts.length === 0) { bar.style.display = 'none'; return; }
+        if (activeAlerts.length === 0) {
+            bar.style.display = 'none';
+            return;
+        }
         bar.style.display = 'flex';
+
         const countEl = $('selectedCount');
-        if (countEl) countEl.textContent = `${state.selectedIds.size} dipilih`;
+        const counterEl = $('selectedCounter');
+        const n = state.selectedIds.size;
+        if (countEl) countEl.textContent = n;
+        if (counterEl) counterEl.classList.toggle('has-selection', n > 0);
+
+        // Disable tombol kalau belum ada yang dipilih
+        const bulkBtn = $('bulkAckBtn');
+        if (bulkBtn) bulkBtn.disabled = n === 0;
+
         const selectAll = $('selectAllCheckbox');
         if (selectAll) {
             const allIds = activeAlerts.map(a => getAckId(a));

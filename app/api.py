@@ -30,6 +30,22 @@ logger = logging.getLogger('nexus')
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
 
+# ============================================================
+# Helper: strip microseconds dari timestamp string
+#   08:16:33.149472  →  08:16:33
+# ============================================================
+def _clean_timestamp(ts):
+    """Normalisasi timestamp: buang microsecond.
+
+    '2026-09-25 08:16:33.149472' → '2026-09-25 08:16:33'
+    '2026-09-25T08:16:33.149472' → '2026-09-25 08:16:33'
+    None / '' → None
+    """
+    if not ts:
+        return None
+    s = str(ts).strip().replace('T', ' ')
+    return s.split('.')[0]
+
 def validate_device_api_key(device_id, api_key):
     if not device_id or not api_key:
         return False
@@ -127,6 +143,7 @@ def receive_data():
             logger.warning(f"Invalid API key attempt: device={data['device_id']}")
             return jsonify({'success': False, 'error': 'Invalid device_id or api_key'}), 401
 
+        # ============ INSERT + AUTO-DETECT INTERVAL ============
         with get_db_context() as conn:
             conn.execute('''
                 INSERT INTO sensor_data
@@ -137,6 +154,50 @@ def receive_data():
                 json.dumps(data['data']), data.get('wifi_ssid', ''),
                 data.get('uptime_seconds', 0), get_wib_time()
             ))
+
+            # 🔥 AUTO-DETECT INTERVAL: hitung median delta dari 5 data terakhir
+            try:
+                recent = conn.execute('''
+                    SELECT timestamp FROM sensor_data
+                    WHERE device_id = ?
+                    ORDER BY timestamp DESC LIMIT 5
+                ''', (data['device_id'],)).fetchall()
+
+                if len(recent) >= 2:
+                    from app.utils import parse_datetime
+                    timestamps = []
+                    for r in recent:
+                        dt = parse_datetime(r['timestamp'])
+                        if dt:
+                            timestamps.append(dt)
+
+                    if len(timestamps) >= 2:
+                        deltas = []
+                        for i in range(len(timestamps) - 1):
+                            d = (timestamps[i] - timestamps[i+1]).total_seconds()
+                            if 1 < d < 86400:
+                                deltas.append(d)
+
+                        if deltas:
+                            deltas.sort()
+                            median = deltas[len(deltas) // 2]
+                            auto_int = max(10, min(86400, int(round(median))))
+
+                            cur = conn.execute(
+                                'SELECT expected_interval FROM devices WHERE device_id = ?',
+                                (data['device_id'],)
+                            ).fetchone()
+                            cur_int = cur['expected_interval'] if cur else None
+
+                            if cur_int != auto_int:
+                                conn.execute(
+                                    'UPDATE devices SET expected_interval = ? WHERE device_id = ?',
+                                    (auto_int, data['device_id'])
+                                )
+                                logger.info(f"Auto-detected interval for {data['device_id']}: {auto_int}s")
+            except Exception as e:
+                logger.debug(f"Auto-detect interval failed for {data['device_id']}: {e}")
+
             conn.commit()
 
         update_device_status(data['device_id'], 'online', request.remote_addr)
@@ -145,7 +206,6 @@ def receive_data():
             uid = data['data'].get('uid')
             if uid:
                 with get_db_context() as conn:
-                    # ✅ Debounce 30 detik untuk UID+device sama
                     cutoff = get_wib_time() - timedelta(seconds=30)
                     recent = conn.execute('''
                         SELECT id FROM attendance
@@ -159,10 +219,7 @@ def receive_data():
                             (uid, data['device_id'], get_wib_time())
                         )
                         conn.commit()
-                    else:
-                        logger.debug(f"Skip duplicate RFID tap: {uid} on {data['device_id']}")
 
-        # sensor_type 'heartbeat' hanya update last_seen, tidak ada alert
         if data['sensor_type'] != 'heartbeat':
             try:
                 check_and_create_alerts(data['device_id'], data['data'])
@@ -172,7 +229,7 @@ def receive_data():
         return jsonify({
             'success': True,
             'message': 'Data received',
-            'timestamp': get_wib_time().isoformat()
+            'timestamp': _clean_timestamp(get_wib_time().isoformat())
         }), 200
 
     except Exception as e:
@@ -266,16 +323,16 @@ def add_device():
         api_key = generate_api_key()
         api_key_hash = hash_api_key(api_key)
 
-        expected_interval = data.get('expected_interval', 60)
+        # expected_interval: NULL (auto-detect dari data yang masuk)
+        expected_interval = None
+
         offline_timeout = data.get('offline_timeout')
         device_type = (data.get('device_type') or '').strip()
 
-        if offline_timeout is None:
-            # ✅ Khusus device RFID: default offline timeout 24 jam
-            if 'rfid' in device_type.lower():
-                offline_timeout = 86400
-            else:
-                offline_timeout = max(300, expected_interval * 3)
+        # Khusus RFID: default 24 jam (tidak aktif kirim data, cuma tap)
+        # Selain itu: NULL = auto 2x interval (computed by background task)
+        if offline_timeout is None and 'rfid' in device_type.lower():
+            offline_timeout = 86400
 
         alert_rules_json = json.dumps(alert_rules) if alert_rules else None
         offline_severity = data.get('offline_alert_severity', 'danger')
@@ -369,7 +426,7 @@ def get_device_detail(device_id):
             'data': safe_json_loads(latest['data']),
             'wifi_ssid': latest['wifi_ssid'] or '',
             'uptime_seconds': latest['uptime_seconds'] or 0,
-            'timestamp': latest['timestamp'],
+            'timestamp': _clean_timestamp(latest['timestamp']),
         }
 
     device_info['active_alerts'] = [dict(a) for a in active_alerts]
@@ -399,7 +456,7 @@ def get_device_history(device_id):
         'data': safe_json_loads(item['data']),
         'wifi_ssid': item['wifi_ssid'] or '',
         'uptime_seconds': item['uptime_seconds'] or 0,
-        'timestamp': item['timestamp'],
+        'timestamp': _clean_timestamp(item['timestamp']),
     } for item in rows]
 
     return jsonify({'success': True, 'history': history, 'data_count': len(history)}), 200
@@ -438,6 +495,12 @@ def update_device(device_id):
             else:
                 alert_rules_json = device['alert_rules']
 
+            # Handle offline_timeout: None = auto (2x interval)
+            if 'offline_timeout' in data:
+                new_offline_timeout = data.get('offline_timeout')
+            else:
+                new_offline_timeout = device['offline_timeout']
+
             updates = {
                 'device_name': data.get('device_name', device['device_name']),
                 'device_type': data.get('device_type', device['device_type']),
@@ -445,7 +508,7 @@ def update_device(device_id):
                 'description': data.get('description', device['description']),
                 'latitude': data.get('latitude', device['latitude']),
                 'longitude': data.get('longitude', device['longitude']),
-                'offline_timeout': data.get('offline_timeout', device['offline_timeout']),
+                'offline_timeout': new_offline_timeout,
                 'expected_interval': data.get('expected_interval', device['expected_interval']),
                 'offline_alert_severity': data.get('offline_alert_severity', device['offline_alert_severity']),
                 'alert_rules': alert_rules_json,
@@ -691,7 +754,7 @@ def get_dashboard_data():
                 'latitude': row['latitude'] or 0,
                 'longitude': row['longitude'] or 0,
                 'status': row['status'],
-                'last_seen': row['last_seen'],
+                'last_seen': _clean_timestamp(row['last_seen']),
                 'last_ip': row['last_ip'] or '',
                 'firmware_version': row['firmware_version'] or '',
                 'offline_timeout': row['offline_timeout'] or 900,
@@ -699,12 +762,12 @@ def get_dashboard_data():
                 'offline_alert_severity': row['offline_alert_severity'] or 'danger',
                 'latest_wifi_ssid': row['latest_wifi_ssid'] or '',
                 'latest_uptime_seconds': row['latest_uptime_seconds'] or 0,
-                'latest_data_at': row['latest_data_at'],
+                'latest_data_at': _clean_timestamp(row['latest_data_at']),
                 'has_alert': has_alert,
                 'top_alert_severity': row['top_alert_severity'],
                 'top_alert_type': row['top_alert_type'],
                 'top_alert_message': row['top_alert_message'],
-                'top_alert_created_at': row['top_alert_created_at'],
+                'top_alert_created_at': _clean_timestamp(row['top_alert_created_at']),
                 'total_active_alerts': row['total_active_alerts'] or 0,
             })
 
@@ -735,6 +798,9 @@ def get_alerts():
     device_id = request.args.get('device_id')
     limit = min(request.args.get('limit', 100, type=int), 500)
     alerts = get_active_alerts(limit=limit, severity=severity, device_id=device_id)
+    for a in alerts:
+        a['created_at'] = _clean_timestamp(a.get('created_at'))
+        a['updated_at'] = _clean_timestamp(a.get('updated_at'))
     return jsonify({'success': True, 'alerts': alerts, 'count': len(alerts)}), 200
 
 
@@ -744,7 +810,10 @@ def get_alerts():
 def get_alerts_history():
     device_id = request.args.get('device_id')
     limit = min(request.args.get('limit', 200, type=int), 1000)
-    return jsonify({'success': True, 'history': get_alert_history(device_id, limit)}), 200
+    history = get_alert_history(device_id, limit)
+    for h in history:
+        h['created_at'] = _clean_timestamp(h.get('created_at'))
+    return jsonify({'success': True, 'history': history}), 200
 
 
 @api_bp.route('/alerts/stats', methods=['GET'])
@@ -798,9 +867,6 @@ def get_all_alerts():
     limit = min(request.args.get('limit', 200, type=int), 1000)
 
     with get_db_context() as conn:
-        # ✅ FIX: group per (device_id, alert_type) → hanya event terbaru.
-        # Sebelumnya semua event history ditampilkan (bikin numpuk: 1 siklus
-        # alert = 4 baris: created + severity_changed + acknowledged + cleared).
         base_query = '''
             SELECT * FROM (
                 SELECT h.id, h.device_id, h.alert_type, h.severity, h.message,
@@ -837,7 +903,6 @@ def get_all_alerts():
             base_query += ' AND h.device_id = ?'
             params.append(device_id)
 
-        # Tutup subquery — hanya ambil event terbaru per (device, type)
         base_query += '''
             ) sub
             WHERE rn = 1
@@ -856,7 +921,8 @@ def get_all_alerts():
     alerts = []
     for r in rows:
         d = dict(r)
-        d.pop('rn', None)  # hapus kolom internal
+        d.pop('rn', None)
+        d['created_at'] = _clean_timestamp(d.get('created_at'))
         d['label'] = _alert_label(d['alert_type'], d['severity'])
         alerts.append(d)
 
@@ -906,10 +972,16 @@ def get_device_status_history(device_id):
             WHERE device_id = ? ORDER BY created_at DESC LIMIT ?
         ''', (device_id, limit)).fetchall()
 
+    history = []
+    for r in rows:
+        d = dict(r)
+        d['created_at'] = _clean_timestamp(d.get('created_at'))
+        history.append(d)
+
     return jsonify({
         'success': True,
-        'history': [dict(r) for r in rows],
-        'count': len(rows)
+        'history': history,
+        'count': len(history)
     }), 200
 
 
@@ -942,7 +1014,7 @@ def export_device_data(device_id):
     for item in rows:
         parsed = safe_json_loads(item['data'])
         record = {
-            'timestamp': item['timestamp'],
+            'timestamp': _clean_timestamp(item['timestamp']),
             'sensor_type': item['sensor_type'],
             'wifi_ssid': item['wifi_ssid'] or '',
             'uptime_seconds': item['uptime_seconds'] or 0,
@@ -971,7 +1043,7 @@ def export_device_data(device_id):
         json.dumps({
             'device_id': device_id,
             'device_name': device['device_name'],
-            'exported_at': get_wib_time().isoformat(),
+            'exported_at': _clean_timestamp(get_wib_time().isoformat()),
             'range_hours': hours,
             'count': len(records),
             'data': records,
@@ -1027,7 +1099,14 @@ def get_cardholders():
         rows = conn.execute(
             'SELECT uid, nama, created_at FROM cardholders ORDER BY created_at DESC'
         ).fetchall()
-    return jsonify({'success': True, 'cardholders': [dict(row) for row in rows]}), 200
+
+    cardholders = []
+    for row in rows:
+        d = dict(row)
+        d['created_at'] = _clean_timestamp(d.get('created_at'))
+        cardholders.append(d)
+
+    return jsonify({'success': True, 'cardholders': cardholders}), 200
 
 
 @api_bp.route('/cardholders/<uid>', methods=['DELETE'])
@@ -1061,7 +1140,13 @@ def get_attendance():
             ORDER BY a.timestamp DESC LIMIT ?
         ''', (limit,)).fetchall()
 
-    return jsonify({'success': True, 'attendance': [dict(row) for row in rows]}), 200
+    attendance = []
+    for row in rows:
+        d = dict(row)
+        d['timestamp'] = _clean_timestamp(d.get('timestamp'))
+        attendance.append(d)
+
+    return jsonify({'success': True, 'attendance': attendance}), 200
 
 
 @api_bp.route('/attendance/report', methods=['GET'])
@@ -1105,6 +1190,11 @@ def get_attendance_report():
     report = []
     for r in rows:
         d = dict(r)
+
+        # 🔥 Strip microseconds dari timestamp (08:16:33.149472 → 08:16:33)
+        d['check_in'] = _clean_timestamp(d.get('check_in'))
+        d['check_out'] = _clean_timestamp(d.get('check_out'))
+
         duration_str = '-'
         if d['check_in'] and d['check_out'] and d['check_in'] != d['check_out']:
             try:
@@ -1113,7 +1203,7 @@ def get_attendance_report():
                 total_min = int((co - ci).total_seconds() / 60)
                 h = total_min // 60
                 m = total_min % 60
-                duration_str = f"{h}j {m}m"
+                duration_str = f"{h}j {m}m" if h > 0 else f"{m}m"
             except Exception:
                 pass
         d['duration'] = duration_str
@@ -1172,7 +1262,13 @@ def get_attendance_today():
             ORDER BY pertama_tap ASC
         ''', (today_start, tomorrow_start)).fetchall()
 
-    return jsonify({'success': True, 'hadir': [dict(r) for r in rows]}), 200
+    hadir = []
+    for r in rows:
+        d = dict(r)
+        d['pertama_tap'] = _clean_timestamp(d.get('pertama_tap'))
+        hadir.append(d)
+
+    return jsonify({'success': True, 'hadir': hadir}), 200
 
 
 @api_bp.route('/attendance/unregistered', methods=['GET'])
@@ -1188,7 +1284,13 @@ def get_unregistered_cards():
             ORDER BY terakhir_tap DESC
         ''').fetchall()
 
-    return jsonify({'success': True, 'kartu': [dict(r) for r in rows]}), 200
+    kartu = []
+    for r in rows:
+        d = dict(r)
+        d['terakhir_tap'] = _clean_timestamp(d.get('terakhir_tap'))
+        kartu.append(d)
+
+    return jsonify({'success': True, 'kartu': kartu}), 200
 
 
 @api_bp.route('/attendance/last-unknown', methods=['GET'])
@@ -1205,7 +1307,11 @@ def get_last_unknown_tap():
     if not row:
         return jsonify({'success': True, 'uid': None}), 200
 
-    return jsonify({'success': True, 'uid': row['uid'], 'timestamp': row['timestamp']}), 200
+    return jsonify({
+        'success': True,
+        'uid': row['uid'],
+        'timestamp': _clean_timestamp(row['timestamp'])
+    }), 200
 
 
 @api_bp.route('/attendance/export', methods=['GET'])
@@ -1257,7 +1363,10 @@ def export_attendance():
     writer.writerow(['ID', 'UID', 'Nama', 'Device ID', 'Timestamp'])
 
     for r in rows:
-        writer.writerow([r['id'], r['uid'], r['nama'], r['device_id'], r['timestamp']])
+        writer.writerow([
+            r['id'], r['uid'], r['nama'], r['device_id'],
+            _clean_timestamp(r['timestamp'])
+        ])
 
     filename = f"attendance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     return Response(
