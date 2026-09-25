@@ -1,8 +1,9 @@
 /* ==========================================
-   NEXUS IoT - Sidebar Toggle (Hybrid v3)
-   - Toggle via topbar button (bukan logo sidebar)
-   - DESKTOP (>992px): collapse icon-only ↔ full 240px
-   - MOBILE (≤992px): mini icon-only 72px ↔ overlay expanded 240px
+   NEXUS IoT - Sidebar Toggle v4
+   - Toggle via class .sidebar-toggle-btn (bisa multiple)
+   - Logo = link ke #dashboard (bukan toggle)
+   - DESKTOP (>992px): collapsed (icon-only 72px) ↔ expanded (240px)
+   - MOBILE (≤992px): mini (72px) ↔ overlay expanded (240px)
    ========================================== */
 
 (function() {
@@ -28,19 +29,6 @@
         }, 300);
     }
 
-    function setIcon(collapsed) {
-        const icon = $('sidebarToggleIcon');
-        if (!icon) return;
-        // bars = expanded (sidebar shown)
-        // xmark = mobile overlay open
-        // angles-right = collapsed (icon-only)
-        if (isMobile()) {
-            icon.className = collapsed ? 'fa-solid fa-bars' : 'fa-solid fa-xmark';
-        } else {
-            icon.className = collapsed ? 'fa-solid fa-angles-right' : 'fa-solid fa-bars';
-        }
-    }
-
     // ---------- DESKTOP ----------
     function setDesktopCollapsed(collapsed) {
         const sidebar = $('sidebar');
@@ -51,8 +39,6 @@
         if (main) main.classList.toggle('expanded', collapsed);
 
         try { localStorage.setItem(STORAGE_KEY, collapsed ? 'true' : 'false'); } catch (e) {}
-
-        setIcon(collapsed);
 
         invalidateMaps();
         window.dispatchEvent(new CustomEvent('sidebar-toggle', {
@@ -81,8 +67,6 @@
             document.body.style.overflow = '';
         }
 
-        setIcon(!expanded);
-
         invalidateMaps();
         window.dispatchEvent(new CustomEvent('sidebar-toggle', {
             detail: { expanded, mode: 'mobile' }
@@ -107,7 +91,6 @@
             if (backdrop) backdrop.classList.remove('active');
             if (main) main.classList.add('expanded');
             document.body.style.overflow = '';
-            setIcon(true);
         } else {
             sidebar.classList.remove('mobile-open');
             if (backdrop) backdrop.classList.remove('active');
@@ -125,6 +108,7 @@
             setMobileExpanded(!isMobileExpanded());
         } else {
             const sidebar = $('sidebar');
+            if (!sidebar) return;
             const willCollapse = !sidebar.classList.contains('collapsed');
             setDesktopCollapsed(willCollapse);
         }
@@ -133,14 +117,15 @@
     function init() {
         applyMode();
 
-        const toggleBtn = $('sidebarToggleBtn');
-        if (toggleBtn) {
-            toggleBtn.addEventListener('click', (e) => {
+        // Bind SEMUA toggle buttons (header sidebar + topbar)
+        document.querySelectorAll('.sidebar-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 toggleSidebar();
             });
-        }
+        });
 
+        // Backdrop click (mobile)
         const backdrop = $('sidebarBackdrop');
         if (backdrop) {
             backdrop.addEventListener('click', () => {
@@ -150,7 +135,7 @@
             });
         }
 
-        // Esc untuk tutup overlay
+        // Esc untuk tutup overlay (mobile)
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && isMobile() && isMobileExpanded()) {
                 setMobileExpanded(false);
@@ -167,14 +152,15 @@
                 });
             });
 
-        // Handle resize
+        // Handle resize — switch mode
         const onChange = () => applyMode();
         if (mql.addEventListener) mql.addEventListener('change', onChange);
         else mql.addListener(onChange);
 
-        console.log('[Sidebar] Initialized v3. Mobile:', isMobile());
+        console.log('[Sidebar] Initialized v4. Mobile:', isMobile());
     }
 
+    // Expose public API
     window.toggleSidebar = toggleSidebar;
     window.NexusSidebar = {
         toggle: toggleSidebar,

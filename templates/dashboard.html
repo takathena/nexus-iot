@@ -6,10 +6,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
 <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-v43.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/ios-theme.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 {% endblock %}
 
@@ -65,10 +62,28 @@
 
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <div class="logo-ring" title="NEXUS">
-            <i class="fa-solid fa-satellite-dish"></i>
-        </div>
+        <a href="#dashboard" class="logo-ring" title="Kembali ke Dashboard" aria-label="Kembali ke Dashboard">
+            <svg class="logo-svg" width="20" height="20" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="1.9"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 2.5l8.5 4.9v9.2L12 21.5 3.5 16.6V7.4z"/>
+                <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+                <line x1="12" y1="9.8" x2="12" y2="5.2" opacity="0.55"/>
+                <line x1="9.9" y1="13.1" x2="5.6" y2="15.6" opacity="0.55"/>
+                <line x1="14.1" y1="13.1" x2="18.4" y2="15.6" opacity="0.55"/>
+            </svg>
+        </a>
         <span class="title">NEXUS</span>
+
+        <button class="sidebar-toggle-btn sidebar-toggle-in-header" type="button"
+                title="Sembunyikan Sidebar" aria-label="Sembunyikan Sidebar">
+            <svg class="icon-panel" width="20" height="20" viewBox="0 0 24 24"
+                 fill="none" stroke="currentColor" stroke-width="1.7"
+                 stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/>
+                <line x1="9.5" y1="4.5" x2="9.5" y2="19.5"/>
+            </svg>
+        </button>
     </div>
 
     <nav class="sidebar-nav">
@@ -116,10 +131,19 @@
 <div class="main-content" id="mainContent">
     <div class="topbar">
         <div class="topbar-left">
-            <button class="topbar-icon-btn" id="sidebarToggleBtn" title="Toggle Sidebar" aria-label="Toggle Sidebar">
-                <i class="fa-solid fa-bars" id="sidebarToggleIcon"></i>
+            <button class="sidebar-toggle-btn sidebar-toggle-in-topbar" type="button"
+                    title="Tampilkan Sidebar" aria-label="Tampilkan Sidebar">
+                <svg class="icon-panel" width="20" height="20" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="1.7"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/>
+                    <line x1="9.5" y1="4.5" x2="9.5" y2="19.5"/>
+                </svg>
             </button>
-            <h1 class="topbar-title" id="pageTitle">Dashboard</h1>
+
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+                <h1 class="breadcrumb-current" id="pageTitle">Dashboard</h1>
+            </nav>
         </div>
         <div class="topbar-right">
             <div class="search-box">
@@ -131,8 +155,14 @@
                 <div class="date" id="currentDate"></div>
                 <div class="time" id="currentTime"></div>
             </div>
-            <button class="topbar-icon-btn topbar-ai-btn" id="chatToggleBtn" title="Tanya NEXUS AI" aria-label="AI Chat">
-                <i class="fa-solid fa-comment-dots"></i>
+            <button class="topbar-ai-btn" id="chatToggleBtn"
+                    title="Toggle NEXUS AI" aria-label="Toggle AI Chat">
+                <svg class="icon-panel" width="22" height="22" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="1.7"
+                     stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3.5" y="4.5" width="17" height="15" rx="2.5"/>
+                    <line x1="14.5" y1="4.5" x2="14.5" y2="19.5"/>
+                </svg>
             </button>
         </div>
     </div>
