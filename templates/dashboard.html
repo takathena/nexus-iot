@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-v43.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/alerts.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/ios-theme.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 {% endblock %}
 
 {% block content %}
@@ -64,9 +65,9 @@
 
 <div class="sidebar" id="sidebar">
     <div class="sidebar-header">
-        <button class="logo-ring" id="sidebarToggleBtn" title="Toggle Sidebar" aria-label="Toggle Sidebar">
-            <i class="fa-solid fa-satellite-dish" id="sidebarToggleIcon"></i>
-        </button>
+        <div class="logo-ring" title="NEXUS">
+            <i class="fa-solid fa-satellite-dish"></i>
+        </div>
         <span class="title">NEXUS</span>
     </div>
 
@@ -115,7 +116,9 @@
 <div class="main-content" id="mainContent">
     <div class="topbar">
         <div class="topbar-left">
-            <div class="page-indicator"></div>
+            <button class="topbar-icon-btn" id="sidebarToggleBtn" title="Toggle Sidebar" aria-label="Toggle Sidebar">
+                <i class="fa-solid fa-bars" id="sidebarToggleIcon"></i>
+            </button>
             <h1 class="topbar-title" id="pageTitle">Dashboard</h1>
         </div>
         <div class="topbar-right">
@@ -128,6 +131,9 @@
                 <div class="date" id="currentDate"></div>
                 <div class="time" id="currentTime"></div>
             </div>
+            <button class="topbar-icon-btn topbar-ai-btn" id="chatToggleBtn" title="Tanya NEXUS AI" aria-label="AI Chat">
+                <i class="fa-solid fa-comment-dots"></i>
+            </button>
         </div>
     </div>
 
@@ -142,6 +148,7 @@
 </div>
 
 {% include 'partials/modals.html' %}
+{% include 'partials/chat_panel.html' %}
 {% endblock %}
 
 {% block extra_js %}
@@ -153,4 +160,5 @@
 <script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 {% endblock %}

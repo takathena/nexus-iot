@@ -1917,3 +1917,206 @@ body:has(.modal.active) {
 .charts-grid-wrapper {
     transition: height .12s ease;
 }
+/* ==========================================================
+   TOPBAR ICON BUTTONS (sidebar toggle + AI toggle)
+   ========================================================== */
+.topbar-icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-family: inherit;
+    flex-shrink: 0;
+    transition: background 0.15s var(--ease),
+                color 0.15s var(--ease),
+                transform 0.1s var(--ease);
+}
+.topbar-icon-btn:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+.topbar-icon-btn:active {
+    transform: scale(0.94);
+}
+
+/* AI toggle — state aktif saat panel terbuka */
+.topbar-ai-btn.active {
+    background: var(--primary);
+    color: var(--primary-fg);
+}
+.topbar-ai-btn.active:hover {
+    background: var(--primary-hover);
+}
+
+/* ==========================================================
+   LOGO RING — glass/blur (bukan putih solid)
+   ========================================================== */
+.logo-ring {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: var(--radius-md) !important;
+    background: color-mix(in srgb, var(--surface-3) 55%, transparent) !important;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--hairline) !important;
+    color: var(--text-2) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    cursor: default !important;
+    transition: background 0.15s var(--ease);
+}
+
+[data-theme="dark"] .logo-ring {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.10) !important;
+    color: rgba(255, 255, 255, 0.75) !important;
+}
+
+[data-theme="light"] .logo-ring {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+    color: rgba(0, 0, 0, 0.65) !important;
+}
+
+/* Sidebar collapsed state — glass effect juga */
+.sidebar.collapsed .logo-ring {
+    background: color-mix(in srgb, var(--surface-3) 65%, transparent) !important;
+}
+[data-theme="dark"] .sidebar.collapsed .logo-ring {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Hapus hover scale karena bukan button lagi */
+.logo-ring:hover { opacity: 1 !important; }
+.logo-ring:active { transform: none !important; }
+
+/* ==========================================================
+   HIDE FLOATING CHAT TAB — sekarang pakai navbar button
+   ========================================================== */
+.chat-tab {
+    display: none !important;
+}
+
+/* ==========================================================
+   SIDEBAR NAV ITEM — tambah glass effect (opsional)
+   ========================================================== */
+.nav-item {
+    transition: background 0.18s var(--ease), color 0.18s var(--ease),
+                backdrop-filter 0.18s var(--ease);
+}
+.nav-item:hover {
+    background: color-mix(in srgb, var(--surface-2) 85%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+.nav-item.active {
+    background: color-mix(in srgb, var(--primary) 92%, transparent);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+/* ==========================================================
+   NEXUS v4.9 — Topbar icon buttons + Glass logo + AI toggle
+   ========================================================== */
+
+/* ---------- Topbar Icon Buttons ---------- */
+.topbar-icon-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: transparent;
+    border: none;
+    color: var(--text-2);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-family: inherit;
+    flex-shrink: 0;
+    transition: background 0.15s var(--ease),
+                color 0.15s var(--ease),
+                transform 0.1s var(--ease);
+}
+.topbar-icon-btn:hover {
+    background: var(--surface-2);
+    color: var(--text);
+}
+.topbar-icon-btn:active {
+    transform: scale(0.94);
+}
+
+/* AI toggle — active state saat panel terbuka */
+.topbar-ai-btn.active {
+    background: var(--primary);
+    color: var(--primary-fg);
+}
+.topbar-ai-btn.active:hover {
+    background: var(--primary-hover);
+}
+
+/* ---------- Logo Ring — Glass / Blur ---------- */
+.logo-ring {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: var(--radius-md) !important;
+    background: color-mix(in srgb, var(--surface-3) 55%, transparent) !important;
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid var(--hairline) !important;
+    color: var(--text-2) !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+    cursor: default !important;
+    transition: background 0.15s var(--ease);
+}
+
+[data-theme="dark"] .logo-ring {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.10) !important;
+    color: rgba(255, 255, 255, 0.75) !important;
+}
+
+[data-theme="light"] .logo-ring {
+    background: rgba(0, 0, 0, 0.04) !important;
+    border-color: rgba(0, 0, 0, 0.08) !important;
+    color: rgba(0, 0, 0, 0.65) !important;
+}
+
+.logo-ring:hover { opacity: 1 !important; }
+.logo-ring:active { transform: none !important; }
+
+/* Sidebar collapsed state — glass lebih terang */
+.sidebar.collapsed .logo-ring {
+    background: color-mix(in srgb, var(--surface-3) 65%, transparent) !important;
+}
+[data-theme="dark"] .sidebar.collapsed .logo-ring {
+    background: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ---------- Nav Item — Glass hover ---------- */
+.nav-item {
+    transition: background 0.18s var(--ease), color 0.18s var(--ease);
+}
+
+/* ---------- Hide floating chat tab ---------- */
+.chat-tab {
+    display: none !important;
+}
+
+/* ---------- Topbar responsive tweak ---------- */
+@media (max-width: 768px) {
+    .topbar-icon-btn { width: 36px; height: 36px; font-size: 14px; }
+}

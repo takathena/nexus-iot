@@ -80,6 +80,9 @@ def create_app(config_override=None):
     app.register_blueprint(api_bp)
     app.register_blueprint(views_bp)
     app.register_blueprint(dashboards_bp)
+    from app.chat import chat_bp
+    app.register_blueprint(chat_bp)
+
 
     logger.info("CSRF: only /api/v1/data is exempt (device endpoint)")
 

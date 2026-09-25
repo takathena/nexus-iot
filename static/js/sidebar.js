@@ -1,10 +1,8 @@
 /* ==========================================
-   NEXUS IoT - Sidebar Toggle (Hybrid v2)
-   - DESKTOP (>992px): collapse icon-only ↔ full 240px (default lama)
-   - MOBILE (≤992px):
-       • Default: mini icon-only 72px (SELALU terlihat)
-       • Klik toggle → overlay expanded 240px melayang + backdrop
-       • Klik backdrop/Esc → kembali ke mini
+   NEXUS IoT - Sidebar Toggle (Hybrid v3)
+   - Toggle via topbar button (bukan logo sidebar)
+   - DESKTOP (>992px): collapse icon-only ↔ full 240px
+   - MOBILE (≤992px): mini icon-only 72px ↔ overlay expanded 240px
    ========================================== */
 
 (function() {
@@ -30,6 +28,19 @@
         }, 300);
     }
 
+    function setIcon(collapsed) {
+        const icon = $('sidebarToggleIcon');
+        if (!icon) return;
+        // bars = expanded (sidebar shown)
+        // xmark = mobile overlay open
+        // angles-right = collapsed (icon-only)
+        if (isMobile()) {
+            icon.className = collapsed ? 'fa-solid fa-bars' : 'fa-solid fa-xmark';
+        } else {
+            icon.className = collapsed ? 'fa-solid fa-angles-right' : 'fa-solid fa-bars';
+        }
+    }
+
     // ---------- DESKTOP ----------
     function setDesktopCollapsed(collapsed) {
         const sidebar = $('sidebar');
@@ -41,8 +52,7 @@
 
         try { localStorage.setItem(STORAGE_KEY, collapsed ? 'true' : 'false'); } catch (e) {}
 
-        const icon = $('sidebarToggleIcon');
-        if (icon) icon.className = 'fa-solid fa-satellite-dish';
+        setIcon(collapsed);
 
         invalidateMaps();
         window.dispatchEvent(new CustomEvent('sidebar-toggle', {
@@ -51,33 +61,27 @@
     }
 
     // ---------- MOBILE ----------
-    // Mini = collapsed (72px icon-only), Expanded = full 240px overlay + backdrop
     function setMobileExpanded(expanded) {
         const sidebar = $('sidebar');
         const backdrop = $('sidebarBackdrop');
         const main = $('mainContent');
-        const icon = $('sidebarToggleIcon');
         if (!sidebar) return;
 
         if (expanded) {
-            // Expanded: full width overlay
             sidebar.classList.remove('collapsed');
             sidebar.classList.add('mobile-open');
             if (backdrop) backdrop.classList.add('active');
-            if (icon) icon.className = 'fa-solid fa-xmark';
-            // main content tetap margin-left 72px (space untuk mini sidebar)
             if (main) main.classList.remove('expanded');
             document.body.style.overflow = 'hidden';
         } else {
-            // Mini: icon-only 72px, selalu terlihat
             sidebar.classList.add('collapsed');
             sidebar.classList.remove('mobile-open');
             if (backdrop) backdrop.classList.remove('active');
-            if (icon) icon.className = 'fa-solid fa-satellite-dish';
-            // main content kasih margin 72px
             if (main) main.classList.add('expanded');
             document.body.style.overflow = '';
         }
+
+        setIcon(!expanded);
 
         invalidateMaps();
         window.dispatchEvent(new CustomEvent('sidebar-toggle', {
@@ -94,20 +98,17 @@
     function applyMode() {
         const sidebar = $('sidebar');
         const backdrop = $('sidebarBackdrop');
-        const icon = $('sidebarToggleIcon');
         const main = $('mainContent');
         if (!sidebar) return;
 
         if (isMobile()) {
-            // Mobile: default mini
             sidebar.classList.remove('mobile-open');
             sidebar.classList.add('collapsed');
             if (backdrop) backdrop.classList.remove('active');
             if (main) main.classList.add('expanded');
-            if (icon) icon.className = 'fa-solid fa-satellite-dish';
             document.body.style.overflow = '';
+            setIcon(true);
         } else {
-            // Desktop: restore preferensi collapse
             sidebar.classList.remove('mobile-open');
             if (backdrop) backdrop.classList.remove('active');
             document.body.style.overflow = '';
@@ -156,7 +157,7 @@
             }
         });
 
-        // Auto-close overlay saat pilih menu
+        // Auto-close overlay saat pilih menu (mobile)
         document.querySelectorAll('.sidebar-nav .nav-item, .sidebar-footer .nav-item')
             .forEach(item => {
                 item.addEventListener('click', () => {
@@ -166,12 +167,12 @@
                 });
             });
 
-        // Handle resize viewport (desktop ↔ mobile)
+        // Handle resize
         const onChange = () => applyMode();
         if (mql.addEventListener) mql.addEventListener('change', onChange);
         else mql.addListener(onChange);
 
-        console.log('[Sidebar] Initialized. Mobile mode:', isMobile());
+        console.log('[Sidebar] Initialized v3. Mobile:', isMobile());
     }
 
     window.toggleSidebar = toggleSidebar;
