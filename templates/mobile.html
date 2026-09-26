@@ -14,6 +14,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/fixes.css') }}">
 </head>
 <body>
 
@@ -720,12 +721,12 @@
 <script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
 <script>
 function openChatMobile() {
-  // Toggle chat overlay on mobile
   document.body.classList.add('chat-open');
   var panel = document.getElementById('chatPanel');
-  if (panel) panel.classList.add('open');
+  if (panel) { panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); }
   var backdrop = document.getElementById('chatBackdrop');
   if (backdrop) backdrop.classList.add('active');
+  setTimeout(function(){ var inp = document.getElementById('chatInput'); if(inp) inp.focus(); }, 300);
 }
 </script>
 </body>

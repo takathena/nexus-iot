@@ -1,0 +1,56 @@
+/* ==========================================================
+   NEXUS — Fixes Patch 2
+   Dropdown border, active button blur, card hover, alert anim,
+   toast theme-aware, popup throttle, date input border
+   ========================================================== */
+
+/* ---------- DROPDOWN BORDER ---------- */
+.ios-dd-trigger, .ios-dd-menu, .ios-dd-item {
+  border: 1px solid var(--border-soft) !important;
+}
+.ios-dd.open .ios-dd-trigger {
+  border-color: var(--accent-info) !important;
+  box-shadow: 0 0 0 4px var(--accent-info-bg) !important;
+}
+
+/* ---------- ACTIVE BUTTON / CHIP (blur bg, not pure white/black) ---------- */
+.chip.active, .attend-tab.active, .tab.active, .ios-dd-item.active {
+  background: color-mix(in srgb, var(--primary) 85%, transparent) !important;
+  backdrop-filter: blur(12px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
+  border-color: var(--primary) !important;
+}
+
+/* ---------- CARD HOVER BORDER ---------- */
+.stat:hover, .group:hover, .hero-card:hover, .chart-card:hover,
+.sensor-card:hover, .activity-item:hover, .row:hover {
+  border-color: var(--hairline) !important;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.08) !important;
+}
+
+/* ---------- ALERT CENTER ANIMATION ---------- */
+#alertsGroup .group, #alertsGroup .stat, #alertsGroup .group-body > .loading {
+  animation: fadeUp 0.25s var(--ease) backwards !important;
+}
+
+/* ---------- DATE INPUT BORDER ---------- */
+.date-row input, .alert-date-filter input[type="date"] {
+  border: 1px solid var(--border-soft) !important;
+  border-radius: 11px !important;
+}
+
+/* ---------- TOAST THEME-AWARE ---------- */
+.toast {
+  background: color-mix(in srgb, var(--surface) 92%, transparent) !important;
+  backdrop-filter: blur(16px) saturate(120%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
+  border: 1px solid var(--hairline) !important;
+}
+[data-theme="light"] .toast {
+  background: rgba(255,255,255,0.92) !important;
+  border-color: rgba(0,0,0,0.08) !important;
+}
+
+/* ---------- POPUP THROTTLE (prevent spam) ---------- */
+.toast { animation-duration: 0.35s !important; }
+.toast.toast-slide-out { animation: toastSlideOut 0.35s ease forwards !important; }
