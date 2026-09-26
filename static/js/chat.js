@@ -159,6 +159,12 @@
             });
         });
 
+        // Click backdrop to close (empty area click)
+        const backdrop = document.getElementById('chatBackdrop');
+        if (backdrop) {
+            backdrop.addEventListener('click', () => { if (state.isOpen) close(); });
+        }
+
         // Esc menutup panel
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && state.isOpen) toggle();

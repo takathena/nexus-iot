@@ -13,6 +13,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
 </head>
 <body>
 
@@ -710,7 +711,22 @@
   </div>
 </div>
 
+<!-- FAB Chat Mobile -->
+<button class="chat-fab-mobile" onclick="openChatMobile()" aria-label="Buka Chatbot" title="NEXUS AI">
+  <i class="fa-solid fa-robot"></i>
+</button>
+
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 <script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
+<script>
+function openChatMobile() {
+  // Toggle chat overlay on mobile
+  document.body.classList.add('chat-open');
+  var panel = document.getElementById('chatPanel');
+  if (panel) panel.classList.add('open');
+  var backdrop = document.getElementById('chatBackdrop');
+  if (backdrop) backdrop.classList.add('active');
+}
+</script>
 </body>
 </html>

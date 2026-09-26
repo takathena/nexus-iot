@@ -466,12 +466,9 @@
 }
 
 /* ---------- LAYOUT SHIFT ---------- */
-/* Saat chat terbuka, main content geser kiri */
+/* Chat overlay — tidak menggeser layout */
 @media (min-width: 993px) {
-    body.chat-open .main-content {
-        margin-right: var(--chat-w);
-        transition: margin-right 0.28s var(--ease);
-    }
+    body.chat-open .main-content { margin-right: 0 !important; }
 }
 
 /* ---------- RESPONSIVE ---------- */

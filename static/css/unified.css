@@ -1,0 +1,126 @@
+/* ==========================================================
+   NEXUS — Unified Design System Patch
+   Selaras: border-radius, tombol, dropdown, animasi, chat overlay
+   ========================================================== */
+
+/* ---------- UNIFIED RADIUS ---------- */
+:root {
+  --radius-btn: 11px;
+  --radius-card: 12px;
+  --radius-modal: 16px;
+  --radius-fab: 50%;
+  --radius-dropdown: 12px;
+}
+
+/* ---------- BUTTONS (all same size & radius) ---------- */
+.btn, .btn-primary, .btn-success, .btn-ok, .btn-danger, .btn-warning,
+.btn-secondary, .btn-ghost, .btn-soft, .btn-icon, .hdr-btn,
+.chat-icon-btn, .chat-send, .modal-close, .hdr-back {
+  border-radius: var(--radius-btn) !important;
+}
+
+.btn-icon { width: 40px; height: 40px; border-radius: var(--radius-btn); }
+.btn-icon.sm { width: 34px; height: 34px; border-radius: 9px; }
+
+/* ---------- DROPDOWN ---------- */
+.ios-dd-trigger, .ios-dd-menu, .ios-dd-item {
+  border-radius: var(--radius-dropdown) !important;
+}
+
+/* ---------- CHAT OVERLAY (floating, no layout shift) ---------- */
+.chat-panel {
+  position: fixed !important;
+  top: 0; right: 0; bottom: 0;
+  width: var(--chat-w, 400px);
+  max-width: 100vw;
+  z-index: 220;
+  background: var(--surface);
+  border-left: 1px solid var(--hairline);
+  box-shadow: -12px 0 40px rgba(0,0,0,0.12);
+  transform: translateX(100%);
+  transition: transform 0.28s var(--ease);
+}
+.chat-panel.open { transform: translateX(0); }
+
+/* Remove layout shift on desktop */
+@media (min-width: 993px) {
+  body.chat-open .main-content { margin-right: 0 !important; }
+}
+
+/* Chat tab (floating button) */
+.chat-tab {
+  position: fixed;
+  top: 50%; right: 16px;
+  transform: translateY(-50%);
+  width: 52px; height: 52px;
+  border-radius: var(--radius-fab);
+  z-index: 210;
+  background: var(--primary);
+  color: var(--primary-fg);
+  border: none;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  transition: transform 0.25s var(--ease), opacity 0.2s var(--ease);
+}
+.chat-tab:hover { transform: translateY(-50%) scale(1.05); }
+.chat-tab.hidden { transform: translateY(-50%) translateX(80px); opacity: 0; pointer-events: none; }
+
+/* Mobile FAB for chat */
+.chat-fab-mobile {
+  position: fixed;
+  bottom: 96px; right: 16px;
+  width: 56px; height: 56px;
+  border-radius: var(--radius-fab);
+  z-index: 210;
+  background: var(--primary);
+  color: var(--primary-fg);
+  border: none;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.28);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.chat-fab-mobile:active { transform: scale(0.94); }
+
+/* Backdrop */
+.chat-backdrop {
+  display: none;
+  position: fixed; inset: 0;
+  background: var(--overlay-bg);
+  backdrop-filter: blur(4px);
+  z-index: 215;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s var(--ease);
+}
+.chat-backdrop.active { display: block; opacity: 1; pointer-events: auto; }
+
+/* ---------- UNIFIED ANIMATIONS ---------- */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.stat, .group, .card, .hero-card, .activity-item, .row,
+.attend-item, .alert-item, .sensor-card, .chip, .chart-card {
+  animation: fadeUp 0.25s var(--ease) backwards;
+}
+
+/* Attendance tabs animation */
+.attend-tab { transition: all 0.15s var(--ease); }
+.attend-tab.active { background: var(--surface-3); color: var(--text); }
+
+/* ---------- MOBILE HEADER / BUTTONS ---------- */
+.hdr-btn, .hdr-back {
+  border-radius: var(--radius-btn) !important;
+  width: 38px; height: 38px;
+}
+
+/* ---------- CARD RADIUS ---------- */
+.group, .stat, .hero-card, .chart-card, .sensor-card, .modal-inner {
+  border-radius: var(--radius-card) !important;
+}
+
+/* ---------- DROPDOWN MENU ---------- */
+.ios-dd-menu { border-radius: var(--radius-dropdown); }
