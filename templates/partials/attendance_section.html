@@ -1,0 +1,84 @@
+<div id="attendanceSection">
+
+    <div class="attendance-toolbar">
+        <div class="attendance-tabs">
+            <button class="attendance-tab active" data-tab="report">
+                <i class="fa-solid fa-clipboard-list"></i> Laporan Harian
+            </button>
+            <button class="attendance-tab" data-tab="history">
+                <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Tap
+            </button>
+        </div>
+        <div class="attendance-actions">
+            <button class="btn btn-secondary" id="attendanceExportBtn">
+                <i class="fa-solid fa-download"></i> Export CSV
+            </button>
+            <button class="btn btn-primary" data-action="open-cardholder-modal">
+                <i class="fa-solid fa-plus"></i> Daftarkan Kartu
+            </button>
+        </div>
+    </div>
+
+    <div class="attendance-stats">
+        <div class="stat-card clickable alert-stat-card success" data-stat-type="hadir">
+            <div class="alert-stat-icon"><i class="fa-solid fa-user-check"></i></div>
+            <div class="alert-stat-info">
+                <h3>Hadir Hari Ini</h3>
+                <div class="value" id="statHadirHariIni">0</div>
+            </div>
+        </div>
+        <div class="stat-card clickable alert-stat-card info" data-stat-type="total">
+            <div class="alert-stat-icon"><i class="fa-solid fa-id-card"></i></div>
+            <div class="alert-stat-info">
+                <h3>Total Kartu Aktif</h3>
+                <div class="value" id="statTotalKartu">0</div>
+            </div>
+        </div>
+        <div class="stat-card clickable alert-stat-card warning" data-stat-type="belum-terdaftar">
+            <div class="alert-stat-icon"><i class="fa-solid fa-circle-question"></i></div>
+            <div class="alert-stat-info">
+                <h3>Kartu Belum Terdaftar</h3>
+                <div class="value" id="statBelumTerdaftar">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="attendance-filter-bar" id="attendanceFilterBar">
+        <div class="attendance-filter-group">
+            <label for="attendanceStartDate">Dari:</label>
+            <input type="date" id="attendanceStartDate">
+        </div>
+        <div class="attendance-filter-group">
+            <label for="attendanceEndDate">Sampai:</label>
+            <input type="date" id="attendanceEndDate">
+        </div>
+        <div class="attendance-filter-actions">
+            <button class="btn btn-secondary" id="attendanceApplyFilter">
+                <i class="fa-solid fa-filter"></i> Terapkan
+            </button>
+            <button class="btn btn-secondary" id="attendanceClearFilter">
+                <i class="fa-solid fa-xmark"></i> Reset
+            </button>
+        </div>
+        <span class="attendance-filter-info" id="attendanceFilterInfo"></span>
+    </div>
+
+    <div class="section-card">
+        <div class="section-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table class="device-table">
+                    <thead id="attendanceThead">
+                        <tr>
+                            <th>Tanggal</th><th>Nama</th><th>UID</th>
+                            <th>Check-in</th><th>Check-out</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody">
+                        <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-3);">Memuat...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>

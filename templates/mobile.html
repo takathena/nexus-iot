@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<meta name="theme-color" content="#1a1d23">
+<title>NEXUS</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
+</head>
+<body>
+
+<!-- ============ HEADER ============ -->
+<header class="hdr">
+  <div class="hdr-brand">
+    <div class="hdr-mark"><i class="fa-solid fa-satellite-dish"></i></div>
+    <span>NEXUS</span>
+  </div>
+  <div class="hdr-actions">
+    <button class="hdr-btn" onclick="toggleTheme()" aria-label="Theme">
+      <i class="fa-solid fa-moon" id="themeIcon"></i>
+    </button>
+    <button class="hdr-btn" onclick="logout()" aria-label="Logout">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i>
+    </button>
+  </div>
+</header>
+
+<!-- ============ MAIN ============ -->
+<main>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section id="s-dashboard" class="section active">
+    <div class="hero-card">
+      <div class="ring">
+        <svg viewBox="0 0 100 100" width="88" height="88">
+          <circle class="ring-track" cx="50" cy="50" r="42"></circle>
+          <circle class="ring-prog" id="ringProg" cx="50" cy="50" r="42"
+                  stroke-dasharray="263.9" stroke-dashoffset="263.9"></circle>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-pct" id="ringPct">0%</div>
+          <div class="ring-lbl">Sehat</div>
+        </div>
+      </div>
+      <div class="hero-info">
+        <h3 id="ringTitle">Memuat...</h3>
+        <p id="ringCaption">—</p>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat" onclick="go('devices',{filter:'all'})">
+        <div class="stat-num" id="sTotal">0</div>
+        <div class="stat-label">Total Device</div>
+      </div>
+      <div class="stat" onclick="go('devices',{filter:'online'})">
+        <div class="stat-num ok" id="sOnline">0</div>
+        <div class="stat-label">Online</div>
+      </div>
+      <div class="stat" onclick="go('devices',{filter:'offline'})">
+        <div class="stat-num crit" id="sOffline">0</div>
+        <div class="stat-label">Offline</div>
+      </div>
+      <div class="stat" onclick="go('alerts')">
+        <div class="stat-num warn" id="sAlert">0</div>
+        <div class="stat-label">Alert Aktif</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <div class="group-header">
+        <div class="group-title"><i class="fa-solid fa-bolt"></i> Aktivitas Terbaru</div>
+      </div>
+      <div class="activity-list" id="activityList">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+
+    <div class="s-head" style="margin-top:24px;">
+      <div>
+        <div class="s-title">Perangkat</div>
+        <div class="s-title-sub" id="deviceCountSub">—</div>
+        <div class="last-update" id="dashLastUpdate">—</div>
+      </div>
+      <button class="btn-soft" onclick="loadDashboard()" aria-label="Refresh">
+        <i class="fa-solid fa-rotate"></i>
+      </button>
+    </div>
+
+    <div class="chips" id="filterChips">
+      <button class="chip active" data-f="all" onclick="setFilter('all')">Semua <span class="chip-count" id="cAll">0</span></button>
+      <button class="chip" data-f="online" onclick="setFilter('online')">Online <span class="chip-count" id="cOnline">0</span></button>
+      <button class="chip" data-f="offline" onclick="setFilter('offline')">Offline <span class="chip-count" id="cOffline">0</span></button>
+      <button class="chip" data-f="alert" onclick="setFilter('alert')">Alert <span class="chip-count" id="cAlert">0</span></button>
+    </div>
+
+    <div class="group">
+      <div class="group-body" id="deviceList" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MAP ============ -->
+  <section id="s-map" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Peta</div>
+        <div class="s-title-sub">Lokasi perangkat</div>
+      </div>
+      <button class="btn-soft" onclick="initMap(true)" aria-label="Reload peta">
+        <i class="fa-solid fa-rotate"></i>
+      </button>
+    </div>
+
+    <div class="map-wrap">
+      <div class="map-banner hidden" id="mapBanner">
+        <div class="map-banner-info">
+          <span class="map-banner-dot" id="mapBannerDot"></span>
+          <div class="map-banner-text">
+            <div class="map-banner-name" id="mapBannerName">—</div>
+            <div class="map-banner-coord" id="mapBannerCoord">—</div>
+          </div>
+        </div>
+        <button class="btn-soft" onclick="clearMapSel()"><i class="fa-solid fa-xmark"></i></button>
+        <button class="btn-save" id="mapSaveBtn" onclick="saveMapLoc()" disabled>
+          Simpan
+        </button>
+      </div>
+      <div id="mMapFull"></div>
+      <button class="map-reset-btn" onclick="resetMapView()" title="Reset View" aria-label="Reset View">
+        <i class="fa-solid fa-arrows-to-circle"></i>
+      </button>
+    </div>
+
+    <div class="map-hint">
+      <i class="fa-solid fa-circle-info"></i>
+      <span>Pilih device di bawah → peta zoom. Drag marker atau tap peta untuk atur, lalu <b>Simpan</b>.</span>
+    </div>
+
+    <div class="search" style="margin-top:14px;">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="mapSearch" placeholder="Cari device...">
+    </div>
+
+    <div class="chips" id="mapChips">
+      <button class="chip active" data-mf="all" onclick="setMapFilter('all')">Semua</button>
+      <button class="chip" data-mf="online" onclick="setMapFilter('online')">Online</button>
+      <button class="chip" data-mf="offline" onclick="setMapFilter('offline')">Offline</button>
+      <button class="chip" data-mf="alert" onclick="setMapFilter('alert')">Alert</button>
+    </div>
+
+    <div class="group">
+      <div class="group-body" id="mapList" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ANALYTICS ============ -->
+  <section id="s-analytics" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Analitik</div>
+        <div class="s-title-sub" id="chartCountSub">—</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-soft" onclick="resetChartsLayout()" title="Reset Layout" aria-label="Reset Layout">
+          <i class="fa-solid fa-arrows-rotate"></i>
+        </button>
+        <button class="btn btn-primary btn-icon sm" onclick="openChart()" aria-label="Tambah Diagram">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="ana-head">
+      <div class="ios-dd" id="tabDD" data-value="default">
+        <button type="button" class="ios-dd-trigger">
+          <i class="fa-solid fa-layer-group ios-dd-icon"></i>
+          <span class="ios-dd-label" id="tabLabel">Default</span>
+          <i class="fa-solid fa-chevron-down ios-dd-chev"></i>
+        </button>
+        <div class="ios-dd-menu" id="tabMenu"></div>
+      </div>
+
+      <div class="ios-dd" id="timeDD" data-value="1440">
+        <button type="button" class="ios-dd-trigger">
+          <i class="fa-regular fa-clock ios-dd-icon"></i>
+          <span class="ios-dd-label" id="timeLabel">24 Jam</span>
+          <i class="fa-solid fa-chevron-down ios-dd-chev"></i>
+        </button>
+        <div class="ios-dd-menu" id="timeMenu">
+          <button type="button" class="ios-dd-item" data-min="5"><i class="fa-regular fa-clock"></i><span>5 Menit</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="10"><i class="fa-regular fa-clock"></i><span>10 Menit</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="30"><i class="fa-regular fa-clock"></i><span>30 Menit</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <div class="dd-divider" style="height:1px;background:var(--border-soft);margin:4px 6px;"></div>
+          <button type="button" class="ios-dd-item" data-min="60"><i class="fa-regular fa-hourglass-half"></i><span>1 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="180"><i class="fa-regular fa-hourglass-half"></i><span>3 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="360"><i class="fa-regular fa-hourglass-half"></i><span>6 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="720"><i class="fa-regular fa-hourglass"></i><span>12 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <div class="dd-divider" style="height:1px;background:var(--border-soft);margin:4px 6px;"></div>
+          <button type="button" class="ios-dd-item active" data-min="1440"><i class="fa-regular fa-calendar"></i><span>24 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="10080"><i class="fa-regular fa-calendar-days"></i><span>7 Hari</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+          <button type="button" class="ios-dd-item" data-min="43200"><i class="fa-regular fa-calendar"></i><span>30 Hari</span><i class="fa-solid fa-check ios-dd-check"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="chartsList">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </section>
+
+  <!-- ============ ATTENDANCE ============ -->
+  <section id="s-attendance" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Absensi</div>
+        <div class="s-title-sub" id="attendSub">—</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-soft" onclick="exportAttend()" title="Export CSV" aria-label="Export">
+          <i class="fa-solid fa-download"></i>
+        </button>
+        <button class="btn-soft" onclick="openCardholder()" title="Daftar Kartu" aria-label="Daftar Kartu">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="stat-grid cols-3">
+      <div class="stat" onclick="openStatDetail('hadir')">
+        <div class="stat-num ok" id="sHadir">0</div>
+        <div class="stat-label">Hadir</div>
+      </div>
+      <div class="stat" onclick="openStatDetail('total')">
+        <div class="stat-num" id="sKartu">0</div>
+        <div class="stat-label">Kartu</div>
+      </div>
+      <div class="stat" onclick="openStatDetail('belum')">
+        <div class="stat-num warn" id="sUnknown">0</div>
+        <div class="stat-label">Unknown</div>
+      </div>
+    </div>
+
+    <div class="attend-tabs">
+      <button class="attend-tab active" data-t="report" onclick="setAttendView('report')">Laporan</button>
+      <button class="attend-tab" data-t="history" onclick="setAttendView('history')">Riwayat</button>
+    </div>
+
+    <div class="date-row">
+      <input type="date" id="dateStart" onchange="loadAttend()">
+      <input type="date" id="dateEnd" onchange="loadAttend()">
+    </div>
+
+    <div class="group">
+      <div class="group-body" id="attendList" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DEVICES ============ -->
+  <section id="s-devices" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Device</div>
+        <div class="s-title-sub" id="deviceSubFull">—</div>
+      </div>
+      <button class="btn btn-primary btn-icon sm" onclick="openAddDevice()" aria-label="Tambah">
+        <i class="fa-solid fa-plus"></i>
+      </button>
+    </div>
+
+    <div class="chips" id="deviceChips">
+      <button class="chip active" data-f="all" onclick="setFilterFull('all')">Semua</button>
+      <button class="chip" data-f="online" onclick="setFilterFull('online')">Online</button>
+      <button class="chip" data-f="offline" onclick="setFilterFull('offline')">Offline</button>
+      <button class="chip" data-f="alert" onclick="setFilterFull('alert')">Alert</button>
+    </div>
+
+    <div class="group">
+      <div class="group-body" id="deviceListFull" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ALERTS ============ -->
+  <section id="s-alerts" class="section">
+    <div class="s-head">
+      <div>
+        <div class="s-title">Alert</div>
+        <div class="s-title-sub" id="alertSub">—</div>
+      </div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn-soft" onclick="markAllVisibleAlerts()" title="Tandai Semua" aria-label="Tandai Semua">
+          <i class="fa-solid fa-check-double"></i>
+        </button>
+        <button class="btn-soft" onclick="loadAlerts()" title="Refresh" aria-label="Refresh">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="stat-grid">
+      <div class="stat">
+        <div class="stat-num" id="aTotal">0</div>
+        <div class="stat-label">Total</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num crit" id="aDanger">0</div>
+        <div class="stat-label">Bahaya</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num warn" id="aWarning">0</div>
+        <div class="stat-label">Peringatan</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num info" id="aInfo">0</div>
+        <div class="stat-label">Info</div>
+      </div>
+    </div>
+
+    <!-- Status & Severity dropdowns -->
+    <div class="alert-dds">
+      <div class="ios-dd" id="alertStatusDD" data-value="all">
+        <button type="button" class="ios-dd-trigger">
+          <i class="fa-solid fa-filter ios-dd-icon"></i>
+          <span class="ios-dd-label">Semua Status</span>
+          <i class="fa-solid fa-chevron-down ios-dd-chev"></i>
+        </button>
+        <div class="ios-dd-menu">
+          <button type="button" class="ios-dd-item active" data-value="all">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Semua Status</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="active">
+            <i class="fa-solid fa-circle-exclamation"></i>
+            <span>Aktif</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="resolved">
+            <i class="fa-solid fa-circle-check"></i>
+            <span>Selesai</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="ios-dd" id="alertSevDD" data-value="">
+        <button type="button" class="ios-dd-trigger">
+          <i class="fa-solid fa-triangle-exclamation ios-dd-icon"></i>
+          <span class="ios-dd-label">Semua Severity</span>
+          <i class="fa-solid fa-chevron-down ios-dd-chev"></i>
+        </button>
+        <div class="ios-dd-menu">
+          <button type="button" class="ios-dd-item active" data-value="">
+            <i class="fa-solid fa-layer-group"></i>
+            <span>Semua Severity</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="danger">
+            <i class="fa-solid fa-fire"></i>
+            <span>Bahaya</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="warning">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>Peringatan</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+          <button type="button" class="ios-dd-item" data-value="info">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>Info</span>
+            <i class="fa-solid fa-check ios-dd-check"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Date filter -->
+    <div class="alert-date-filter">
+      <div class="adf-group">
+        <label for="alertDateStart">Dari</label>
+        <input type="date" id="alertDateStart">
+      </div>
+      <div class="adf-group">
+        <label for="alertDateEnd">Sampai</label>
+        <input type="date" id="alertDateEnd">
+      </div>
+      <div class="alert-date-actions">
+        <button class="btn-soft" onclick="applyAlertDateFilter()">
+          <i class="fa-solid fa-filter"></i> Terapkan
+        </button>
+        <button class="btn-soft" onclick="resetAlertDateFilter()">
+          <i class="fa-solid fa-xmark"></i> Reset
+        </button>
+      </div>
+    </div>
+
+    <!-- Bulk action bar -->
+    <div class="alert-bulk-bar" id="alertBulkBar" style="display:none;">
+      <label>
+        <input type="checkbox" id="alertSelectAll">
+        <span>Pilih Semua</span>
+      </label>
+      <span class="count" id="alertSelectedCount">0 dipilih</span>
+      <button class="btn btn-ok" onclick="bulkAckAlerts()">
+        <i class="fa-solid fa-check-double"></i> Tandai
+      </button>
+    </div>
+
+    <!-- Search -->
+    <div class="search">
+      <i class="fa-solid fa-magnifying-glass"></i>
+      <input type="text" id="alertSearch" placeholder="Cari alert...">
+    </div>
+
+    <!-- List -->
+    <div class="group" id="alertsGroup">
+      <div class="group-body" id="alertsList" style="padding:0;">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============ BOTTOM TABBAR ============ -->
+<nav class="tabs">
+  <button class="tab active" data-tab="dashboard" onclick="go('dashboard')">
+    <i class="fa-solid fa-house"></i><span>Home</span>
+  </button>
+  <button class="tab" data-tab="map" onclick="go('map')">
+    <i class="fa-solid fa-map"></i><span>Peta</span>
+  </button>
+  <button class="tab" data-tab="analytics" onclick="go('analytics')">
+    <i class="fa-solid fa-chart-line"></i><span>Analitik</span>
+  </button>
+  <button class="tab" data-tab="attendance" onclick="go('attendance')">
+    <i class="fa-solid fa-id-card"></i><span>Absensi</span>
+  </button>
+  <button class="tab" data-tab="devices" onclick="go('devices')">
+    <i class="fa-solid fa-microchip"></i><span>Device</span>
+  </button>
+  <button class="tab" data-tab="alerts" onclick="go('alerts')">
+    <i class="fa-solid fa-bell"></i><span>Alert</span>
+    <span class="tab-badge hidden" id="tabAlertBadge">0</span>
+  </button>
+</nav>
+
+<!-- ============ MODALS ============ -->
+
+<!-- Add Device -->
+<div class="modal" id="m-add">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3>Tambah Perangkat</h3>
+      <button class="modal-close" onclick="closeModal('m-add')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="field"><label>Device ID</label><input type="text" id="addId" placeholder="ESP32-001"></div>
+    <div class="field"><label>Nama</label><input type="text" id="addName" placeholder="Sensor Suhu Server"></div>
+    <div class="field">
+      <label>Tipe</label>
+      <select id="addType">
+        <option>ESP32</option><option>ESP8266</option><option>Arduino</option>
+        <option>Raspberry Pi</option><option>RFID Reader</option><option>Other</option>
+      </select>
+    </div>
+    <div class="field"><label>Lokasi</label><input type="text" id="addLocation" placeholder="Ruang Server"></div>
+
+    <div class="field-divider">Konfigurasi Monitoring</div>
+    <div class="field">
+      <label>Interval Kirim (detik)</label>
+      <input type="number" id="addInterval" value="60" min="10" max="86400">
+      <small>60 = tiap menit, 3600 = tiap jam</small>
+    </div>
+    <div class="field">
+      <label>Offline Timeout (detik)</label>
+      <input type="number" id="addTimeout" placeholder="Auto: 3x interval" min="10" max="604800">
+    </div>
+
+    <div class="field-divider">Custom Alert Thresholds</div>
+    <div class="field">
+      <div class="field-row">
+        <label>Batas alert per sensor</label>
+        <span class="field-hint">Kosong = global</span>
+      </div>
+      <div id="addRules" class="rules"><div class="rule-empty">Belum ada custom rule</div></div>
+      <button class="rule-add" onclick="addRule('add')">
+        <i class="fa-solid fa-plus"></i> Tambah Sensor
+      </button>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-add')">Batal</button>
+      <button class="btn btn-primary" onclick="submitAddDevice()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Config -->
+<div class="modal" id="m-edit">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3>Konfigurasi</h3>
+      <button class="modal-close" onclick="closeModal('m-edit')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <input type="hidden" id="editId">
+    <div class="field">
+      <label>Interval Kirim (detik)</label>
+      <input type="number" id="editInterval" min="10" max="86400">
+    </div>
+    <div class="field">
+      <label>Offline Timeout (detik)</label>
+      <input type="number" id="editTimeout" min="10" max="604800">
+    </div>
+    <div class="field-divider">Custom Alert Thresholds</div>
+    <div class="field">
+      <div class="field-row">
+        <label>Batas alert per sensor</label>
+        <span class="field-hint">Kosong = global</span>
+      </div>
+      <div id="editRules" class="rules"><div class="rule-empty">Belum ada custom rule</div></div>
+      <button class="rule-add" onclick="addRule('edit')">
+        <i class="fa-solid fa-plus"></i> Tambah Sensor
+      </button>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-edit')">Batal</button>
+      <button class="btn btn-primary" onclick="submitEditConfig()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Chart -->
+<div class="modal" id="m-chart">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="chartModalTitle">Tambah Diagram</h3>
+      <button class="modal-close" onclick="closeModal('m-chart')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <input type="hidden" id="editChartId">
+    <div class="field"><label>Judul Diagram</label><input type="text" id="chartTitle" placeholder="Contoh: Suhu Ruang Server"></div>
+    <div class="field">
+      <div class="field-row">
+        <label>Pilih Perangkat</label>
+        <span class="field-hint">Bisa pilih beberapa</span>
+      </div>
+      <div class="cb-grid" id="chartDeviceCbs"></div>
+    </div>
+    <div class="field">
+      <label>Tipe Diagram</label>
+      <select id="chartType">
+        <optgroup label="Dasar">
+          <option value="line">Line Chart</option><option value="bar">Bar Chart</option><option value="area">Area Chart</option>
+        </optgroup>
+        <optgroup label="Statistik">
+          <option value="doughnut">Doughnut</option><option value="pie">Pie</option>
+          <option value="polarArea">Polar Area</option><option value="radar">Radar</option>
+        </optgroup>
+        <optgroup label="Khusus">
+          <option value="horizontalBar">Horizontal Bar</option>
+          <option value="stackedBar">Stacked Bar</option>
+          <option value="stackedArea">Stacked Area</option>
+        </optgroup>
+      </select>
+    </div>
+    <div class="field">
+      <label>Data yang Ditampilkan</label>
+      <div class="cb-grid" id="chartDataCbs"></div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-chart')">Batal</button>
+      <button class="btn btn-primary" onclick="saveChart()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- API Key -->
+<div class="modal" id="m-apikey">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3>API Key</h3>
+      <button class="modal-close" onclick="closeApiKeyModal()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;line-height:1.5;">
+      Simpan API Key ini, hanya muncul sekali:
+    </p>
+    <div style="background:var(--surface-2);border-radius:12px;padding:15px;display:flex;gap:10px;align-items:center;border:1px solid var(--border-soft);">
+      <code id="apiKeyValue" style="flex:1;font-size:12.5px;color:var(--text);word-break:break-all;font-family:var(--mono);line-height:1.5;font-weight:600;"></code>
+      <button class="btn-soft" onclick="copyApiKey()" style="flex-shrink:0;padding:9px 13px;">
+        <i class="fa-solid fa-copy"></i>
+      </button>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" onclick="closeApiKeyModal()">Saya Sudah Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete -->
+<div class="modal" id="m-delete">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="deleteTitle">Hapus</h3>
+      <button class="modal-close" onclick="closeModal('m-delete')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <p id="deleteText" style="font-size:13.5px;color:var(--text-2);margin-bottom:16px;line-height:1.5;"></p>
+    <div class="field">
+      <label id="deleteLabel" style="color:var(--crit);">Ketik untuk konfirmasi</label>
+      <input type="text" id="deleteInput" autocomplete="off">
+    </div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-delete')">Batal</button>
+      <button class="btn btn-danger" id="deleteConfirm" disabled onclick="confirmDelete()">Hapus</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cardholder -->
+<div class="modal" id="m-card">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3>Daftarkan Kartu</h3>
+      <button class="modal-close" onclick="closeModal('m-card')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="field">
+      <label>UID Kartu</label>
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="cardUid" placeholder="0x010dd605" style="flex:1;">
+        <button class="btn-soft" onclick="captureLastTap()" style="flex-shrink:0;padding:0 14px;min-height:44px;" title="Tap terakhir">
+          <i class="fa-solid fa-crosshairs"></i>
+        </button>
+      </div>
+    </div>
+    <div class="field"><label>Nama Pemilik</label><input type="text" id="cardNama" placeholder="Nama lengkap"></div>
+    <div class="actions">
+      <button class="btn btn-ghost" onclick="closeModal('m-card')">Batal</button>
+      <button class="btn btn-primary" onclick="submitCardholder()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stat Detail -->
+<div class="modal" id="m-stat">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="statTitle">Detail</h3>
+      <button class="modal-close" onclick="closeModal('m-stat')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div id="statBody" style="display:flex;flex-direction:column;">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Tab Modal -->
+<div class="modal" id="m-tab">
+  <div class="modal-inner">
+    <div class="modal-head">
+      <h3 id="tabModalTitle">Tab Analitik</h3>
+      <button class="modal-close" onclick="closeModal('m-tab')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <input type="hidden" id="tabMode" value="new">
+    <input type="hidden" id="tabId" value="">
+    <div class="field"><label>Nama Tab</label><input type="text" id="tabName" placeholder="Contoh: Suhu"></div>
+    <div class="actions" style="align-items:center;">
+      <button class="btn btn-danger hidden" id="tabDeleteBtn" style="flex:0 0 auto;padding:12px 14px;" onclick="deleteTab()">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+      <button class="btn btn-ghost" onclick="closeModal('m-tab')">Batal</button>
+      <button class="btn btn-primary" onclick="saveTab()">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- Action Sheet -->
+<div class="modal" id="m-sheet">
+  <div class="modal-inner" style="padding-top:14px;">
+    <div class="modal-head" style="margin-bottom:8px;">
+      <h3 id="sheetTitle" style="font-size:15px;">Device</h3>
+      <button class="modal-close" onclick="closeModal('m-sheet')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <button class="sheet-item" onclick="sheetAction('detail')">
+        <i class="fa-solid fa-circle-info"></i> Lihat Detail
+      </button>
+      <button class="sheet-item" onclick="sheetAction('config')">
+        <i class="fa-solid fa-sliders"></i> Konfigurasi
+      </button>
+      <button class="sheet-item warn" onclick="sheetAction('key')">
+        <i class="fa-solid fa-key"></i> Regenerate API Key
+      </button>
+      <button class="sheet-item danger" onclick="sheetAction('delete')">
+        <i class="fa-solid fa-trash"></i> Hapus Perangkat
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+<script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
+</body>
+</html>

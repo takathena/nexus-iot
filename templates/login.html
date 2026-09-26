@@ -1,0 +1,313 @@
+{% extends "base.html" %}
+
+{% block title %}Masuk — NEXUS{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ==========================================================
+       NEXUS — Login (iOS theme)
+       ========================================================== */
+
+    body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        min-height: 100vh;
+        min-height: 100dvh;
+        position: relative;
+        overflow: hidden;
+    }
+
+    /* Ambient gradient (soft, subtle) */
+    body::before {
+        content: '';
+        position: fixed;
+        inset: -30%;
+        z-index: -1;
+        background:
+            radial-gradient(38% 30% at 25% 20%, rgba(127, 168, 217, 0.10), transparent 65%),
+            radial-gradient(32% 26% at 80% 78%, rgba(224, 164, 92, 0.06), transparent 65%);
+        filter: blur(80px);
+        animation: drift 22s ease-in-out infinite alternate;
+        pointer-events: none;
+    }
+
+    [data-theme="light"] body::before {
+        background:
+            radial-gradient(38% 30% at 25% 20%, rgba(63, 107, 160, 0.08), transparent 65%),
+            radial-gradient(32% 26% at 80% 78%, rgba(184, 117, 42, 0.05), transparent 65%);
+    }
+
+    @keyframes drift {
+        0%   { transform: translate3d(0, 0, 0) scale(1); }
+        100% { transform: translate3d(-2%, 2%, 0) scale(1.08); }
+    }
+
+    /* ---------- Card ---------- */
+    .login-card {
+        position: relative;
+        z-index: 2;
+        width: 100%;
+        max-width: 400px;
+        background: var(--surface);
+        border: 1px solid var(--hairline);
+        border-radius: 24px;
+        padding: 36px 28px 28px;
+        box-shadow:
+            0 24px 60px rgba(0, 0, 0, 0.18),
+            0 2px 8px rgba(0, 0, 0, 0.06);
+        margin: auto;
+        animation: rise .5s var(--ease);
+    }
+
+    [data-theme="dark"] .login-card {
+        box-shadow:
+            0 24px 60px rgba(0, 0, 0, 0.55),
+            0 2px 8px rgba(0, 0, 0, 0.35);
+    }
+
+    /* ---------- Logo mark ---------- */
+    .login-mark {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 16px;
+        border-radius: 16px;
+        background: var(--surface-2);
+        border: 1px solid var(--hairline);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 22px;
+        color: var(--text);
+        box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.04),
+            inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    [data-theme="dark"] .login-mark {
+        background: linear-gradient(155deg, var(--surface-3), var(--surface-2));
+    }
+
+    /* ---------- Text ---------- */
+    .login-title {
+        text-align: center;
+        font-size: 22px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+        margin-bottom: 4px;
+        color: var(--text);
+    }
+
+    .login-sub {
+        text-align: center;
+        font-size: 13px;
+        color: var(--text-3);
+        margin-bottom: 26px;
+        font-weight: 500;
+        letter-spacing: -0.005em;
+    }
+
+    /* ---------- Error ---------- */
+    .login-error {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        background: var(--accent-crit-bg);
+        border: 1px solid color-mix(in srgb, var(--accent-crit) 30%, transparent);
+        color: var(--accent-crit);
+        border-radius: 11px;
+        padding: 11px 13px;
+        font-size: 12.5px;
+        font-weight: 600;
+        margin-bottom: 18px;
+        animation: shake .35s var(--ease);
+    }
+    .login-error i { font-size: 14px; flex-shrink: 0; }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-4px); }
+        75% { transform: translateX(4px); }
+    }
+
+    /* ---------- Field ---------- */
+    .login-field { margin-bottom: 14px; }
+
+    .login-field label {
+        display: block;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-3);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-bottom: 7px;
+        padding-left: 3px;
+    }
+
+    .login-field-wrap { position: relative; }
+
+    .login-field-wrap > i {
+        position: absolute;
+        left: 15px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-3);
+        font-size: 14px;
+        pointer-events: none;
+        z-index: 1;
+        transition: color 0.15s;
+    }
+
+    .login-field-wrap input {
+        width: 100%;
+        background: var(--surface-2);
+        border: 1px solid transparent;
+        border-radius: 12px;
+        padding: 13px 14px 13px 42px;
+        font-size: 14px;
+        font-family: inherit;
+        color: var(--text);
+        outline: none;
+        transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+        -webkit-appearance: none;
+        appearance: none;
+    }
+
+    .login-field-wrap input::placeholder {
+        color: var(--text-3);
+    }
+
+    .login-field-wrap input:hover {
+        background: var(--surface-3);
+    }
+
+    .login-field-wrap input:focus {
+        background: var(--surface);
+        border-color: var(--accent-info);
+        box-shadow: 0 0 0 4px var(--accent-info-bg);
+    }
+
+    .login-field-wrap input:focus ~ i,
+    .login-field-wrap input:focus + i {
+        color: var(--accent-info);
+    }
+
+    /* Fix: icon harus sebelum input di DOM, jadi pakai sibling selector */
+    .login-field-wrap:focus-within > i {
+        color: var(--accent-info);
+    }
+
+    /* ---------- Submit ---------- */
+    .login-submit {
+        width: 100%;
+        margin-top: 8px;
+        padding: 14px;
+        border: none;
+        border-radius: 12px;
+        background: var(--primary);
+        color: var(--primary-fg);
+        font-size: 14px;
+        font-weight: 700;
+        font-family: inherit;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        letter-spacing: -0.01em;
+        transition: background 0.15s, transform 0.1s, box-shadow 0.15s;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.10);
+        min-height: 50px;
+    }
+
+    .login-submit:hover {
+        background: var(--primary-hover);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.14);
+    }
+
+    .login-submit:active {
+        transform: scale(0.98);
+    }
+
+    .login-submit i {
+        font-size: 12px;
+        transition: transform 0.15s;
+    }
+
+    .login-submit:hover i {
+        transform: translateX(2px);
+    }
+
+    /* ---------- Footer ---------- */
+    .login-foot {
+        text-align: center;
+        margin-top: 22px;
+        font-size: 11px;
+        color: var(--text-3);
+        font-weight: 500;
+        letter-spacing: 0.01em;
+    }
+
+    .login-foot span {
+        color: var(--text-3);
+        opacity: 0.6;
+        margin: 0 6px;
+    }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 480px) {
+        body { padding: 16px; }
+        .login-card {
+            border-radius: 22px;
+            padding: 30px 22px 24px;
+        }
+        .login-mark { width: 50px; height: 50px; font-size: 20px; margin-bottom: 14px; }
+        .login-title { font-size: 20px; }
+        .login-sub { font-size: 12.5px; margin-bottom: 22px; }
+        .login-field-wrap input { padding: 12px 14px 12px 40px; font-size: 15px; }
+        .login-submit { padding: 13px; min-height: 48px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="login-card">
+    <div class="login-mark">
+        <i class="fa-solid fa-satellite-dish"></i>
+    </div>
+    <h1 class="login-title">NEXUS</h1>
+    <p class="login-sub">Masuk untuk mengelola perangkat Anda</p>
+
+    {% if error %}
+    <div class="login-error">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>{{ error }}</span>
+    </div>
+    {% endif %}
+
+    <form method="POST" action="/login" autocomplete="on">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="login-field">
+            <label for="username">Username</label>
+            <div class="login-field-wrap">
+                <i class="fa-regular fa-user"></i>
+                <input type="text" id="username" name="username" placeholder="admin" required autofocus autocomplete="username" spellcheck="false" autocapitalize="off">
+            </div>
+        </div>
+
+        <div class="login-field">
+            <label for="password">Password</label>
+            <div class="login-field-wrap">
+                <i class="fa-solid fa-lock"></i>
+                <input type="password" id="password" name="password" placeholder="••••••••" required autocomplete="current-password">
+            </div>
+        </div>
+
+        <button type="submit" class="login-submit">
+            Masuk <i class="fa-solid fa-arrow-right"></i>
+        </button>
+    </form>
+</div>
+{% endblock %}

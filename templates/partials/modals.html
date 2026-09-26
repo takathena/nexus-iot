@@ -1,0 +1,366 @@
+<style>
+    /* Delete modal harus muncul DI ATAS modal lain (mis. cardholder list) */
+    #deleteModal {
+        z-index: 10050;
+    }
+    #deleteModal .modal-content {
+        box-shadow: 0 24px 60px rgba(0,0,0,0.55);
+    }
+    #confirmDeleteBtn:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+    }
+    #confirmDeleteBtn:disabled:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    /* Info box untuk interval auto-detect */
+    .interval-info-box {
+        background: var(--surface-2);
+        border: 1px solid var(--hairline);
+        border-radius: var(--radius-md);
+        padding: 11px 14px;
+        font-size: 13px;
+        color: var(--text);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+    }
+    .interval-info-box .value {
+        font-family: var(--mono);
+        font-weight: 700;
+        font-size: 13.5px;
+    }
+    .interval-info-box .hint {
+        font-size: 10.5px;
+        color: var(--text-3);
+        font-weight: 500;
+        text-transform: none;
+        letter-spacing: 0;
+    }
+</style>
+
+<!-- ADD DEVICE MODAL -->
+<div class="modal" id="addDeviceModal">
+    <div class="modal-content" style="max-width:560px;">
+        <div class="modal-header">
+            <h3>Tambah Perangkat</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>Device ID</label>
+            <input type="text" id="addDeviceId" placeholder="ESP32-001"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+            <label>Nama</label>
+            <input type="text" id="addDeviceName" placeholder="Sensor Suhu Server"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+            <label>Tipe</label>
+            <select id="addDeviceType">
+                <option>ESP32</option>
+                <option>ESP8266</option>
+                <option>Arduino</option>
+                <option>Raspberry Pi</option>
+                <option>RFID Reader</option>
+                <option>Other</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Lokasi</label>
+            <input type="text" id="addDeviceLocation" placeholder="Ruang Server"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
+        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">
+            Konfigurasi Monitoring
+        </p>
+
+        <div class="form-group">
+            <label>Interval Kirim Data</label>
+            <div class="interval-info-box">
+                <div>
+                    <div class="value" style="color:var(--accent-info);">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Otomatis
+                    </div>
+                    <div class="hint">Terdeteksi dari data perangkat</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Offline Timeout (detik) - Opsional</label>
+            <input type="number" id="addDeviceOfflineTimeout" placeholder="Auto: 2× interval" min="10" max="604800" autocomplete="off">
+            <small style="font-size:10px;color:var(--text-3);margin-top:4px;display:block;">
+                Kosongkan = otomatis 2× interval kirim (mis. interval 60s → timeout 120s)
+            </small>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
+        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">
+            Custom Alert Thresholds
+        </p>
+
+        <div class="form-group">
+            <label style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Atur batas alert per sensor</span>
+                <span style="font-size:10px;color:var(--text-3);font-weight:500;text-transform:none;letter-spacing:0;">
+                    Kosongkan = pakai global
+                </span>
+            </label>
+            <div id="addAlertRulesBuilder" class="alert-rules-builder">
+                <div class="alert-rule-empty">Belum ada custom rule. Pakai global default.</div>
+            </div>
+            <button type="button" class="btn-add-rule" onclick="addAlertRule('add')">
+                <i class="fa-solid fa-plus"></i> Tambah Sensor
+            </button>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-success" data-action="submit-add-device">Simpan</button>
+        </div>
+    </div>
+</div>
+
+<!-- EDIT DEVICE CONFIG MODAL -->
+<div class="modal" id="editDeviceConfigModal">
+    <div class="modal-content" style="max-width:560px;">
+        <div class="modal-header">
+            <h3>Konfigurasi Monitoring</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <input type="hidden" id="editConfigDeviceId">
+
+        <div class="form-group">
+            <label>Interval Kirim Data</label>
+            <div class="interval-info-box">
+                <div>
+                    <div class="value" id="editDeviceIntervalDisplay">—</div>
+                    <div class="hint">Terdeteksi otomatis dari data</div>
+                </div>
+                <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent-info);font-size:14px;"></i>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Offline Timeout (detik) - Opsional</label>
+            <input type="number" id="editDeviceOfflineTimeout" placeholder="Auto: 2× interval" min="10" max="604800" autocomplete="off">
+            <small style="font-size:10px;color:var(--text-3);margin-top:4px;display:block;">
+                Kosongkan = otomatis 2× interval kirim
+            </small>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
+        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">
+            Custom Alert Thresholds
+        </p>
+
+        <div class="form-group">
+            <label style="display:flex;justify-content:space-between;align-items:center;">
+                <span>Atur batas alert per sensor</span>
+                <span style="font-size:10px;color:var(--text-3);font-weight:500;text-transform:none;letter-spacing:0;">
+                    Kosongkan = pakai global
+                </span>
+            </label>
+            <div id="editAlertRulesBuilder" class="alert-rules-builder">
+                <div class="alert-rule-empty">Belum ada custom rule. Pakai global default.</div>
+            </div>
+            <button type="button" class="btn-add-rule" onclick="addAlertRule('edit')">
+                <i class="fa-solid fa-plus"></i> Tambah Sensor
+            </button>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-success" data-action="save-device-config">
+                <i class="fa-solid fa-check"></i> Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- CHART MODAL -->
+<div class="modal" id="chartModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="chartModalTitle">Tambah Diagram</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <input type="hidden" id="editChartId" value="">
+        <div class="form-group">
+            <label>Judul Diagram</label>
+            <input type="text" id="chartTitle" placeholder="Contoh: Suhu Ruang Server"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+        <label style="display:flex;justify-content:space-between;align-items:center;">
+            <span>Pilih Perangkat</span>
+            <span style="font-size:10px;color:var(--text-3);font-weight:500;text-transform:none;letter-spacing:0;">
+                Bisa pilih beberapa
+            </span>
+        </label>
+            <div class="checkbox-grid" id="chartDeviceCheckboxes" style="max-height:220px;overflow-y:auto;">
+                <div style="padding:12px;color:var(--text-3);font-size:12px;grid-column:1/-1;">Memuat device...</div>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Tipe Diagram</label>
+            <select id="chartTypeSelect">
+                <optgroup label="Dasar">
+                    <option value="line">Line Chart</option>
+                    <option value="bar">Bar Chart</option>
+                    <option value="area">Area Chart</option>
+                </optgroup>
+                <optgroup label="Statistik">
+                    <option value="doughnut">Doughnut Chart</option>
+                    <option value="pie">Pie Chart</option>
+                    <option value="polarArea">Polar Area</option>
+                    <option value="radar">Radar Chart</option>
+                </optgroup>
+                <optgroup label="Khusus">
+                    <option value="horizontalBar">Horizontal Bar</option>
+                    <option value="stackedBar">Stacked Bar</option>
+                    <option value="stackedArea">Stacked Area</option>
+                </optgroup>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Data yang Ditampilkan</label>
+            <div class="checkbox-grid" id="chartDataCheckboxes"></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-success" data-action="save-chart">
+                <i class="fa-solid fa-check"></i> Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- API KEY MODAL -->
+<div class="modal" id="apiKeyModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>API Key</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <p style="font-size:12.5px;color:var(--text-2);margin-bottom:10px;">
+            Simpan API Key ini - hanya muncul sekali:
+        </p>
+        <div style="background:var(--surface-2);border:1px solid var(--hairline);border-radius:11px;padding:13px;display:flex;align-items:center;gap:10px;">
+            <code id="apiKeyDisplay" style="flex:1;font-size:11.5px;color:var(--text);word-break:break-all;font-family:var(--mono);"></code>
+            <button class="btn btn-primary" data-action="copy-api-key">Copy</button>
+        </div>
+        <button class="btn btn-primary modal-close" style="width:100%;margin-top:16px;">
+            Saya Sudah Simpan
+        </button>
+    </div>
+</div>
+
+<!-- DELETE MODAL -->
+<div class="modal" id="deleteModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="deleteModalTitle">Hapus Perangkat</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <p id="deleteModalText" style="margin-bottom:12px;color:var(--text-2);font-size:13.5px;">
+            Tindakan ini tidak dapat dibatalkan.
+        </p>
+        <div class="form-group" id="deleteConfirmGroup">
+            <label style="color:var(--red);" id="deleteConfirmLabel">
+                Ketik nama device untuk konfirmasi
+            </label>
+            <input type="text" id="deleteConfirmInput"
+                   placeholder="Ketik nama device..."
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <input type="hidden" id="deleteDeviceId">
+        <div class="modal-actions">
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-danger" data-action="confirm-delete" id="confirmDeleteBtn" disabled>
+                <i class="fa-solid fa-trash"></i> Hapus
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- CARDHOLDER MODAL -->
+<div class="modal" id="cardholderModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Daftarkan Kartu</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="form-group">
+            <label>UID Kartu</label>
+            <div style="display:flex;gap:8px;">
+                <input type="text" id="cardholderUid" placeholder="0x010dd605" style="flex:1;"
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <button class="btn btn-secondary" data-action="capture-last-tap" title="Ambil UID tap terakhir" style="flex:0 0 auto;">
+                    <i class="fa-solid fa-crosshairs"></i> Tangkap
+                </button>
+            </div>
+        </div>
+        <div class="form-group">
+            <label>Nama Pemilik</label>
+            <input type="text" id="cardholderNama" placeholder="Nama lengkap"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-success" data-action="submit-cardholder">
+                <i class="fa-solid fa-check"></i> Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- STAT DETAIL MODAL -->
+<div class="modal" id="statDetailModal">
+    <div class="modal-content" style="max-width:640px;">
+        <div class="modal-header">
+            <h3 id="statDetailTitle">Detail</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div class="table-wrapper">
+            <table class="device-table" style="min-width:auto;">
+                <thead id="statDetailThead"></thead>
+                <tbody id="statDetailBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ANALYTICS TAB MODAL -->
+<div class="modal" id="analyticsTabModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 id="analyticsTabModalTitle">Tab Analitik</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <input type="hidden" id="analyticsTabMode" value="new">
+        <input type="hidden" id="analyticsTabId" value="">
+        <div class="form-group">
+            <label>Nama Tab</label>
+            <input type="text" id="analyticsTabName" placeholder="Contoh: Suhu, Kelembapan, Gas"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="modal-actions">
+            <button class="btn btn-danger" id="analyticsTabDeleteBtn" style="display:none;margin-right:auto;">
+                <i class="fa-solid fa-trash"></i> Hapus
+            </button>
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-primary" data-action="save-analytics-tab">
+                <i class="fa-solid fa-check"></i> Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<input type="hidden" id="deleteType" value="device">
