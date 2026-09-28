@@ -474,7 +474,18 @@ def update_device(device_id):
         try:
             data = device_update_schema.load(payload)
         except ValidationError as err:
-            return jsonify({'success': False, 'error': err.messages}), 400
+            # Flatten marshmallow error
+            err_msgs = err.messages
+            if isinstance(err_msgs, dict):
+                parts = []
+                for field, msgs in err_msgs.items():
+                    arr = msgs if isinstance(msgs, list) else [msgs]
+                    for m in arr:
+                        parts.append(f"{field}: {m}")
+                error_str = ' | '.join(parts) if parts else 'Validation error'
+            else:
+                error_str = str(err_msgs)
+            return jsonify({'success': False, 'error': error_str}), 400
 
         alert_rules = data.get('alert_rules')
         if alert_rules is not None:
@@ -490,16 +501,67 @@ def update_device(device_id):
             if not device:
                 return jsonify({'success': False, 'error': 'Device not found'}), 404
 
+            # ==========================================
+            # HANDLE offline_timeout
+            # ==========================================
+            # Rule:
+            #   - Field TIDAK ada di payload → pakai nilai lama (jangan reset)
+            #   - Field = null → reset ke auto mode (NULL)
+            #   - Field = int → validasi & pakai
+            if 'offline_timeout' in data:
+                raw_timeout = data['offline_timeout']
+
+                # Mode auto (null)
+                if raw_timeout is None or raw_timeout == '':
+                    new_offline_timeout = None
+                else:
+                    # Convert ke int
+                    try:
+                        new_timeout = int(raw_timeout)
+                    except (ValueError, TypeError):
+                        return jsonify({
+                            'success': False,
+                            'error': 'Offline Timeout harus berupa angka atau dikosongkan'
+                        }), 400
+
+                    # Validasi min & max (schema tidak validasi karena fields.Raw)
+                    if new_timeout < 10:
+                        return jsonify({
+                            'success': False,
+                            'error': 'Offline Timeout minimal 10 detik. Kosongkan untuk mode otomatis.'
+                        }), 400
+
+                    if new_timeout > 604800:
+                        return jsonify({
+                            'success': False,
+                            'error': 'Offline Timeout maksimal 604800 detik (7 hari).'
+                        }), 400
+
+                    # Validasi ≥ 1× expected_interval (batas bawah aman)
+                    current_interval = device['expected_interval'] or 60
+                    min_allowed = current_interval
+
+                    if new_timeout < min_allowed:
+                        return jsonify({
+                            'success': False,
+                            'error': (
+                                f'Offline Timeout minimal {min_allowed} detik '
+                                f'(= interval kirim device). '
+                                f'Kalau perlu lebih kecil dari ini, '
+                                f'kosongkan field untuk pakai mode otomatis.'
+                            )
+                        }), 400
+
+                    new_offline_timeout = new_timeout
+            else:
+                # Field tidak dikirim → jangan ubah
+                new_offline_timeout = device['offline_timeout']
+
+            # Alert rules
             if alert_rules is not None:
                 alert_rules_json = json.dumps(alert_rules) if alert_rules else None
             else:
                 alert_rules_json = device['alert_rules']
-
-            # Handle offline_timeout: None = auto (2x interval)
-            if 'offline_timeout' in data:
-                new_offline_timeout = data.get('offline_timeout')
-            else:
-                new_offline_timeout = device['offline_timeout']
 
             updates = {
                 'device_name': data.get('device_name', device['device_name']),
@@ -534,7 +596,6 @@ def update_device(device_id):
     except Exception as e:
         logger.error(f"Error updating device {device_id}: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
-
 
 @api_bp.route('/devices/<device_id>', methods=['DELETE'])
 @login_required

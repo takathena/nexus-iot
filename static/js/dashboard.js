@@ -1,6 +1,6 @@
 /* ==========================================
-   NEXUS IoT - Dashboard Logic (v4.8)
-   Chart absolute positioning + anti-tumpuk + auto-scroll + clamp.
+   NEXUS IoT - Dashboard Logic (v5.0)
+   Sure style: chart colors, minimal grid, compact legend
    ========================================== */
 
 (function() {
@@ -28,7 +28,7 @@ const state = {
     attendanceInterval: null,
     attendanceLastId: 0,
     deviceSearchTerm: '',
-    alertSearchTerm: '',        // ← TAMBAH INI
+    alertSearchTerm: '',
     analyticsTabs: [],
     currentTabId: null,
     isInitialized: false,
@@ -43,8 +43,20 @@ const state = {
     canvasHeight: 720,
 };
 
-    const CHART_FONT = "'Inter', -apple-system, sans-serif";
-    const CHART_COLORS = ['#c97a7a', '#7a9dc4', '#5fb587', '#d99a56', '#a88cc4', '#6ab8b8', '#b8a85a', '#8cb069'];
+    const CHART_FONT = "'Geist', -apple-system, sans-serif";
+
+    // Sure palette: orange, green, red, purple, blue, teal, amber, pink
+    const CHART_COLORS = [
+        '#f97316',  // orange (primary)
+        '#22c55e',  // green
+        '#ef4444',  // red
+        '#8b5cf6',  // purple
+        '#3b82f6',  // blue
+        '#14b8a6',  // teal
+        '#f59e0b',  // amber
+        '#ec4899',  // pink
+    ];
+
     const GAP = 12;
     const PADDING = 16;
     const DEFAULT_W = 440;
@@ -53,16 +65,16 @@ const state = {
     const MIN_H = 160;
 
     const DATA_KEYS = {
-        temperature: { label: 'Suhu', unit: '°C', color: '#c97a7a' },
-        humidity: { label: 'Kelembaban', unit: '%', color: '#7a9dc4' },
-        gas_level: { label: 'Gas', unit: '%', color: '#d99a56' },
-        smoke: { label: 'Asap', unit: 'ppm', color: '#a88cc4' },
-        motion: { label: 'Gerakan', unit: '', color: '#6ab8b8' },
-        rfid: { label: 'RFID', unit: '', color: '#8cb069' },
-        moisture: { label: 'K. Tanah', unit: '%', color: '#6aa8c4' },
-        lux: { label: 'Cahaya', unit: 'lux', color: '#b8a85a' },
-        co2: { label: 'CO2', unit: 'ppm', color: '#5fb587' },
-        voc: { label: 'VOC', unit: 'ppb', color: '#a855f7' },
+        temperature: { label: 'Suhu',           unit: '°C',  color: '#f97316' },
+        humidity:    { label: 'Kelembaban',     unit: '%',   color: '#3b82f6' },
+        gas_level:   { label: 'Gas',            unit: 'ppm', color: '#ef4444' },
+        smoke:       { label: 'Asap',           unit: 'ppm', color: '#8b5cf6' },
+        motion:      { label: 'Gerakan',        unit: '',    color: '#14b8a6' },
+        rfid:        { label: 'RFID',           unit: '',    color: '#22c55e' },
+        moisture:    { label: 'K. Tanah',       unit: '%',   color: '#06b6d4' },
+        lux:         { label: 'Cahaya',         unit: 'lux', color: '#f59e0b' },
+        co2:         { label: 'CO2',            unit: 'ppm', color: '#22c55e' },
+        voc:         { label: 'VOC',            unit: 'ppb', color: '#a855f7' },
         air_quality: { label: 'Kualitas Udara', unit: 'AQI', color: '#3b82f6' },
     };
 
@@ -141,14 +153,14 @@ const state = {
     function getChartColors() {
         const isLight = document.documentElement.getAttribute('data-theme') === 'light';
         return {
-            gridColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.06)',
-            labelColor: isLight ? 'rgba(74,84,98,0.75)' : 'rgba(168,176,188,0.7)',
-            legendColor: isLight ? 'rgba(74,84,98,0.9)' : 'rgba(168,176,188,0.9)',
-            tooltipBg: isLight ? 'rgba(255,255,255,0.98)' : 'rgba(28,32,39,0.98)',
-            tooltipBorder: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)',
-            tooltipTitleColor: isLight ? '#1a1d23' : '#e8ebef',
-            tooltipBodyColor: isLight ? 'rgba(74,84,98,0.9)' : 'rgba(168,176,188,0.9)',
-            pointBorderColor: isLight ? '#fff' : '#1c2027',
+            gridColor: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)',
+            labelColor: isLight ? '#737373' : '#a3a3a3',
+            legendColor: isLight ? '#525252' : '#a3a3a3',
+            tooltipBg: isLight ? '#0a0a0a' : '#fafafa',
+            tooltipBorder: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)',
+            tooltipTitleColor: isLight ? '#fafafa' : '#0a0a0a',
+            tooltipBodyColor: isLight ? '#a3a3a3' : '#525252',
+            pointBorderColor: isLight ? '#fafafa' : '#0a0a0a',
         };
     }
     function downsampleHistory(arr, max) {
@@ -206,7 +218,7 @@ const state = {
 
         const searchBox = document.querySelector('.search-box');
         const searchInput = $('searchInput');
-        const noSearch = ['map', 'graph'];   // ← 'alerts' dihapus
+        const noSearch = ['map', 'graph'];
         if (searchBox) searchBox.style.display = noSearch.includes(section) ? 'none' : '';
         if (searchInput) {
             if (section === 'alerts') {
@@ -409,14 +421,14 @@ const state = {
         updateMapSelectedBanner();
     }
     function getDeviceMapStyle(d) {
-        let color = '#6c7580'; let label = (d.status || 'offline').toUpperCase();
-        if (d.status === 'offline') { color = '#c97a7a'; label = 'OFFLINE'; }
+        let color = '#737373'; let label = (d.status || 'offline').toUpperCase();
+        if (d.status === 'offline') { color = '#ef4444'; label = 'OFFLINE'; }
         else if (d.has_alert && d.top_alert_severity) {
-            if (d.top_alert_severity === 'danger') color = '#c97a7a';
-            else if (d.top_alert_severity === 'warning') color = '#d99a56';
-            else if (d.top_alert_severity === 'info') color = '#7a9dc4';
+            if (d.top_alert_severity === 'danger') color = '#ef4444';
+            else if (d.top_alert_severity === 'warning') color = '#f97316';
+            else if (d.top_alert_severity === 'info') color = '#8b5cf6';
             label = d.top_alert_severity.toUpperCase();
-        } else if (d.status === 'online') { color = '#5fb587'; label = 'ONLINE'; }
+        } else if (d.status === 'online') { color = '#22c55e'; label = 'ONLINE'; }
         return { color, label };
     }
     function loadMarkers(map, useCluster = false) {
@@ -446,12 +458,12 @@ const state = {
             if (existing && existing.mapKey === mapKey) {
                 try {
                     existing.marker.setLatLng([d.latitude, d.longitude]);
-                    existing.marker.setStyle({ color: style.color, fillColor: style.color, radius: 8, fillOpacity: 0.8, weight: 2 });
+                    existing.marker.setStyle({ color: style.color, fillColor: style.color, radius: 7, fillOpacity: 0.9, weight: 2 });
                 } catch (e) {}
                 return;
             }
-            const popup = `<div style="font-family:Inter,sans-serif;min-width:200px;"><div style="font-weight:700;margin-bottom:4px;">${escapeHtml(d.device_name)}</div><div style="font-size:11px;color:#888;margin-bottom:6px;font-family:monospace;">${escapeHtml(d.device_id)}</div><div style="font-size:11px;margin-bottom:8px;">Status: <b style="color:${style.color};">${style.label}</b></div><div style="display:flex;gap:6px;"><button onclick="window.__nexusMapSelect('${escapeHtml(d.device_id)}')" style="flex:1;padding:6px 10px;background:#e8ebef;color:#14171c;border:none;border-radius:6px;font-size:11px;cursor:pointer;">Pilih</button><button onclick="window.__nexusMapView('${escapeHtml(d.device_id)}')" style="flex:1;padding:6px 10px;background:#5fbb86;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;">Detail</button></div></div>`;
-            const marker = L.circleMarker([d.latitude, d.longitude], { radius: 8, color: style.color, fillColor: style.color, fillOpacity: 0.8, weight: 2 }).bindPopup(popup);
+            const popup = `<div style="font-family:Geist,sans-serif;min-width:200px;"><div style="font-weight:600;margin-bottom:4px;">${escapeHtml(d.device_name)}</div><div style="font-size:11px;color:#888;margin-bottom:6px;font-family:'Geist Mono',monospace;">${escapeHtml(d.device_id)}</div><div style="font-size:11px;margin-bottom:8px;">Status: <b style="color:${style.color};">${style.label}</b></div><div style="display:flex;gap:6px;"><button onclick="window.__nexusMapSelect('${escapeHtml(d.device_id)}')" style="flex:1;padding:6px 10px;background:#f5f5f5;color:#0a0a0a;border:none;border-radius:6px;font-size:11px;cursor:pointer;">Pilih</button><button onclick="window.__nexusMapView('${escapeHtml(d.device_id)}')" style="flex:1;padding:6px 10px;background:#f97316;color:#fff;border:none;border-radius:6px;font-size:11px;cursor:pointer;">Detail</button></div></div>`;
+            const marker = L.circleMarker([d.latitude, d.longitude], { radius: 7, color: style.color, fillColor: style.color, fillOpacity: 0.9, weight: 2 }).bindPopup(popup);
             marker.on('click', () => selectMapDevice(d.device_id, { zoom: false, placeMarker: false }));
             if (useCluster && state.markerCluster) state.markerCluster.addLayer(marker);
             else marker.addTo(map);
@@ -495,7 +507,7 @@ const state = {
         if (dotEl) dotEl.style.background = style.color;
         if (coordEl) {
             if (state.selectedLat != null && state.selectedLng != null) {
-                coordEl.innerHTML = `${state.selectedLat.toFixed(5)}, ${state.selectedLng.toFixed(5)}` + (state.mapHasUnsavedChange ? ' <span style="color:var(--accent-warn);font-weight:700;">• belum disimpan</span>' : '');
+                coordEl.innerHTML = `${state.selectedLat.toFixed(5)}, ${state.selectedLng.toFixed(5)}` + (state.mapHasUnsavedChange ? ' <span style="color:var(--accent-warn);font-weight:600;">• belum disimpan</span>' : '');
             } else coordEl.textContent = 'Belum ada koordinat';
         }
         if (saveBtn) saveBtn.disabled = !(state.selectedLat != null && state.selectedLng != null && state.mapHasUnsavedChange);
@@ -639,7 +651,6 @@ const state = {
             const rows = res.data.report || [];
             if (rows.length === 0) { tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state"><i class="fa-solid fa-clipboard-list"></i><h3>Belum Ada Laporan</h3></div></td></tr>`; return; }
             tbody.innerHTML = rows.map(r => {
-            // Strip microseconds: "08:16:33.149472" → "08:16:33"
             const cleanTime = (s) => s ? String(s).split(' ')[1]?.split('.')[0] || '-' : '-';
             const ci = cleanTime(r.check_in);
             const co = (r.check_out && r.check_out !== r.check_in) ? cleanTime(r.check_out) : '-';
@@ -750,7 +761,6 @@ const state = {
         setVal('addDeviceId', '');
         setVal('addDeviceName', '');
         setVal('addDeviceLocation', '');
-        // Interval auto-detect — tidak ada input
         setVal('addDeviceOfflineTimeout', '');
         openModal('addDeviceModal');
     }
@@ -761,7 +771,6 @@ const state = {
         if (!deviceId || !deviceName) { showToast('ID dan Nama wajib', 'error'); return; }
         const alertRules = window.collectAlertRules ? window.collectAlertRules('add') : null;
 
-        // expected_interval TIDAK dikirim — server akan auto-detect dari data
         const payload = {
             device_id: deviceId,
             device_name: deviceName,
@@ -769,7 +778,6 @@ const state = {
             location: (($('addDeviceLocation') || {}).value || '').trim(),
         };
 
-        // Offline timeout OPSIONAL — kalau kosong, server hitung 2x interval
         const offlineTimeout = ($('addDeviceOfflineTimeout') || {}).value;
         if (offlineTimeout) payload.offline_timeout = parseInt(offlineTimeout);
 
@@ -787,8 +795,7 @@ const state = {
             if (window.populateAlertRules) window.populateAlertRules('add', null);
             loadDashboard();
         } else {
-            const errMsg = typeof result.error === 'object' ? Object.values(result.error).flat().join(', ') : result.error;
-            showToast(errMsg || 'Gagal', 'error');
+            showToast(result.error || 'Gagal', 'error');
         }
     }
     function copyApiKey() {
@@ -802,14 +809,12 @@ const state = {
         const setVal = (id, val) => { const el = $(id); if (el) el.value = val; };
         setVal('editConfigDeviceId', deviceId);
 
-        // Display interval (read-only, auto-detected)
         const intervalDisplay = $('editDeviceIntervalDisplay');
         if (intervalDisplay) {
             const interval = device.expected_interval;
             intervalDisplay.textContent = interval ? `${interval} detik` : 'Menunggu data...';
         }
 
-        // Offline timeout: kosong kalau NULL (auto mode)
         setVal('editDeviceOfflineTimeout', device.offline_timeout || '');
 
         if (window.populateAlertRules) window.populateAlertRules('edit', device.alert_rules);
@@ -820,17 +825,15 @@ const state = {
         if (!deviceId) return;
         const alertRules = window.collectAlertRules ? window.collectAlertRules('edit') : null;
 
-        // expected_interval TIDAK dikirim — server maintain auto-detected value
         const payload = {
             alert_rules: alertRules,
         };
 
-        // Offline timeout: kalau kosong, kirim 0 untuk reset ke auto
         const offlineTimeout = ($('editDeviceOfflineTimeout') || {}).value;
         if (offlineTimeout) {
             payload.offline_timeout = parseInt(offlineTimeout);
         } else {
-            payload.offline_timeout = null;  // reset ke auto
+            payload.offline_timeout = null;
         }
 
         const result = await API.updateDevice(deviceId, payload);
@@ -1001,7 +1004,7 @@ const state = {
     }
 
     // ==========================================
-    // CHART ENGINE — v4.8
+    // CHART ENGINE — v5.0 (Sure style)
     // ==========================================
     function layoutKey() { return STORAGE_KEYS.CHART_LAYOUT_PREFIX + (state.currentTabId || 'default'); }
 
@@ -1047,7 +1050,6 @@ const state = {
         return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
     }
 
-    // ANTI-TUMPUK: push yang bawah turun
     function resolveCollisions() {
         if (state.charts.length < 2) return;
         const sorted = [...state.charts].sort((a, b) => a.y - b.y);
@@ -1073,7 +1075,6 @@ const state = {
         }
     }
 
-    // CLAMP: batasi chart ke dalam canvas
     function clampChartsToCanvas() {
         const grid = $('chartsGrid');
         if (!grid) return;
@@ -1633,7 +1634,15 @@ const state = {
                     plugins: {
                         legend: {
                             position: 'right',
-                            labels: { color: colors.legendColor, font: { size: 11, family: CHART_FONT }, usePointStyle: true, padding: 12 },
+                            labels: {
+                                color: colors.legendColor,
+                                font: { size: 11, family: CHART_FONT, weight: '500' },
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                boxWidth: 8,
+                                boxHeight: 8,
+                                padding: 12,
+                            },
                         },
                     },
                 },
@@ -1675,7 +1684,6 @@ const state = {
             if (hist.length === 0) return;
             const dname = state.devices.find(d => d.device_id === did)?.device_name || did;
 
-            // Map timestamp → data object
             const tsMap = {};
             hist.forEach(item => { tsMap[item.timestamp] = item.data || {}; });
 
@@ -1703,14 +1711,20 @@ const state = {
                     label,
                     data: values,
                     borderColor: color,
-                    backgroundColor: isArea ? color + '30' : color + '80',
+                    // Sure style: area pakai 15% opacity, line/bar solid
+                    backgroundColor: isArea ? color + '22' : color,
                     fill: isArea,
-                    tension: 0.35,
-                    pointRadius: 2, pointHoverRadius: 5,
+                    tension: 0.3,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointHoverBackgroundColor: color,
+                    pointHoverBorderColor: colors.pointBorderColor,
+                    pointHoverBorderWidth: 2,
                     pointBackgroundColor: color,
                     pointBorderColor: colors.pointBorderColor,
-                    pointBorderWidth: 1, borderWidth: 2,
-                    spanGaps: true,  // ← sambung null biar tidak putus
+                    pointBorderWidth: 0,
+                    borderWidth: 2,
+                    spanGaps: true,
                     stack: isStacked ? 'stack1' : undefined,
                 });
             });
@@ -1726,17 +1740,62 @@ const state = {
             type,
             data: { labels, datasets },
             options: {
-                responsive: true, maintainAspectRatio: false,
+                responsive: true,
+                maintainAspectRatio: false,
                 interaction: { mode: 'index', intersect: false },
                 indexAxis: config.chartType === 'horizontalBar' ? 'y' : 'x',
-                animation: { duration: 400, easing: 'easeOutQuart' },
+                animation: { duration: 300, easing: 'easeOutQuart' },
                 plugins: {
-                    legend: { labels: { color: colors.legendColor, font: { size: 11, family: CHART_FONT }, usePointStyle: true, pointStyle: 'circle', padding: 12 } },
-                    tooltip: { backgroundColor: colors.tooltipBg, titleColor: colors.tooltipTitleColor, bodyColor: colors.tooltipBodyColor, borderColor: colors.tooltipBorder, borderWidth: 1, padding: 12, cornerRadius: 10, displayColors: true, boxPadding: 5 },
+                    legend: {
+                        labels: {
+                            color: colors.legendColor,
+                            font: { size: 11, family: CHART_FONT, weight: '500' },
+                            usePointStyle: true,
+                            pointStyle: 'circle',
+                            boxWidth: 8,
+                            boxHeight: 8,
+                            padding: 12,
+                        },
+                    },
+                    tooltip: {
+                        backgroundColor: colors.tooltipBg,
+                        titleColor: colors.tooltipTitleColor,
+                        bodyColor: colors.tooltipBodyColor,
+                        borderColor: colors.tooltipBorder,
+                        borderWidth: 1,
+                        padding: 10,
+                        cornerRadius: 8,
+                        displayColors: true,
+                        boxPadding: 4,
+                        titleFont: { size: 12, family: CHART_FONT, weight: '600' },
+                        bodyFont: { size: 12, family: CHART_FONT, weight: '500' },
+                    },
                 },
                 scales: {
-                    x: { grid: { color: colors.gridColor }, ticks: { color: colors.labelColor, font: { family: CHART_FONT }, maxTicksLimit: 10, maxRotation: 45, autoSkip: true }, stacked: config.chartType === 'stackedBar' || config.chartType === 'stackedArea' },
-                    y: { grid: { color: colors.gridColor }, ticks: { color: colors.labelColor, font: { family: CHART_FONT } }, stacked: config.chartType === 'stackedBar' || config.chartType === 'stackedArea', beginAtZero: true },
+                    x: {
+                        grid: { color: colors.gridColor, drawBorder: false, drawTicks: false },
+                        border: { display: false },
+                        ticks: {
+                            color: colors.labelColor,
+                            font: { size: 10.5, family: CHART_FONT, weight: '500' },
+                            maxTicksLimit: 8,
+                            maxRotation: 0,
+                            autoSkip: true,
+                            padding: 6,
+                        },
+                        stacked: config.chartType === 'stackedBar' || config.chartType === 'stackedArea',
+                    },
+                    y: {
+                        grid: { color: colors.gridColor, drawBorder: false, drawTicks: false },
+                        border: { display: false },
+                        ticks: {
+                            color: colors.labelColor,
+                            font: { size: 10.5, family: CHART_FONT, weight: '500' },
+                            padding: 8,
+                        },
+                        stacked: config.chartType === 'stackedBar' || config.chartType === 'stackedArea',
+                        beginAtZero: true,
+                    },
                 },
             },
         });
@@ -1977,7 +2036,6 @@ const state = {
             }, 400);
         });
 
-        // Auto-clamp saat window resize
         window.addEventListener('resize', () => {
             clearTimeout(window.__nexusResizeTO);
             window.__nexusResizeTO = setTimeout(() => {
@@ -2042,7 +2100,7 @@ const state = {
         state.dashboardInterval = setInterval(loadDashboard, 30000);
         startAutoRefresh();
         state.activityRefreshInterval = setInterval(() => { if (state.currentSection === 'dashboard') loadActivityFeed(); }, 60000);
-        console.log('[Dashboard] Ready v4.8');
+        console.log('[Dashboard] Ready v5.0 (Sure style)');
     }
 
     window.__nexusRefreshAttendance = () => loadAttendance();

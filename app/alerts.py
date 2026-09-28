@@ -2,11 +2,13 @@
 NEXUS IoT - Alert System
 State machine: healthy → warning → danger → warning → healthy
 
-Fix v4.9:
+Fix v5.0:
   - Ack dengan severity-aware skip: alert baru di-skip hanya jika severity
     baru <= severity yang di-ack. Kalau severity memburuk (warning→danger),
     alert baru tetap di-trigger.
   - Setelah suhu pulih ke healthy, log 'cleared' → siap trigger lagi.
+  - Message TIDAK lagi berisi nilai (value) karena sudah ditampilkan
+    sebagai badge di frontend. Cegah duplikasi "32.1°C — 32.1°C di luar...".
 """
 import json
 import logging
@@ -124,8 +126,14 @@ def _apply_hysteresis(new_severity, old_severity, value, rule):
 
 
 def _format_alert_message(key, value, severity, rule):
+    """Format pesan alert TANPA nilai aktual.
+
+    Nilai aktual (mis. "32.1°C") sudah ditampilkan sebagai badge
+    `.alert-val` di frontend. Message hanya menjelaskan KENAPA alert
+    (di luar batas normal apa). Ini mencegah duplikasi seperti:
+        "32.1°C — 32.1°C di luar batas normal (20–32°C)"
+    """
     label, unit = _get_sensor_label(key)
-    value_str = f"{value:g}{unit}" if unit else f"{value:g}"
 
     healthy = rule.get('healthy', {})
     h_min = healthy.get('min')
@@ -134,17 +142,19 @@ def _format_alert_message(key, value, severity, rule):
     if h_min is not None and h_max is not None:
         try:
             normal_str = f"{float(h_min):g}–{float(h_max):g}{unit}"
-            return f"{value_str} — di luar batas normal ({normal_str})"
+            return f"Di luar batas normal ({normal_str})"
         except (TypeError, ValueError):
             pass
 
-    return f"{value_str} — di luar batas normal"
+    return "Di luar batas normal"
 
 
 def _format_recovery_message(key, value):
+    """Format pesan recovery — ini tetap sertakan nilai karena
+    tujuannya konfirmasi nilai sudah kembali normal."""
     label, unit = _get_sensor_label(key)
     value_str = f"{value:g}{unit}" if unit else f"{value:g}"
-    return f"kembali normal: {value_str}"
+    return f"Kembali normal: {value_str}"
 
 
 def _log_history(conn, device_id, alert_type, severity, message, value, action):

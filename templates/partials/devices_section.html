@@ -3,20 +3,25 @@
     <div class="devices-toolbar">
         <div class="filter-bar" id="deviceFilterBarFull">
             <button class="filter-btn active" data-filter="all">
-                <i class="fa-solid fa-server"></i> Semua
+                <i class="fa-solid fa-server"></i>
+                <span>Semua</span>
             </button>
             <button class="filter-btn" data-filter="online">
-                <i class="fa-solid fa-wifi"></i> Online
+                <i class="fa-solid fa-wifi"></i>
+                <span>Online</span>
             </button>
             <button class="filter-btn offline" data-filter="offline">
-                <i class="fa-solid fa-power-off"></i> Offline
+                <i class="fa-solid fa-power-off"></i>
+                <span>Offline</span>
             </button>
             <button class="filter-btn warning" data-filter="alert">
-                <i class="fa-solid fa-triangle-exclamation"></i> Alert
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Alert</span>
             </button>
         </div>
         <button class="btn btn-primary" data-action="add-device">
-            <i class="fa-solid fa-plus"></i> Tambah
+            <i class="fa-solid fa-plus"></i>
+            <span>Tambah</span>
         </button>
     </div>
 
@@ -26,12 +31,23 @@
                 <table class="device-table">
                     <thead>
                         <tr>
-                            <th>Status</th><th>ID</th><th>Nama</th><th>Tipe</th>
-                            <th>WiFi</th><th>Uptime</th><th>Lokasi</th><th>Terakhir</th><th>Aksi</th>
+                            <th>Status</th>
+                            <th>ID</th>
+                            <th>Nama</th>
+                            <th>Tipe</th>
+                            <th>WiFi</th>
+                            <th>Uptime</th>
+                            <th>Lokasi</th>
+                            <th>Terakhir</th>
+                            <th>Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="deviceTableBodyFull">
-                        <tr><td colspan="9" style="text-align:center;padding:40px;color:var(--text-3);">Memuat...</td></tr>
+                        <tr>
+                            <td colspan="9" style="text-align:center;padding:40px;color:var(--text-3);">
+                                Memuat...
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

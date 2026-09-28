@@ -18,8 +18,8 @@ class DeviceCreateSchema(Schema):
     location = fields.Str(load_default='', validate=validate.Length(max=255))
     description = fields.Str(load_default='', validate=validate.Length(max=1000))
     expected_interval = fields.Int(load_default=60, validate=validate.Range(min=10, max=86400))
-    offline_timeout = fields.Int(load_default=None, allow_none=True,
-                                 validate=validate.Range(min=10, max=604800))
+    # Raw: terima int atau null. Validasi manual di api.py
+    offline_timeout = fields.Raw(load_default=None, allow_none=True)
     offline_alert_severity = fields.Str(
         load_default='danger',
         validate=validate.OneOf(['info', 'warning', 'danger'])
@@ -35,7 +35,9 @@ class DeviceUpdateSchema(Schema):
     latitude = fields.Float(validate=validate.Range(min=-90, max=90))
     longitude = fields.Float(validate=validate.Range(min=-180, max=180))
     expected_interval = fields.Int(validate=validate.Range(min=10, max=86400))
-    offline_timeout = fields.Int(validate=validate.Range(min=10, max=604800))
+    # ✅ FIX FINAL: Raw supaya terima null / int / string. Validasi manual di api.py
+    # Tidak pakai load_default → supaya field hanya ada di `data` kalau user kirim
+    offline_timeout = fields.Raw(allow_none=True)
     offline_alert_severity = fields.Str(validate=validate.OneOf(['info', 'warning', 'danger']))
     alert_rules = fields.Dict(allow_none=True)
 

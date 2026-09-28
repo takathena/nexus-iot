@@ -14,13 +14,15 @@ services:
       - ./.env:/app/.env:ro
       - ./templates:/app/templates:ro
       - ./static:/app/static:ro
+      - ./app:/app/app:ro                # ← TAMBAH INI
+      # Opsional: mount run.py & entry lain biar hot-reload
+      - ./run.py:/app/run.py:ro
     environment:
       - FLASK_ENV=${FLASK_ENV:-production}
       - PYTHONUNBUFFERED=1
       - PORT=${PORT:-5000}
     networks:
       - nexus-network
-    # ✅ FIX #11: healthcheck pakai Python (curl tidak ada di python:slim)
     healthcheck:
       test:
         - "CMD-SHELL"

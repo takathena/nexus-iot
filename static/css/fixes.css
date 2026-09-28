@@ -1,56 +1,301 @@
 /* ==========================================================
-   NEXUS — Fixes Patch 2
-   Dropdown border, active button blur, card hover, alert anim,
-   toast theme-aware, popup throttle, date input border
+   NEXUS — Fixes (Sure Style v4)
+   Segmented control untuk chip, tab, page-actions
    ========================================================== */
 
-/* ---------- DROPDOWN BORDER ---------- */
-.ios-dd-trigger, .ios-dd-menu, .ios-dd-item {
-  border: 1px solid var(--border-soft) !important;
-}
-.ios-dd.open .ios-dd-trigger {
-  border-color: var(--accent-info) !important;
-  box-shadow: 0 0 0 4px var(--accent-info-bg) !important;
-}
-
-/* ---------- ACTIVE BUTTON / CHIP (blur bg, not pure white/black) ---------- */
-.chip.active, .attend-tab.active, .tab.active, .ios-dd-item.active {
-  background: color-mix(in srgb, var(--primary) 85%, transparent) !important;
-  backdrop-filter: blur(12px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(12px) saturate(140%) !important;
-  border-color: var(--primary) !important;
+/* ---------- ACTIVE STATE TOKENS ---------- */
+:root,
+[data-theme="dark"] {
+  --active-bg: #2f2f2f;
+  --active-bg-hover: #383838;
+  --active-fg: #fafafa;
+  --active-border: #3a3a3a;
 }
 
-/* ---------- CARD HOVER BORDER ---------- */
-.stat:hover, .group:hover, .hero-card:hover, .chart-card:hover,
-.sensor-card:hover, .activity-item:hover, .row:hover {
-  border-color: var(--hairline) !important;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.08) !important;
+[data-theme="light"] {
+  --active-bg: #d4d4d4;
+  --active-bg-hover: #c8c8c8;
+  --active-fg: #0a0a0a;
+  --active-border: #cccccc;
 }
 
-/* ---------- ALERT CENTER ANIMATION ---------- */
-#alertsGroup .group, #alertsGroup .stat, #alertsGroup .group-body > .loading {
-  animation: fadeUp 0.25s var(--ease) backwards !important;
+/* ==========================================================
+   DROPDOWN — background only, no border
+   ========================================================== */
+.ios-dd-trigger,
+.ios-dropdown-trigger {
+  background: var(--surface-2);
+  border: none !important;
+  box-shadow: none !important;
+}
+.ios-dd-trigger:hover,
+.ios-dropdown-trigger:hover {
+  background: var(--surface-3);
+}
+.ios-dd.open .ios-dd-trigger,
+.ios-dropdown.open .ios-dropdown-trigger,
+.ios-dd-trigger:focus,
+.ios-dd-trigger:focus-visible,
+.ios-dropdown-trigger:focus,
+.ios-dropdown-trigger:focus-visible {
+  background: var(--surface-3);
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.ios-dd-menu,
+.ios-dropdown-menu {
+  background: var(--surface);
+  border: none !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
+}
+[data-theme="dark"] .ios-dd-menu,
+[data-theme="dark"] .ios-dropdown-menu {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+.ios-dd-item,
+.ios-dropdown-item {
+  border: none !important;
 }
 
-/* ---------- DATE INPUT BORDER ---------- */
-.date-row input, .alert-date-filter input[type="date"] {
-  border: 1px solid var(--border-soft) !important;
-  border-radius: 11px !important;
+/* ==========================================================
+   SEGMENTED CONTROL — chips & tabs
+   ========================================================== */
+.chips,
+.attend-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+  border: none;
+}
+.chips.chips-3 { grid-template-columns: repeat(3, 1fr); }
+.chips.chips-5 { grid-template-columns: repeat(5, 1fr); }
+.attend-tabs { grid-template-columns: 1fr 1fr; }
+
+.chip,
+.attend-tab {
+  flex: none;
+  width: 100%;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  background: transparent !important;
+  border: none !important;
+  border-radius: var(--radius-sm);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text-3) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -0.005em;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  cursor: pointer;
+}
+.chip > span:first-child,
+.attend-tab > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.chip:hover,
+.chip:active,
+.attend-tab:hover,
+.attend-tab:active {
+  background: var(--surface-3) !important;
+  color: var(--text-2) !important;
 }
 
-/* ---------- TOAST THEME-AWARE ---------- */
+[data-theme="dark"] .chip.active,
+[data-theme="dark"] .attend-tab.active {
+  background: var(--surface-3) !important;
+  color: var(--text) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+[data-theme="light"] .chip.active,
+[data-theme="light"] .attend-tab.active {
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+.chip .chip-count {
+  background: var(--surface) !important;
+  color: var(--text-3) !important;
+  padding: 1px 5px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 600;
+  font-family: var(--mono);
+  line-height: 1.4;
+  min-width: 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+[data-theme="dark"] .chip.active .chip-count,
+[data-theme="light"] .chip.active .chip-count {
+  background: var(--surface-2) !important;
+  color: var(--text-2) !important;
+}
+
+/* ==========================================================
+   PAGE ACTIONS — segmented control untuk tombol header
+   ========================================================== */
+.page-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  padding: 3px;
+  background: var(--surface-2);
+  border-radius: var(--radius-md);
+  border: none;
+  flex-shrink: 0;
+}
+.page-actions .page-action {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+}
+.page-actions .page-action:active,
+.page-actions .page-action:hover {
+  background: var(--surface-3);
+  color: var(--text-2);
+}
+.page-actions .page-action-primary {
+  background: var(--primary) !important;
+  color: var(--primary-fg) !important;
+  font-weight: 600;
+}
+.page-actions .page-action-primary:active,
+.page-actions .page-action-primary:hover {
+  background: var(--primary-hover) !important;
+  color: var(--primary-fg) !important;
+}
+[data-theme="dark"] .page-actions .page-action-primary {
+  background: #fafafa !important;
+  color: #0a0a0a !important;
+}
+[data-theme="light"] .page-actions .page-action-primary {
+  background: #0a0a0a !important;
+  color: #ffffff !important;
+}
+
+/* ==========================================================
+   SEVERITY EXCEPTIONS
+   ========================================================== */
+.ios-dd-item[data-value="danger"].active,
+.ios-dropdown-item[data-value="danger"].active {
+  background: var(--accent-crit-bg) !important;
+  color: var(--accent-crit) !important;
+}
+.ios-dd-item[data-value="warning"].active,
+.ios-dropdown-item[data-value="warning"].active {
+  background: var(--accent-warn-bg) !important;
+  color: var(--accent-warn) !important;
+}
+.ios-dd-item[data-value="info"].active,
+.ios-dropdown-item[data-value="info"].active {
+  background: var(--accent-info-bg) !important;
+  color: var(--accent-info) !important;
+}
+.ios-dd-item[data-value="active"].active,
+.ios-dropdown-item[data-value="active"].active {
+  background: var(--accent-crit-bg) !important;
+  color: var(--accent-crit) !important;
+}
+.ios-dd-item[data-value="resolved"].active,
+.ios-dropdown-item[data-value="resolved"].active {
+  background: var(--accent-ok-bg) !important;
+  color: var(--accent-ok) !important;
+}
+
+/* ==========================================================
+   CARD HOVER
+   ========================================================== */
+.stat-card.clickable:hover,
+.group:hover,
+.hero-card:hover,
+.chart-card:hover {
+  border-color: var(--text-3);
+}
+.row:hover,
+.activity-item:hover,
+.alert-row:hover {
+  background: var(--surface-2);
+}
+
+/* ==========================================================
+   DATE INPUT
+   ========================================================== */
+.date-row input,
+.alert-date-filter input[type="date"],
+.attendance-filter-bar input[type="date"],
+.alert-filter-bar input[type="date"] {
+  border: 1px solid var(--hairline);
+}
+
+/* ==========================================================
+   TOAST
+   ========================================================== */
 .toast {
-  background: color-mix(in srgb, var(--surface) 92%, transparent) !important;
-  backdrop-filter: blur(16px) saturate(120%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(120%) !important;
-  border: 1px solid var(--hairline) !important;
-}
-[data-theme="light"] .toast {
-  background: rgba(255,255,255,0.92) !important;
-  border-color: rgba(0,0,0,0.08) !important;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  animation-duration: 0.35s;
 }
 
-/* ---------- POPUP THROTTLE (prevent spam) ---------- */
-.toast { animation-duration: 0.35s !important; }
-.toast.toast-slide-out { animation: toastSlideOut 0.35s ease forwards !important; }
+/* ==========================================================
+   STAT ROW ICONS — monokrom
+   ========================================================== */
+.stat-row-icon,
+.stat-row-icon-ok,
+.stat-row-icon-crit,
+.stat-row-icon-warn {
+  background: var(--surface-2);
+  color: var(--text-2);
+  border: 1px solid var(--hairline-soft);
+}
+
+/* ==========================================================
+   CHAT FAB — subtle
+   ========================================================== */
+.chat-fab-mobile {
+  background: var(--surface);
+  color: var(--text-2);
+  border: 1px solid var(--hairline);
+}
+.chat-fab-mobile:active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* ==========================================================
+   SEARCH — background only
+   ========================================================== */
+.search input {
+  background: var(--surface-2);
+  border: none;
+}
+.search input:focus {
+  background: var(--surface-3);
+  border: none;
+  box-shadow: none;
+  outline: none;
+}

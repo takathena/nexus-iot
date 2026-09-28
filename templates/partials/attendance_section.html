@@ -1,24 +1,6 @@
 <div id="attendanceSection">
 
-    <div class="attendance-toolbar">
-        <div class="attendance-tabs">
-            <button class="attendance-tab active" data-tab="report">
-                <i class="fa-solid fa-clipboard-list"></i> Laporan Harian
-            </button>
-            <button class="attendance-tab" data-tab="history">
-                <i class="fa-solid fa-clock-rotate-left"></i> Riwayat Tap
-            </button>
-        </div>
-        <div class="attendance-actions">
-            <button class="btn btn-secondary" id="attendanceExportBtn">
-                <i class="fa-solid fa-download"></i> Export CSV
-            </button>
-            <button class="btn btn-primary" data-action="open-cardholder-modal">
-                <i class="fa-solid fa-plus"></i> Daftarkan Kartu
-            </button>
-        </div>
-    </div>
-
+    <!-- Stats -->
     <div class="attendance-stats">
         <div class="stat-card clickable alert-stat-card success" data-stat-type="hadir">
             <div class="alert-stat-icon"><i class="fa-solid fa-user-check"></i></div>
@@ -43,38 +25,73 @@
         </div>
     </div>
 
+        <!-- Toolbar -->
+    <div class="attendance-toolbar">
+        <div class="attendance-tabs">
+            <button class="attendance-tab active" data-tab="report">
+                <i class="fa-solid fa-clipboard-list"></i>
+                <span>Laporan Harian</span>
+            </button>
+            <button class="attendance-tab" data-tab="history">
+                <i class="fa-solid fa-clock-rotate-left"></i>
+                <span>Riwayat Tap</span>
+            </button>
+        </div>
+        <div class="attendance-actions">
+            <button class="btn btn-secondary" id="attendanceExportBtn">
+                <i class="fa-solid fa-download"></i>
+                <span>Export CSV</span>
+            </button>
+            <button class="btn btn-primary" data-action="open-cardholder-modal">
+                <i class="fa-solid fa-plus"></i>
+                <span>Daftarkan Kartu</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Filter bar -->
     <div class="attendance-filter-bar" id="attendanceFilterBar">
         <div class="attendance-filter-group">
-            <label for="attendanceStartDate">Dari:</label>
+            <label for="attendanceStartDate">Dari</label>
             <input type="date" id="attendanceStartDate">
         </div>
         <div class="attendance-filter-group">
-            <label for="attendanceEndDate">Sampai:</label>
+            <label for="attendanceEndDate">Sampai</label>
             <input type="date" id="attendanceEndDate">
         </div>
         <div class="attendance-filter-actions">
             <button class="btn btn-secondary" id="attendanceApplyFilter">
-                <i class="fa-solid fa-filter"></i> Terapkan
+                <i class="fa-solid fa-filter"></i>
+                <span>Terapkan</span>
             </button>
             <button class="btn btn-secondary" id="attendanceClearFilter">
-                <i class="fa-solid fa-xmark"></i> Reset
+                <i class="fa-solid fa-xmark"></i>
+                <span>Reset</span>
             </button>
         </div>
         <span class="attendance-filter-info" id="attendanceFilterInfo"></span>
     </div>
 
+    <!-- Table -->
     <div class="section-card">
         <div class="section-body" style="padding:0;">
             <div class="table-wrapper">
                 <table class="device-table">
                     <thead id="attendanceThead">
                         <tr>
-                            <th>Tanggal</th><th>Nama</th><th>UID</th>
-                            <th>Check-in</th><th>Check-out</th>
+                            <th>Tanggal</th>
+                            <th>Nama</th>
+                            <th>UID</th>
+                            <th>Check-in</th>
+                            <th>Check-out</th>
                         </tr>
                     </thead>
                     <tbody id="attendanceTableBody">
-                        <tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text-3);">Memuat...</td></tr>
+                        <tr>
+                            <td colspan="5" style="text-align:center;padding:40px;color:var(--text-3);">
+                                Memuat...
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>

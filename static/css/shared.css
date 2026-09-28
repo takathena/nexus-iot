@@ -1,64 +1,87 @@
 /* ==========================================================
-   NEXUS IoT — Design System
+   NEXUS IoT — Design System (Sure Style)
    Tokens + reset + typography + base components
    ========================================================== */
 
 /* ---------- DARK (default) ---------- */
 :root,
 [data-theme="dark"] {
-  --bg: #0a0a0b;
-  --bg-subtle: #0d0d0f;
-  --surface: #121214;
-  --surface-2: #18181b;
-  --surface-3: #202024;
+  /* Background layers */
+  --bg: #0a0a0a;
+  --bg-subtle: #0f0f0f;
+  --surface: #141414;
+  --surface-2: #1c1c1c;
+  --surface-3: #242424;
 
-  --hairline: rgba(255, 255, 255, 0.075);
-  --hairline-soft: rgba(255, 255, 255, 0.045);
-  --border: rgba(255, 255, 255, 0.075);
-  --border-soft: rgba(255, 255, 255, 0.045);
+  /* Borders (subtle tapi terlihat, seperti Sure) */
+  --hairline: #262626;
+  --hairline-soft: #1f1f1f;
+  --border: #262626;
+  --border-soft: #1f1f1f;
 
+  /* Text (monochrome) */
   --text: #fafafa;
-  --text-2: #a1a1aa;
-  --text-3: #71717a;
+  --text-2: #a3a3a3;
+  --text-3: #737373;
 
-  --accent-ok: #5fbb86;   --accent-ok-bg: rgba(95, 187, 134, 0.14);   --accent-ok-fg: #0f1a13;
-  --accent-warn: #e0a45c; --accent-warn-bg: rgba(224, 164, 92, 0.14); --accent-warn-fg: #1f1508;
-  --accent-crit: #e08080; --accent-crit-bg: rgba(224, 128, 128, 0.14);--accent-crit-fg: #1f0d0d;
-  --accent-info: #818cf8; --accent-info-bg: rgba(129, 140, 248, 0.14);--accent-info-fg: #0d1622;
+  /* Accents (Sure palette) */
+  --accent-ok: #22c55e;
+  --accent-ok-bg: rgba(34, 197, 94, 0.12);
+  --accent-ok-fg: #052e16;
 
+  --accent-warn: #f97316;
+  --accent-warn-bg: rgba(249, 115, 22, 0.12);
+  --accent-warn-fg: #fff;
+
+  --accent-crit: #ef4444;
+  --accent-crit-bg: rgba(239, 68, 68, 0.12);
+  --accent-crit-fg: #fff;
+
+  --accent-info: #8b5cf6;
+  --accent-info-bg: rgba(139, 92, 246, 0.12);
+  --accent-info-fg: #fff;
+
+  /* Primary = text color (Sure pakai tombol monokrom) */
   --primary: #fafafa;
-  --primary-hover: #e4e4e7;
-  --primary-fg: #0a0a0b;
+  --primary-hover: #e5e5e5;
+  --primary-fg: #0a0a0a;
 
-  --sidebar-bg: #0a0a0b;
-  --sidebar-collapsed-bg: rgba(10, 10, 11, 0.72);
-  --topbar-bg: rgba(10, 10, 11, 0.85);
+  /* Sidebar & Topbar */
+  --sidebar-bg: #0a0a0a;
+  --sidebar-collapsed-bg: #0a0a0a;
+  --topbar-bg: rgba(10, 10, 10, 0.85);
 
+  /* Overlay */
   --overlay-bg: rgba(0, 0, 0, 0.72);
-  --overlay-blur: 24px;
+  --overlay-blur: 20px;
 
-  --logo-bg: linear-gradient(150deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.04) 100%);
-  --logo-border: rgba(255, 255, 255, 0.12);
+  /* Logo */
+  --logo-bg: #141414;
+  --logo-border: #262626;
   --logo-color: #fafafa;
-  --logo-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.4);
+  --logo-shadow: none;
 
+  /* Sizing */
   --sidebar-w: 240px;
-  --sidebar-w-collapsed: 72px;
-  --topbar-h: 64px;
+  --sidebar-w-collapsed: 64px;
+  --topbar-h: 56px;
 
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  /* Radius (lebih kotak dari sebelumnya) */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
 
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 10px 32px rgba(0, 0, 0, 0.5);
+  /* Shadows (minimal, Sure flat style) */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.24);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
 
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
-  --font-display: 'Inter Tight', 'Inter', sans-serif;
-  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  /* Fonts (Sure pakai Geist) */
+  --font: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --mono: 'Geist Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
   --ease: cubic-bezier(0.4, 0, 0.2, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -66,48 +89,59 @@
   color-scheme: dark;
 }
 
-/* ---------- LIGHT (pure white, Sure-style) ---------- */
+/* ---------- LIGHT ---------- */
 [data-theme="light"] {
-  --bg: #ffffff;
-  --bg-subtle: #fafafa;
+  --bg: #fafafa;
+  --bg-subtle: #f5f5f5;
   --surface: #ffffff;
-  --surface-2: #f4f4f5;
-  --surface-3: #e4e4e7;
+  --surface-2: #f5f5f5;
+  --surface-3: #eeeeee;
 
-  --hairline: rgba(0, 0, 0, 0.08);
-  --hairline-soft: rgba(0, 0, 0, 0.04);
-  --border: rgba(0, 0, 0, 0.08);
-  --border-soft: rgba(0, 0, 0, 0.04);
+  --hairline: #e5e5e5;
+  --hairline-soft: #efefef;
+  --border: #e5e5e5;
+  --border-soft: #efefef;
 
-  --text: #09090b;
-  --text-2: #52525b;
-  --text-3: #a1a1aa;
+  --text: #0a0a0a;
+  --text-2: #525252;
+  --text-3: #a3a3a3;
 
-  --accent-ok: #16a34a;   --accent-ok-bg: rgba(22, 163, 74, 0.10);   --accent-ok-fg: #ffffff;
-  --accent-warn: #ea580c; --accent-warn-bg: rgba(234, 88, 12, 0.10); --accent-warn-fg: #ffffff;
-  --accent-crit: #dc2626; --accent-crit-bg: rgba(220, 38, 38, 0.10); --accent-crit-fg: #ffffff;
-  --accent-info: #6366f1; --accent-info-bg: rgba(99, 102, 241, 0.10);--accent-info-fg: #ffffff;
+  --accent-ok: #16a34a;
+  --accent-ok-bg: rgba(22, 163, 74, 0.10);
+  --accent-ok-fg: #ffffff;
 
-  --primary: #09090b;
-  --primary-hover: #27272a;
+  --accent-warn: #ea580c;
+  --accent-warn-bg: rgba(234, 88, 12, 0.10);
+  --accent-warn-fg: #ffffff;
+
+  --accent-crit: #dc2626;
+  --accent-crit-bg: rgba(220, 38, 38, 0.10);
+  --accent-crit-fg: #ffffff;
+
+  --accent-info: #7c3aed;
+  --accent-info-bg: rgba(124, 58, 237, 0.10);
+  --accent-info-fg: #ffffff;
+
+  --primary: #0a0a0a;
+  --primary-hover: #262626;
   --primary-fg: #ffffff;
 
-  --sidebar-bg: #ffffff;
-  --sidebar-collapsed-bg: #ffffff;
-  --topbar-bg: rgba(255, 255, 255, 0.85);
+  --sidebar-bg: #fafafa;
+  --sidebar-collapsed-bg: #fafafa;
+  --topbar-bg: rgba(250, 250, 250, 0.85);
 
   --overlay-bg: rgba(0, 0, 0, 0.30);
-  --overlay-blur: 24px;
+  --overlay-blur: 20px;
 
   --logo-bg: #ffffff;
-  --logo-border: rgba(0, 0, 0, 0.10);
-  --logo-color: #09090b;
-  --logo-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --logo-border: #e5e5e5;
+  --logo-color: #0a0a0a;
+  --logo-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 10px 32px rgba(0, 0, 0, 0.12);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.12);
 
   color-scheme: light;
 }
@@ -159,14 +193,13 @@ button {
 a { color: inherit; text-decoration: none; }
 img, svg { display: block; max-width: 100%; }
 
-/* Native form controls respect theme */
 [data-theme="dark"] select,
 [data-theme="dark"] input[type="date"] { color-scheme: dark; }
 [data-theme="light"] select,
 [data-theme="light"] input[type="date"] { color-scheme: light; }
 
 /* ==========================================================
-   TYPOGRAPHY
+   TYPOGRAPHY (Sure style: tight tracking, bold numbers)
    ========================================================== */
 h1, h2, h3, h4, h5, h6,
 .breadcrumb-current,
@@ -178,116 +211,131 @@ h1, h2, h3, h4, h5, h6,
 .ring-center .pct,
 .alert-stat-info .value {
   font-family: var(--font-display);
-  letter-spacing: -0.022em;
+  letter-spacing: -0.025em;
   font-weight: 700;
 }
 
+/* Angka & kode pakai mono (Sure konsisten) */
+.text-mono, code, .device-id, .mono {
+  font-family: var(--mono);
+  font-feature-settings: 'tnum' 1, 'cv01' 1;
+}
+
 /* ==========================================================
-   SCROLLBAR
+   SCROLLBAR (minimal, Sure style)
    ========================================================== */
-::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
   background: var(--text-3);
-  border-radius: 6px;
-  border: 3px solid transparent;
+  border-radius: 4px;
+  border: 2px solid transparent;
   background-clip: content-box;
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-2);
   background-clip: content-box;
-  border: 3px solid transparent;
 }
 
 /* ==========================================================
-   BUTTONS
+   BUTTONS (Sure style: minimal, kotak radius 8px)
    ========================================================== */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 10px 16px;
-  border-radius: 11px;
-  border: none;
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  padding: 9px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.006em;
   line-height: 1.2;
-  min-height: 40px;
+  min-height: 36px;
   white-space: nowrap;
   cursor: pointer;
   font-family: inherit;
   transition: background 0.15s var(--ease),
               color 0.15s var(--ease),
               border-color 0.15s var(--ease),
-              transform 0.1s var(--ease),
-              filter 0.15s var(--ease);
+              opacity 0.15s var(--ease);
 }
 
-.btn:active:not(:disabled) { transform: scale(0.97); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn:active:not(:disabled) { opacity: 0.85; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
 .btn-primary {
   background: var(--primary);
   color: var(--primary-fg);
-  box-shadow: var(--shadow-xs);
+  font-weight: 600;
 }
-.btn-primary:hover:not(:disabled), .btn-primary:active:not(:disabled) { background: var(--primary-hover); }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
 
-.btn-success, .btn-ok { background: var(--accent-ok); color: var(--accent-ok-fg); }
-.btn-success:hover:not(:disabled), .btn-ok:hover:not(:disabled),
-.btn-success:active:not(:disabled), .btn-ok:active:not(:disabled) { filter: brightness(0.95); }
+.btn-success, .btn-ok {
+  background: var(--accent-ok);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-success:hover:not(:disabled), .btn-ok:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
 
-.btn-danger { background: var(--accent-crit); color: var(--accent-crit-fg); }
-.btn-danger:hover:not(:disabled), .btn-danger:active:not(:disabled) { filter: brightness(0.95); }
+.btn-danger {
+  background: var(--accent-crit);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-danger:hover:not(:disabled) { filter: brightness(1.05); }
 
-.btn-warning { background: var(--accent-warn); color: var(--accent-warn-fg); }
-.btn-warning:hover:not(:disabled), .btn-warning:active:not(:disabled) { filter: brightness(0.95); }
+.btn-warning {
+  background: var(--accent-warn);
+  color: #fff;
+  font-weight: 600;
+}
+.btn-warning:hover:not(:disabled) { filter: brightness(1.05); }
 
 .btn-secondary, .btn-ghost {
   background: var(--surface);
   color: var(--text);
   border: 1px solid var(--hairline);
 }
-.btn-secondary:hover:not(:disabled), .btn-ghost:hover:not(:disabled),
-.btn-secondary:active:not(:disabled), .btn-ghost:active:not(:disabled) {
+.btn-secondary:hover:not(:disabled), .btn-ghost:hover:not(:disabled) {
   background: var(--surface-2);
   border-color: var(--text-3);
 }
 
-/* Compact icon-only button (square, used for header/toolbar actions) */
 .btn-icon {
   padding: 0;
-  width: 40px;
-  height: 40px;
-  border-radius: 11px;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   flex: 0 0 auto;
 }
-.btn-icon.sm { width: 34px; height: 34px; font-size: 13px; }
+.btn-icon.sm { width: 32px; height: 32px; font-size: 12px; }
 
-/* Compact secondary action button (smaller than .btn, e.g. inline toolbar refresh/export) */
 .btn-soft {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 38px;
-  min-width: 38px;
-  padding: 0 13px;
-  border-radius: 10px;
+  min-height: 36px;
+  min-width: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-md);
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1;
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text-2);
-  border: 1px solid var(--border-soft);
+  border: 1px solid var(--hairline);
   cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
 }
-.btn-soft:hover:not(:disabled), .btn-soft:active:not(:disabled) {
-  background: var(--surface-3);
+.btn-soft:hover:not(:disabled) {
+  background: var(--surface-2);
   color: var(--text);
+  border-color: var(--text-3);
 }
 
 /* ==========================================================
@@ -298,25 +346,24 @@ h1, h2, h3, h4, h5, h6,
 .form-group label {
   display: block;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-2);
   margin-bottom: 6px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
   width: 100%;
-  padding: 11px 14px;
-  background: var(--surface-2);
+  padding: 9px 12px;
+  background: var(--surface);
   color: var(--text);
-  border: 1px solid transparent;
-  border-radius: 11px;
-  font-size: 14px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
   outline: none;
-  transition: background 0.15s var(--ease),
-              border-color 0.15s var(--ease),
+  transition: border-color 0.15s var(--ease),
               box-shadow 0.15s var(--ease);
 }
 
@@ -326,9 +373,8 @@ h1, h2, h3, h4, h5, h6,
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  background: var(--surface);
-  border-color: var(--accent-info);
-  box-shadow: 0 0 0 4px var(--accent-info-bg);
+  border-color: var(--text-3);
+  box-shadow: 0 0 0 3px rgba(163, 163, 163, 0.12);
 }
 
 .form-group select option {
@@ -337,18 +383,18 @@ h1, h2, h3, h4, h5, h6,
 }
 
 /* ==========================================================
-   STATUS BADGE
+   STATUS BADGE (Sure: pill, muted color)
    ========================================================== */
 .status-badge {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  text-transform: none;
 }
 .status-badge.online  { background: var(--accent-ok-bg);   color: var(--accent-ok); }
 .status-badge.offline { background: var(--accent-crit-bg); color: var(--accent-crit); }
@@ -357,8 +403,8 @@ h1, h2, h3, h4, h5, h6,
 .status-badge.info    { background: var(--accent-info-bg); color: var(--accent-info); }
 
 .status-dot-inline {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: currentColor;
 }
@@ -369,9 +415,9 @@ h1, h2, h3, h4, h5, h6,
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .spinner {
-  width: 24px;
-  height: 24px;
-  border: 2.5px solid var(--hairline);
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--hairline);
   border-top-color: var(--text);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -386,7 +432,7 @@ h1, h2, h3, h4, h5, h6,
   gap: 12px;
   color: var(--text-2);
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .empty-state {
@@ -398,9 +444,9 @@ h1, h2, h3, h4, h5, h6,
   text-align: center;
   gap: 8px;
 }
-.empty-state i { font-size: 32px; color: var(--text-3); margin-bottom: 8px; }
-.empty-state h3 { font-size: 15px; font-weight: 600; color: var(--text); }
-.empty-state p { font-size: 13px; color: var(--text-3); }
+.empty-state i { font-size: 28px; color: var(--text-3); margin-bottom: 8px; }
+.empty-state h3 { font-size: 14px; font-weight: 600; color: var(--text); }
+.empty-state p { font-size: 12.5px; color: var(--text-3); }
 
 /* ==========================================================
    ANIMATIONS
@@ -424,7 +470,6 @@ h1, h2, h3, h4, h5, h6,
    ========================================================== */
 .hidden { display: none !important; }
 .text-center { text-align: center; }
-.text-mono { font-family: var(--mono); }
 .text-truncate {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -432,7 +477,7 @@ h1, h2, h3, h4, h5, h6,
 }
 
 /* ==========================================================
-   TOAST
+   TOAST (v2 — dengan badge counter, Sure style)
    ========================================================== */
 #toast-container {
   position: fixed;
@@ -450,19 +495,20 @@ h1, h2, h3, h4, h5, h6,
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 13px 18px;
+  padding: 12px 16px;
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-left: 3px solid var(--accent-info);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
   pointer-events: auto;
   cursor: pointer;
   max-width: 400px;
   word-wrap: break-word;
+  position: relative;
   animation: toastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .toast.toast-success { border-left-color: var(--accent-ok); }
@@ -470,11 +516,48 @@ h1, h2, h3, h4, h5, h6,
 .toast.toast-warning { border-left-color: var(--accent-warn); }
 .toast.toast-info    { border-left-color: var(--accent-info); }
 
+.toast-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 6px;
+  border-radius: 10px;
+  background: var(--accent-info);
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 700;
+  font-family: var(--mono);
+  line-height: 1;
+  flex-shrink: 0;
+  animation: toastBadgePop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.toast.toast-success .toast-badge { background: var(--accent-ok); color: #fff; }
+.toast.toast-error   .toast-badge { background: var(--accent-crit); color: #fff; }
+.toast.toast-warning .toast-badge { background: var(--accent-warn); color: #fff; }
+.toast.toast-info    .toast-badge { background: var(--accent-info); color: #fff; }
+
+.toast.toast-pulse {
+  animation: toastPulse 0.35s ease;
+}
+
 @keyframes toastSlideIn {
   from { transform: translateX(120%); opacity: 0; }
-  to   { transform: translateX(0); opacity: 1; }
+  to   { transform: translateX(0);    opacity: 1; }
 }
 @keyframes toastSlideOut {
-  from { transform: translateX(0); opacity: 1; }
+  from { transform: translateX(0);    opacity: 1; }
   to   { transform: translateX(120%); opacity: 0; }
+}
+@keyframes toastBadgePop {
+  0%   { transform: scale(0.5);  opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1);    opacity: 1; }
+}
+@keyframes toastPulse {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(-4px); }
 }

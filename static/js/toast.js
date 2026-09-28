@@ -1,5 +1,10 @@
 /* ==========================================
-   NEXUS IoT - Toast Notification
+   NEXUS IoT - Toast Notification (v2)
+   Fitur:
+     - Stacking: pesan & tipe sama → di-merge jadi 1 toast
+     - Badge counter: ×2, ×3, dst
+     - Timer reset setiap increment
+     - Pulse animation saat increment
    ========================================== */
 
 (function() {
@@ -7,6 +12,9 @@
 
     let container = null;
     const DEFAULT_DURATION = 3000;
+
+    // Map key -> { element, count, timeoutId, message, type }
+    const activeToasts = new Map();
 
     function ensureContainer() {
         if (container && document.body.contains(container)) return container;
@@ -42,9 +50,69 @@
         info: '#0a84ff'
     };
 
+    function makeKey(message, type) {
+        return `${type}::${String(message).trim()}`;
+    }
+
+    function updateBadge(toastEl, count) {
+        let badge = toastEl.querySelector('.toast-badge');
+        if (!badge) {
+            badge = document.createElement('span');
+            badge.className = 'toast-badge';
+            toastEl.appendChild(badge);
+        }
+        if (count > 1) {
+            badge.textContent = `×${count}`;
+            badge.style.display = '';
+        } else {
+            badge.textContent = '';
+            badge.style.display = 'none';
+        }
+    }
+
+    function pulseToast(toastEl) {
+        toastEl.classList.remove('toast-pulse');
+        // Force reflow biar animasi bisa restart
+        void toastEl.offsetWidth;
+        toastEl.classList.add('toast-pulse');
+    }
+
     function showToast(message, type = 'success', duration = DEFAULT_DURATION) {
         const c = ensureContainer();
+        const key = makeKey(message, type);
 
+        // ==========================================
+        // Cek apakah sudah ada toast dengan key sama
+        // ==========================================
+        const existing = activeToasts.get(key);
+
+        if (existing && document.body.contains(existing.element)) {
+            // Increment counter
+            existing.count++;
+
+            // Update badge
+            updateBadge(existing.element, existing.count);
+
+            // Pulse animation
+            pulseToast(existing.element);
+
+            // Reset timer (durasi diperpanjang lagi)
+            if (existing.timeoutId) {
+                clearTimeout(existing.timeoutId);
+            }
+            if (duration > 0) {
+                existing.timeoutId = setTimeout(
+                    () => removeToast(existing.element),
+                    duration
+                );
+            }
+
+            return existing.element;
+        }
+
+        // ==========================================
+        // Buat toast baru
+        // ==========================================
         const toast = document.createElement('div');
         toast.className = `toast toast-${type}`;
         toast.style.cssText = `
@@ -64,11 +132,12 @@
             animation: toastSlideIn .35s cubic-bezier(.16,1,.3,1);
             max-width: 400px;
             word-wrap: break-word;
+            position: relative;
         `;
 
         toast.innerHTML = `
             <i class="fa-solid ${ICONS[type] || ICONS.info}" style="color:${COLORS[type] || COLORS.info};flex-shrink:0;"></i>
-            <span style="flex:1;">${escapeHtml(message)}</span>
+            <span style="flex:1;min-width:0;">${escapeHtml(message)}</span>
         `;
 
         toast.style.cursor = 'pointer';
@@ -76,15 +145,34 @@
 
         c.appendChild(toast);
 
-        if (duration > 0) {
-            setTimeout(() => removeToast(toast), duration);
-        }
+        // Set timer
+        const timeoutId = duration > 0
+            ? setTimeout(() => removeToast(toast), duration)
+            : null;
+
+        // Daftarkan ke map
+        activeToasts.set(key, {
+            element: toast,
+            count: 1,
+            timeoutId,
+            message,
+            type
+        });
 
         return toast;
     }
 
     function removeToast(toast) {
         if (!toast || !toast.parentNode) return;
+
+        // Hapus dari map
+        for (const [key, entry] of activeToasts.entries()) {
+            if (entry.element === toast) {
+                if (entry.timeoutId) clearTimeout(entry.timeoutId);
+                activeToasts.delete(key);
+                break;
+            }
+        }
 
         toast.style.animation = 'toastSlideOut .3s cubic-bezier(.16,1,.3,1) forwards';
         setTimeout(() => {
@@ -98,22 +186,37 @@
         return div.innerHTML;
     }
 
+    // ==========================================
+    // KEYFRAMES (inject sekali)
+    // ==========================================
     if (!document.getElementById('toast-keyframes')) {
         const style = document.createElement('style');
         style.id = 'toast-keyframes';
         style.textContent = `
             @keyframes toastSlideIn {
                 from { transform: translateX(120%); opacity: 0; }
-                to { transform: translateX(0); opacity: 1; }
+                to   { transform: translateX(0);    opacity: 1; }
             }
             @keyframes toastSlideOut {
-                from { transform: translateX(0); opacity: 1; }
-                to { transform: translateX(120%); opacity: 0; }
+                from { transform: translateX(0);    opacity: 1; }
+                to   { transform: translateX(120%); opacity: 0; }
+            }
+            @keyframes toastBadgePop {
+                0%   { transform: scale(0.5);  opacity: 0; }
+                60%  { transform: scale(1.15); opacity: 1; }
+                100% { transform: scale(1);    opacity: 1; }
+            }
+            @keyframes toastPulse {
+                0%, 100% { transform: translateX(0); }
+                50%      { transform: translateX(-4px); }
             }
         `;
         document.head.appendChild(style);
     }
 
+    // ==========================================
+    // EXPORTS
+    // ==========================================
     window.showToast = showToast;
     window.toast = {
         success: (msg, dur) => showToast(msg, 'success', dur),
@@ -122,5 +225,5 @@
         info: (msg, dur) => showToast(msg, 'info', dur)
     };
 
-    console.log('[Toast] Initialized');
+    console.log('[Toast] Initialized v2 (stacking enabled)');
 })();

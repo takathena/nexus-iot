@@ -4,44 +4,120 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<meta name="theme-color" content="#1a1d23">
+<meta name="theme-color" content="#0a0a0a">
 <title>NEXUS</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/shared.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/mobile.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/unified.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/fixes.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/chat.css') }}">
 </head>
 <body>
 
 <!-- ============ HEADER ============ -->
-<header class="hdr">
-  <div class="hdr-brand">
-    <div class="hdr-mark"><i class="fa-solid fa-satellite-dish"></i></div>
-    <span>NEXUS</span>
-  </div>
-  <div class="hdr-actions">
-    <button class="hdr-btn" onclick="toggleTheme()" aria-label="Theme">
-      <i class="fa-solid fa-moon" id="themeIcon"></i>
-    </button>
-    <button class="hdr-btn" onclick="logout()" aria-label="Logout">
-      <i class="fa-solid fa-arrow-right-from-bracket"></i>
-    </button>
-  </div>
+<header class="app-hdr">
+  <button class="hdr-icon-btn" id="menuBtn" onclick="openDrawer()" aria-label="Menu">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+
+  <a class="hdr-logo" href="#" onclick="event.preventDefault(); go('dashboard');" aria-label="NEXUS">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 2.5l8.5 4.9v9.2L12 21.5 3.5 16.6V7.4z"/>
+      <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+      <line x1="12" y1="9.8" x2="12" y2="5.2" opacity="0.55"/>
+      <line x1="9.9" y1="13.1" x2="5.6" y2="15.6" opacity="0.55"/>
+      <line x1="14.1" y1="13.1" x2="18.4" y2="15.6" opacity="0.55"/>
+    </svg>
+  </a>
+
+  <button class="hdr-icon-btn" onclick="toggleTheme()" aria-label="Theme">
+    <i class="fa-solid fa-moon" id="themeIcon"></i>
+  </button>
 </header>
+
+<!-- ============ DRAWER NAV ============ -->
+<div class="drawer-backdrop" id="drawerBackdrop" onclick="closeDrawer()"></div>
+
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <div class="drawer-header">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M12 2.5l8.5 4.9v9.2L12 21.5 3.5 16.6V7.4z"/>
+      <circle cx="12" cy="12" r="2.2" fill="currentColor" stroke="none"/>
+      <line x1="12" y1="9.8" x2="12" y2="5.2" opacity="0.55"/>
+      <line x1="9.9" y1="13.1" x2="5.6" y2="15.6" opacity="0.55"/>
+      <line x1="14.1" y1="13.1" x2="18.4" y2="15.6" opacity="0.55"/>
+    </svg>
+  </div>
+
+  <nav class="drawer-nav">
+    <div class="drawer-section">Menu Utama</div>
+
+    <button class="drawer-item active" data-tab="dashboard" onclick="go('dashboard')">
+      <i class="fa-solid fa-house"></i>
+      <span>Dashboard</span>
+    </button>
+
+    <button class="drawer-item" data-tab="map" onclick="go('map')">
+      <i class="fa-solid fa-map"></i>
+      <span>Peta Lokasi</span>
+    </button>
+
+    <button class="drawer-item" data-tab="analytics" onclick="go('analytics')">
+      <i class="fa-solid fa-chart-line"></i>
+      <span>Analitik</span>
+    </button>
+
+    <button class="drawer-item" data-tab="attendance" onclick="go('attendance')">
+      <i class="fa-solid fa-id-card"></i>
+      <span>Absensi</span>
+    </button>
+
+    <div class="drawer-section">Manajemen</div>
+
+    <button class="drawer-item" data-tab="devices" onclick="go('devices')">
+      <i class="fa-solid fa-microchip"></i>
+      <span>Perangkat</span>
+      <span class="drawer-badge" id="drawerDeviceBadge">0</span>
+    </button>
+
+    <button class="drawer-item" data-tab="alerts" onclick="go('alerts')">
+      <i class="fa-solid fa-bell"></i>
+      <span>Alert Center</span>
+      <span class="drawer-badge" id="drawerAlertBadge">0</span>
+    </button>
+  </nav>
+
+  <div class="drawer-footer">
+    <button class="drawer-item drawer-item-danger" onclick="logout()">
+      <i class="fa-solid fa-arrow-right-from-bracket"></i>
+      <span>Logout</span>
+    </button>
+  </div>
+</aside>
 
 <!-- ============ MAIN ============ -->
 <main>
 
   <!-- ============ DASHBOARD ============ -->
   <section id="s-dashboard" class="section active">
+    <div class="page-head">
+      <div>
+        <h1 class="page-title">Dashboard</h1>
+        <div class="page-sub" id="ringCaption">—</div>
+      </div>
+      <button class="page-action" onclick="loadDashboard()" aria-label="Refresh">
+        <i class="fa-solid fa-rotate"></i>
+      </button>
+    </div>
+
     <div class="hero-card">
       <div class="ring">
-        <svg viewBox="0 0 100 100" width="88" height="88">
+        <svg viewBox="0 0 100 100" width="90" height="90">
           <circle class="ring-track" cx="50" cy="50" r="42"></circle>
           <circle class="ring-prog" id="ringProg" cx="50" cy="50" r="42"
                   stroke-dasharray="263.9" stroke-dashoffset="263.9"></circle>
@@ -53,46 +129,67 @@
       </div>
       <div class="hero-info">
         <h3 id="ringTitle">Memuat...</h3>
-        <p id="ringCaption">—</p>
+        <p id="ringSub">—</p>
       </div>
     </div>
 
-    <div class="stat-grid">
-      <div class="stat" onclick="go('devices',{filter:'all'})">
-        <div class="stat-num" id="sTotal">0</div>
-        <div class="stat-label">Total Device</div>
+    <div class="stat-list">
+      <div class="stat-row" onclick="go('devices',{filter:'all'})">
+        <div class="stat-row-icon"><i class="fa-solid fa-server"></i></div>
+        <div class="stat-row-info">
+          <div class="stat-row-label">Total Perangkat</div>
+          <div class="stat-row-value" id="sTotal">0</div>
+        </div>
+        <i class="fa-solid fa-chevron-right stat-row-chev"></i>
       </div>
-      <div class="stat" onclick="go('devices',{filter:'online'})">
-        <div class="stat-num ok" id="sOnline">0</div>
-        <div class="stat-label">Online</div>
+
+      <div class="stat-row" onclick="go('devices',{filter:'online'})">
+        <div class="stat-row-icon"><i class="fa-solid fa-wifi"></i></div>
+        <div class="stat-row-info">
+          <div class="stat-row-label">Online</div>
+          <div class="stat-row-value stat-row-value-ok" id="sOnline">0</div>
+        </div>
+        <i class="fa-solid fa-chevron-right stat-row-chev"></i>
       </div>
-      <div class="stat" onclick="go('devices',{filter:'offline'})">
-        <div class="stat-num crit" id="sOffline">0</div>
-        <div class="stat-label">Offline</div>
+
+      <div class="stat-row" onclick="go('devices',{filter:'offline'})">
+        <div class="stat-row-icon"><i class="fa-solid fa-power-off"></i></div>
+        <div class="stat-row-info">
+          <div class="stat-row-label">Offline</div>
+          <div class="stat-row-value stat-row-value-crit" id="sOffline">0</div>
+        </div>
+        <i class="fa-solid fa-chevron-right stat-row-chev"></i>
       </div>
-      <div class="stat" onclick="go('alerts')">
-        <div class="stat-num warn" id="sAlert">0</div>
-        <div class="stat-label">Alert Aktif</div>
+
+      <div class="stat-row" onclick="go('alerts')">
+        <div class="stat-row-icon"><i class="fa-solid fa-bell"></i></div>
+        <div class="stat-row-info">
+          <div class="stat-row-label">Alert Aktif</div>
+          <div class="stat-row-value stat-row-value-warn" id="sAlert">0</div>
+        </div>
+        <i class="fa-solid fa-chevron-right stat-row-chev"></i>
       </div>
     </div>
 
     <div class="group">
       <div class="group-header">
         <div class="group-title"><i class="fa-solid fa-bolt"></i> Aktivitas Terbaru</div>
+        <button class="group-action" onclick="loadActivity()" aria-label="Refresh">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
       </div>
       <div class="activity-list" id="activityList">
         <div class="loading"><div class="spinner"></div></div>
       </div>
     </div>
 
-    <div class="s-head" style="margin-top:24px;">
+    <div class="page-head" style="margin-top:20px;">
       <div>
-        <div class="s-title">Perangkat</div>
-        <div class="s-title-sub" id="deviceCountSub">—</div>
-        <div class="last-update" id="dashLastUpdate">—</div>
+        <h2 class="page-title-sm">Perangkat</h2>
+        <div class="page-sub" id="deviceCountSub">—</div>
       </div>
-      <button class="btn-soft" onclick="loadDashboard()" aria-label="Refresh">
-        <i class="fa-solid fa-rotate"></i>
+      <button class="page-action" onclick="openAddDevice()" aria-label="Tambah">
+        <i class="fa-solid fa-plus"></i>
       </button>
     </div>
 
@@ -112,12 +209,12 @@
 
   <!-- ============ MAP ============ -->
   <section id="s-map" class="section">
-    <div class="s-head">
+    <div class="page-head">
       <div>
-        <div class="s-title">Peta</div>
-        <div class="s-title-sub">Lokasi perangkat</div>
+        <h1 class="page-title">Peta</h1>
+        <div class="page-sub">Lokasi perangkat</div>
       </div>
-      <button class="btn-soft" onclick="initMap(true)" aria-label="Reload peta">
+      <button class="page-action" onclick="initMap(true)" aria-label="Reload peta">
         <i class="fa-solid fa-rotate"></i>
       </button>
     </div>
@@ -168,16 +265,16 @@
 
   <!-- ============ ANALYTICS ============ -->
   <section id="s-analytics" class="section">
-    <div class="s-head">
+    <div class="page-head">
       <div>
-        <div class="s-title">Analitik</div>
-        <div class="s-title-sub" id="chartCountSub">—</div>
+        <h1 class="page-title">Analitik</h1>
+        <div class="page-sub" id="chartCountSub">—</div>
       </div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn-soft" onclick="resetChartsLayout()" title="Reset Layout" aria-label="Reset Layout">
+      <div class="page-actions">
+        <button class="page-action" onclick="resetChartsLayout()" title="Reset Layout" aria-label="Reset Layout">
           <i class="fa-solid fa-arrows-rotate"></i>
         </button>
-        <button class="btn btn-primary btn-icon sm" onclick="openChart()" aria-label="Tambah Diagram">
+        <button class="page-action page-action-primary" onclick="openChart()" aria-label="Tambah Diagram">
           <i class="fa-solid fa-plus"></i>
         </button>
       </div>
@@ -203,12 +300,12 @@
           <button type="button" class="ios-dd-item" data-min="5"><i class="fa-regular fa-clock"></i><span>5 Menit</span><i class="fa-solid fa-check ios-dd-check"></i></button>
           <button type="button" class="ios-dd-item" data-min="10"><i class="fa-regular fa-clock"></i><span>10 Menit</span><i class="fa-solid fa-check ios-dd-check"></i></button>
           <button type="button" class="ios-dd-item" data-min="30"><i class="fa-regular fa-clock"></i><span>30 Menit</span><i class="fa-solid fa-check ios-dd-check"></i></button>
-          <div class="dd-divider" style="height:1px;background:var(--border-soft);margin:4px 6px;"></div>
+          <div style="height:1px;background:var(--hairline);margin:4px 6px;"></div>
           <button type="button" class="ios-dd-item" data-min="60"><i class="fa-regular fa-hourglass-half"></i><span>1 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
           <button type="button" class="ios-dd-item" data-min="180"><i class="fa-regular fa-hourglass-half"></i><span>3 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
           <button type="button" class="ios-dd-item" data-min="360"><i class="fa-regular fa-hourglass-half"></i><span>6 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
           <button type="button" class="ios-dd-item" data-min="720"><i class="fa-regular fa-hourglass"></i><span>12 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
-          <div class="dd-divider" style="height:1px;background:var(--border-soft);margin:4px 6px;"></div>
+          <div style="height:1px;background:var(--hairline);margin:4px 6px;"></div>
           <button type="button" class="ios-dd-item active" data-min="1440"><i class="fa-regular fa-calendar"></i><span>24 Jam</span><i class="fa-solid fa-check ios-dd-check"></i></button>
           <button type="button" class="ios-dd-item" data-min="10080"><i class="fa-regular fa-calendar-days"></i><span>7 Hari</span><i class="fa-solid fa-check ios-dd-check"></i></button>
           <button type="button" class="ios-dd-item" data-min="43200"><i class="fa-regular fa-calendar"></i><span>30 Hari</span><i class="fa-solid fa-check ios-dd-check"></i></button>
@@ -223,16 +320,16 @@
 
   <!-- ============ ATTENDANCE ============ -->
   <section id="s-attendance" class="section">
-    <div class="s-head">
+    <div class="page-head">
       <div>
-        <div class="s-title">Absensi</div>
-        <div class="s-title-sub" id="attendSub">—</div>
+        <h1 class="page-title">Absensi</h1>
+        <div class="page-sub" id="attendSub">—</div>
       </div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn-soft" onclick="exportAttend()" title="Export CSV" aria-label="Export">
+      <div class="page-actions">
+        <button class="page-action" onclick="exportAttend()" title="Export CSV" aria-label="Export">
           <i class="fa-solid fa-download"></i>
         </button>
-        <button class="btn-soft" onclick="openCardholder()" title="Daftar Kartu" aria-label="Daftar Kartu">
+        <button class="page-action page-action-primary" onclick="openCardholder()" title="Daftar Kartu" aria-label="Daftar Kartu">
           <i class="fa-solid fa-plus"></i>
         </button>
       </div>
@@ -272,12 +369,12 @@
 
   <!-- ============ DEVICES ============ -->
   <section id="s-devices" class="section">
-    <div class="s-head">
+    <div class="page-head">
       <div>
-        <div class="s-title">Device</div>
-        <div class="s-title-sub" id="deviceSubFull">—</div>
+        <h1 class="page-title">Device</h1>
+        <div class="page-sub" id="deviceSubFull">—</div>
       </div>
-      <button class="btn btn-primary btn-icon sm" onclick="openAddDevice()" aria-label="Tambah">
+      <button class="page-action page-action-primary" onclick="openAddDevice()" aria-label="Tambah">
         <i class="fa-solid fa-plus"></i>
       </button>
     </div>
@@ -298,16 +395,16 @@
 
   <!-- ============ ALERTS ============ -->
   <section id="s-alerts" class="section">
-    <div class="s-head">
+    <div class="page-head">
       <div>
-        <div class="s-title">Alert</div>
-        <div class="s-title-sub" id="alertSub">—</div>
+        <h1 class="page-title">Alert</h1>
+        <div class="page-sub" id="alertSub">—</div>
       </div>
-      <div style="display:flex;gap:6px;">
-        <button class="btn-soft" onclick="markAllVisibleAlerts()" title="Tandai Semua" aria-label="Tandai Semua">
+      <div class="page-actions">
+        <button class="page-action" onclick="markAllVisibleAlerts()" title="Tandai Semua" aria-label="Tandai Semua">
           <i class="fa-solid fa-check-double"></i>
         </button>
-        <button class="btn-soft" onclick="loadAlerts()" title="Refresh" aria-label="Refresh">
+        <button class="page-action" onclick="loadAlerts()" title="Refresh" aria-label="Refresh">
           <i class="fa-solid fa-rotate"></i>
         </button>
       </div>
@@ -332,7 +429,6 @@
       </div>
     </div>
 
-    <!-- Status & Severity dropdowns -->
     <div class="alert-dds">
       <div class="ios-dd" id="alertStatusDD" data-value="all">
         <button type="button" class="ios-dd-trigger">
@@ -390,7 +486,6 @@
       </div>
     </div>
 
-    <!-- Date filter -->
     <div class="alert-date-filter">
       <div class="adf-group">
         <label for="alertDateStart">Dari</label>
@@ -410,7 +505,6 @@
       </div>
     </div>
 
-    <!-- Bulk action bar -->
     <div class="alert-bulk-bar" id="alertBulkBar" style="display:none;">
       <label>
         <input type="checkbox" id="alertSelectAll">
@@ -422,13 +516,11 @@
       </button>
     </div>
 
-    <!-- Search -->
     <div class="search">
       <i class="fa-solid fa-magnifying-glass"></i>
       <input type="text" id="alertSearch" placeholder="Cari alert...">
     </div>
 
-    <!-- List -->
     <div class="group" id="alertsGroup">
       <div class="group-body" id="alertsList" style="padding:0;">
         <div class="loading"><div class="spinner"></div></div>
@@ -437,29 +529,6 @@
   </section>
 
 </main>
-
-<!-- ============ BOTTOM TABBAR ============ -->
-<nav class="tabs">
-  <button class="tab active" data-tab="dashboard" onclick="go('dashboard')">
-    <i class="fa-solid fa-house"></i><span>Home</span>
-  </button>
-  <button class="tab" data-tab="map" onclick="go('map')">
-    <i class="fa-solid fa-map"></i><span>Peta</span>
-  </button>
-  <button class="tab" data-tab="analytics" onclick="go('analytics')">
-    <i class="fa-solid fa-chart-line"></i><span>Analitik</span>
-  </button>
-  <button class="tab" data-tab="attendance" onclick="go('attendance')">
-    <i class="fa-solid fa-id-card"></i><span>Absensi</span>
-  </button>
-  <button class="tab" data-tab="devices" onclick="go('devices')">
-    <i class="fa-solid fa-microchip"></i><span>Device</span>
-  </button>
-  <button class="tab" data-tab="alerts" onclick="go('alerts')">
-    <i class="fa-solid fa-bell"></i><span>Alert</span>
-    <span class="tab-badge hidden" id="tabAlertBadge">0</span>
-  </button>
-</nav>
 
 <!-- ============ MODALS ============ -->
 
@@ -600,7 +669,7 @@
     <p style="font-size:13px;color:var(--text-2);margin-bottom:14px;line-height:1.5;">
       Simpan API Key ini, hanya muncul sekali:
     </p>
-    <div style="background:var(--surface-2);border-radius:12px;padding:15px;display:flex;gap:10px;align-items:center;border:1px solid var(--border-soft);">
+    <div style="background:var(--surface-2);border-radius:12px;padding:15px;display:flex;gap:10px;align-items:center;">
       <code id="apiKeyValue" style="flex:1;font-size:12.5px;color:var(--text);word-break:break-all;font-family:var(--mono);line-height:1.5;font-weight:600;"></code>
       <button class="btn-soft" onclick="copyApiKey()" style="flex-shrink:0;padding:9px 13px;">
         <i class="fa-solid fa-copy"></i>
@@ -621,7 +690,7 @@
     </div>
     <p id="deleteText" style="font-size:13.5px;color:var(--text-2);margin-bottom:16px;line-height:1.5;"></p>
     <div class="field">
-      <label id="deleteLabel" style="color:var(--crit);">Ketik untuk konfirmasi</label>
+      <label id="deleteLabel" style="color:var(--accent-crit);">Ketik untuk konfirmasi</label>
       <input type="text" id="deleteInput" autocomplete="off">
     </div>
     <div class="actions">
@@ -713,24 +782,17 @@
 </div>
 
 <!-- FAB Chat Mobile -->
-<button class="chat-fab-mobile" onclick="openChatMobile()" aria-label="Buka Chatbot" title="NEXUS AI">
-  <i class="fa-solid fa-robot"></i>
+<button class="chat-fab-mobile" onclick="NexusChat.toggle()" aria-label="Buka Chatbot" title="NEXUS AI">
+  <i class="fa-solid fa-wand-magic-sparkles"></i>
 </button>
 
 <!-- Chat Panel (mobile overlay) -->
 {% include 'partials/chat_panel.html' %}
 
+<script src="{{ url_for('static', filename='js/toast.js') }}"></script>
+<script src="{{ url_for('static', filename='js/error-handler.js') }}"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 <script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
-<script>
-function openChatMobile() {
-  document.body.classList.add('chat-open');
-  var panel = document.getElementById('chatPanel');
-  if (panel) { panel.classList.add('open'); panel.setAttribute('aria-hidden','false'); }
-  var backdrop = document.getElementById('chatBackdrop');
-  if (backdrop) backdrop.classList.add('active');
-  setTimeout(function(){ var inp = document.getElementById('chatInput'); if(inp) inp.focus(); }, 300);
-}
-</script>
 </body>
 </html>

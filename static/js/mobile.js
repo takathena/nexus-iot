@@ -1,9 +1,5 @@
 /* ============================================================
-   NEXUS — Mobile page logic
-   Requires: api.js? (page-local api() below), theme.js (ThemeManager)
-   ============================================================ */
-/* ============================================================
-   NEXUS Mobile v4 — Logic
+   NEXUS Mobile v6.0 — Logic (Sure Style + Drawer Nav)
    ============================================================ */
 const CSRF = (document.querySelector('meta[name="csrf-token"]')||{}).content||'';
 
@@ -34,20 +30,21 @@ let mapFilter = 'all', mapSearch = '';
 const MAP_DEFAULT_CENTER = [-2.5489, 118.0149];
 const MAP_DEFAULT_ZOOM = 5;
 
-/* Sensor data keys */
+/* Sensor data keys — Sure palette */
 const DATA_KEYS = {
-  temperature:{label:'Suhu',unit:'°C',color:'#ef6a6a'},
-  humidity:{label:'Kelembaban',unit:'%',color:'#5b9eff'},
-  gas_level:{label:'Gas',unit:'%',color:'#f59e0b'},
-  smoke:{label:'Asap',unit:'ppm',color:'#a78bfa'},
-  motion:{label:'Gerakan',unit:'',color:'#22d3ee'},
-  rfid:{label:'RFID',unit:'',color:'#a3e635'},
-  moisture:{label:'K. Tanah',unit:'%',color:'#38bdf8'},
-  lux:{label:'Cahaya',unit:'lux',color:'#f0b547'},
-  co2:{label:'CO2',unit:'ppm',color:'#3ecf8e'},
-  voc:{label:'VOC',unit:'ppb',color:'#b078f0'},
-  air_quality:{label:'Kualitas Udara',unit:'AQI',color:'#5b9eff'},
+  temperature:{label:'Suhu',unit:'°C',color:'#f97316'},
+  humidity:{label:'Kelembaban',unit:'%',color:'#3b82f6'},
+  gas_level:{label:'Gas',unit:'ppm',color:'#ef4444'},
+  smoke:{label:'Asap',unit:'ppm',color:'#8b5cf6'},
+  motion:{label:'Gerakan',unit:'',color:'#14b8a6'},
+  rfid:{label:'RFID',unit:'',color:'#22c55e'},
+  moisture:{label:'K. Tanah',unit:'%',color:'#06b6d4'},
+  lux:{label:'Cahaya',unit:'lux',color:'#f59e0b'},
+  co2:{label:'CO2',unit:'ppm',color:'#22c55e'},
+  voc:{label:'VOC',unit:'ppb',color:'#a855f7'},
+  air_quality:{label:'Kualitas Udara',unit:'AQI',color:'#3b82f6'},
 };
+
 const PRESETS = {
   temperature:{label:'Suhu',defaults:{healthy:{min:20,max:26},warning:{min:15,max:30},danger:{min:10,max:35}}},
   humidity:{label:'Kelembaban',defaults:{healthy:{min:40,max:70},warning:{min:30,max:80},danger:{min:20,max:90}}},
@@ -56,7 +53,9 @@ const PRESETS = {
   moisture:{label:'K. Tanah',defaults:{healthy:{min:40,max:70},warning:{min:30,max:80},danger:{min:20,max:90}}},
   lux:{label:'Cahaya',defaults:{healthy:{min:100,max:800},warning:{min:50,max:1000},danger:{min:0,max:2000}}},
 };
-const COLORS = ['#ef6a6a','#5b9eff','#3ecf8e','#f59e0b','#a78bfa','#22d3ee','#f0b547','#a3e635'];
+
+const COLORS = ['#f97316','#22c55e','#ef4444','#8b5cf6','#3b82f6','#14b8a6','#f59e0b','#ec4899'];
+const CHART_FONT = "'Geist', -apple-system, sans-serif";
 
 /* ===== Helpers ===== */
 const esc = s => { const d = document.createElement('div'); d.textContent = String(s ?? ''); return d.innerHTML; };
@@ -126,6 +125,25 @@ function toast(msg){
   }, 1800);
 }
 
+/* ===== Drawer Nav ===== */
+function openDrawer(){
+  const d = document.getElementById('drawer');
+  const b = document.getElementById('drawerBackdrop');
+  if(d) d.classList.add('open');
+  if(b) b.classList.add('active');
+  document.body.classList.add('drawer-open');
+}
+function closeDrawer(){
+  const d = document.getElementById('drawer');
+  const b = document.getElementById('drawerBackdrop');
+  if(d) d.classList.remove('open');
+  if(b) b.classList.remove('active');
+  document.body.classList.remove('drawer-open');
+}
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape') closeDrawer();
+});
+
 /* ===== Modal ===== */
 function openModal(id){
   const el = document.getElementById(id);
@@ -163,9 +181,14 @@ function go(name, opts = {}){
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   const el = document.getElementById('s-' + name);
   if(el) el.classList.add('active');
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+
+  // Update drawer highlight
+  document.querySelectorAll('.drawer-item[data-tab]').forEach(t => {
+    t.classList.toggle('active', t.dataset.tab === name);
+  });
 
   if(opts.filter) setFilterFull(opts.filter);
+  closeDrawer();
 
   if(name === 'dashboard'){ loadDashboard(); loadActivity(); }
   else if(name === 'map') setTimeout(() => initMap(), 100);
@@ -190,32 +213,32 @@ async function loadDashboard(){
     if(!d.success) return;
     devices = d.devices || [];
 
-    document.getElementById('sTotal').textContent = d.summary.total_devices;
-    document.getElementById('sOnline').textContent = d.summary.online_devices;
-    document.getElementById('sOffline').textContent = d.summary.offline_devices;
-    document.getElementById('sAlert').textContent = d.summary.active_alerts || 0;
+    const total = d.summary.total_devices || 0;
+    const online = d.summary.online_devices || 0;
+    const offline = d.summary.offline_devices || 0;
+    const alertCount = d.summary.active_alerts || 0;
 
-    const badge = document.getElementById('tabAlertBadge');
-    if(d.summary.active_alerts > 0){
-      badge.textContent = d.summary.active_alerts;
-      badge.classList.remove('hidden');
-    } else badge.classList.add('hidden');
+    document.getElementById('sTotal').textContent = total;
+    document.getElementById('sOnline').textContent = online;
+    document.getElementById('sOffline').textContent = offline;
+    document.getElementById('sAlert').textContent = alertCount;
+
+    // Update drawer badges
+    const deviceBadge = document.getElementById('drawerDeviceBadge');
+    if(deviceBadge){
+      deviceBadge.textContent = total;
+      deviceBadge.style.display = total > 0 ? '' : 'none';
+    }
+    const alertBadge = document.getElementById('drawerAlertBadge');
+    if(alertBadge){
+      alertBadge.textContent = alertCount;
+      alertBadge.style.display = alertCount > 0 ? '' : 'none';
+    }
 
     updateRing(d.summary);
     updateCounts();
     renderDevices();
     renderDevicesFull();
-
-    // Last update timestamp
-    const lu = document.getElementById('dashLastUpdate');
-    if(lu){
-      const now = new Date();
-      lu.textContent = 'Diperbarui ' + now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',timeZone:'Asia/Jakarta'}) + ' WIB';
-    }
-
-    if(document.getElementById('s-map').classList.contains('active')){
-      loadMapMarkers(); renderMapList();
-    }
   }catch(e){ console.error(e); }
 }
 function updateRing(s){
@@ -226,7 +249,7 @@ function updateRing(s){
   if(ring){ ring.setAttribute('stroke-dasharray', circ.toFixed(1)); ring.style.strokeDashoffset = offset; }
   document.getElementById('ringPct').textContent = pct + '%';
   document.getElementById('ringTitle').textContent = total > 0 ? `${healthy} perangkat sehat` : 'Belum ada perangkat';
-  document.getElementById('ringCaption').textContent = total > 0
+  document.getElementById('ringSub').textContent = total > 0
     ? `dari ${total} perangkat terdaftar`
     : 'Tambahkan perangkat untuk memulai monitoring';
 }
@@ -350,21 +373,20 @@ function initMap(force){
 function resetMapView(){
   if(!map) return;
   map.flyTo(MAP_DEFAULT_CENTER, MAP_DEFAULT_ZOOM, {duration:.8});
-  // Clear selection marker
   if(selMarker){ try{ map.removeLayer(selMarker); }catch(e){} selMarker = null; }
   selDeviceId = null; selLat = null; selLng = null; mapDirty = false;
   updateMapBanner();
   toast('View direset');
 }
 function mapStyle(d){
-  if(d.status === 'offline') return {color:'#ef6a6a', label:'OFF'};
+  if(d.status === 'offline') return {color:'#ef4444', label:'OFF'};
   if(d.has_alert && d.top_alert_severity){
-    if(d.top_alert_severity === 'danger') return {color:'#ef6a6a', label:'ALERT'};
-    if(d.top_alert_severity === 'warning') return {color:'#f0b547', label:'WARN'};
-    if(d.top_alert_severity === 'info') return {color:'#5b9eff', label:'INFO'};
+    if(d.top_alert_severity === 'danger') return {color:'#ef4444', label:'ALERT'};
+    if(d.top_alert_severity === 'warning') return {color:'#f97316', label:'WARN'};
+    if(d.top_alert_severity === 'info') return {color:'#8b5cf6', label:'INFO'};
   }
-  if(d.status === 'online') return {color:'#3ecf8e', label:'ON'};
-  return {color:'#7a8290', label:'—'};
+  if(d.status === 'online') return {color:'#22c55e', label:'ON'};
+  return {color:'#737373', label:'—'};
 }
 function loadMapMarkers(){
   if(!map) return;
@@ -474,7 +496,7 @@ async function saveMapLoc(){
 }
 
 /* ==========================================
-   iOS Custom Dropdown helper
+   iOS Custom Dropdown
    ========================================== */
 function bindIosDD(id, onChange) {
   const dd = document.getElementById(id);
@@ -568,7 +590,7 @@ function renderTabs(){
       <i class="fa-solid fa-check ios-dd-check"></i>
     </button>
   `).join('');
-  html += `<div class="dd-divider" style="height:1px;background:var(--border-soft);margin:4px 6px;"></div>`;
+  html += `<div style="height:1px;background:var(--hairline);margin:4px 6px;"></div>`;
   html += `<button type="button" class="ios-dd-item" data-action="new-tab">
     <i class="fa-solid fa-plus"></i>
     <span>Tambah Tab</span>
@@ -703,15 +725,23 @@ async function loadChartsData(){
   const hist = {}; results.forEach(r => { hist[r.did] = r.data; });
   charts.forEach(ch => renderChart(ch, hist));
 }
+
 function renderChart(ch, hist){
   const canvas = document.getElementById(`${ch.id}_c`); if(!canvas) return;
   const ctx = canvas.getContext('2d');
   if(ch.chartInstance) try{ ch.chartInstance.destroy(); }catch(e){}
   const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-  const gridC = isLight ? 'rgba(0,0,0,.07)' : 'rgba(255,255,255,.07)';
-  const labelC = isLight ? 'rgba(71,85,105,.85)' : 'rgba(173,181,194,.8)';
+  const gridC = isLight ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.05)';
+  const labelC = isLight ? '#737373' : '#a3a3a3';
+  const legendC = isLight ? '#525252' : '#a3a3a3';
+  const tooltipBg = isLight ? '#0a0a0a' : '#fafafa';
+  const tooltipTitleColor = isLight ? '#fafafa' : '#0a0a0a';
+  const tooltipBodyColor = isLight ? '#a3a3a3' : '#525252';
+  const pointBorderColor = isLight ? '#fafafa' : '#0a0a0a';
+
   const activeKeys = Object.entries(ch.showData).filter(([k,v]) => v).map(([k]) => k);
 
+  // Doughnut / Pie / Polar / Radar
   if(['doughnut','pie','polarArea','radar'].includes(ch.chartType)){
     const labels = [], vals = [];
     ch.deviceIds.forEach(did => {
@@ -727,13 +757,36 @@ function renderChart(ch, hist){
     if(!vals.length) return;
     ch.chartInstance = new Chart(ctx, {
       type: ch.chartType,
-      data: {labels, datasets: [{data: vals, backgroundColor: vals.map((_,i) => COLORS[i%COLORS.length] + '99'), borderColor: vals.map((_,i) => COLORS[i%COLORS.length]), borderWidth: 2}]},
-      options: {responsive:true, maintainAspectRatio:false,
-        plugins:{legend:{position:'bottom', labels:{color:labelC, font:{size:9, weight:'600'}, boxWidth:10, padding:6, usePointStyle:true, pointStyle:'circle'}}}}
+      data: {
+        labels,
+        datasets: [{
+          data: vals,
+          backgroundColor: vals.map((_,i) => COLORS[i%COLORS.length] + '99'),
+          borderColor: vals.map((_,i) => COLORS[i%COLORS.length]),
+          borderWidth: 2,
+        }],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        plugins:{
+          legend:{
+            position:'bottom',
+            labels:{
+              color: legendC,
+              font:{size:10, weight:'500', family:CHART_FONT},
+              boxWidth:8, boxHeight:8,
+              padding:8,
+              usePointStyle:true,
+              pointStyle:'circle',
+            },
+          },
+        },
+      },
     });
     return;
   }
 
+  // Time-series
   const tsSet = new Set();
   ch.deviceIds.forEach(did => (hist[did] || []).forEach(it => tsSet.add(it.timestamp)));
   if(!tsSet.size) return;
@@ -745,47 +798,115 @@ function renderChart(ch, hist){
   const usedTs = (inRange.length ? inRange : allTs).slice(-200);
   const labels = usedTs.map(ts => fmtTime(ts));
   const datasets = []; let ci = 0;
+
   ch.deviceIds.forEach(did => {
     const h = hist[did] || []; if(!h.length) return;
     const dn = devices.find(x => x.device_id === did)?.device_name || did;
     const tsMap = {}; h.forEach(it => { tsMap[it.timestamp] = it.data || {}; });
+
     activeKeys.forEach(k => {
       const info = DATA_KEYS[k]; if(!info) return;
       const values = usedTs.map(ts => { const o = tsMap[ts]; return o ? (o[k] ?? null) : null; });
       if(!values.some(v => v != null)) return;
+
       const color = COLORS[ci % COLORS.length]; ci++;
       const isArea = ch.chartType === 'area' || ch.chartType === 'stackedArea';
+      const isStacked = ch.chartType === 'stackedBar' || ch.chartType === 'stackedArea';
+
       datasets.push({
         label: ch.deviceIds.length > 1 ? `${dn} — ${info.label}` : `${info.label} (${info.unit})`,
-        data: values, borderColor: color, backgroundColor: isArea ? color+'30' : color+'99',
-        fill: isArea, tension: .35, pointRadius: 2, pointHoverRadius: 5,
-        pointBackgroundColor: color, borderWidth: 2, spanGaps: true
+        data: values,
+        borderColor: color,
+        backgroundColor: isArea ? color+'22' : color,
+        fill: isArea,
+        tension: .3,
+        pointRadius: 0,
+        pointHoverRadius: 4,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: pointBorderColor,
+        pointHoverBorderWidth: 2,
+        pointBackgroundColor: color,
+        pointBorderColor: pointBorderColor,
+        pointBorderWidth: 0,
+        borderWidth: 2,
+        spanGaps: true,
+        stack: isStacked ? 'stack1' : undefined,
       });
     });
   });
+
   if(!datasets.length) return;
+
   let type = ch.chartType;
   if(type === 'area' || type === 'stackedArea') type = 'line';
   if(type === 'horizontalBar' || type === 'stackedBar') type = 'bar';
+
   ch.chartInstance = new Chart(ctx, {
     type,
     data: {labels, datasets},
-    options: {responsive:true, maintainAspectRatio:false,
+    options: {
+      responsive:true, maintainAspectRatio:false,
       interaction:{mode:'index', intersect:false},
       indexAxis: ch.chartType === 'horizontalBar' ? 'y' : 'x',
-      plugins:{legend:{labels:{color:labelC, font:{size:9, weight:'600'}, boxWidth:10, padding:8, usePointStyle:true, pointStyle:'circle'}}},
+      animation:{duration:300, easing:'easeOutQuart'},
+      plugins:{
+        legend:{
+          labels:{
+            color: legendC,
+            font:{size:10, weight:'500', family:CHART_FONT},
+            boxWidth:8, boxHeight:8,
+            padding:8,
+            usePointStyle:true,
+            pointStyle:'circle',
+          },
+        },
+        tooltip:{
+          backgroundColor: tooltipBg,
+          titleColor: tooltipTitleColor,
+          bodyColor: tooltipBodyColor,
+          borderColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)',
+          borderWidth: 1,
+          padding: 10,
+          cornerRadius: 8,
+          displayColors: true,
+          boxPadding: 4,
+          titleFont:{size:11, family:CHART_FONT, weight:'600'},
+          bodyFont:{size:11, family:CHART_FONT, weight:'500'},
+        },
+      },
       scales:{
-        x:{grid:{color:gridC}, ticks:{color:labelC, font:{size:9}, maxTicksLimit:6}},
-        y:{grid:{color:gridC}, ticks:{color:labelC, font:{size:9}}, beginAtZero:true}
-      }
-    }
+        x:{
+          grid:{color: gridC, drawBorder:false, drawTicks:false},
+          border:{display:false},
+          ticks:{
+            color: labelC,
+            font:{size:9.5, family:CHART_FONT, weight:'500'},
+            maxTicksLimit:6,
+            maxRotation:0,
+            autoSkip:true,
+            padding:4,
+          },
+          stacked: ch.chartType === 'stackedBar' || ch.chartType === 'stackedArea',
+        },
+        y:{
+          grid:{color: gridC, drawBorder:false, drawTicks:false},
+          border:{display:false},
+          ticks:{
+            color: labelC,
+            font:{size:9.5, family:CHART_FONT, weight:'500'},
+            padding:6,
+          },
+          stacked: ch.chartType === 'stackedBar' || ch.chartType === 'stackedArea',
+          beginAtZero:true,
+        },
+      },
+    },
   });
 }
+
 function resetChartsLayout(){
-  // Clear any cached layout (mobile doesn't drag, but reset if API has cached pos)
   if(!currentTabId){ toast('Tidak ada tab aktif'); return; }
   if(!confirm('Reset layout diagram di tab ini?')) return;
-  // Mobile layout is auto-stacked, so we just reload
   loadCharts();
   toast('Layout direset');
 }
@@ -1057,7 +1178,6 @@ async function loadAlerts(){
     const r = await api(`/api/v1/alerts/all?${params}`);
     const d = await r.json();
     alerts = d.success ? (d.alerts || []) : [];
-    // Prune selection
     const validIds = new Set(alerts.filter(a => a.is_still_active === 1 && a.severity !== 'healthy').map(ackIdOf).filter(x=>x!=null));
     Array.from(alertSelectedIds).forEach(id => { if(!validIds.has(id)) alertSelectedIds.delete(id); });
     renderAlerts();
@@ -1094,9 +1214,7 @@ function resetAlertDateFilter(){
 
 function getFilteredAlerts(){
   let list = alerts.slice();
-  // Date
   list = list.filter(a => inAlertDateRange(a.created_at));
-  // Search
   if(alertSearch){
     const t = alertSearch.toLowerCase();
     list = list.filter(a =>
@@ -1119,7 +1237,6 @@ function renderAlerts(){
     return;
   }
 
-  // Group by date
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const yesterday = new Date(today.getTime() - 86400000);
@@ -1222,7 +1339,6 @@ function bindAlertRowEvents(){
       updateAlertBulkBar();
     });
   });
-  // Click row to open device
   document.querySelectorAll('.alert-item').forEach(item => {
     item.addEventListener('click', e => {
       if(e.target.closest('button') || e.target.closest('label') || e.target.closest('input')) return;
