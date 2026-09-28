@@ -663,8 +663,11 @@ main{padding:16px 14px 40px;max-width:640px;margin:0 auto;}
 .alert-dds .ios-dd-trigger{height:40px;font-size:12.5px;}
 
 .alert-date-filter{
-  display:grid;grid-template-columns:1fr 1fr;
-  gap:8px;margin-bottom:10px;
+  display:grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 10px;
+  align-items: end;
 }
 .alert-date-filter .adf-group{
   display:flex;flex-direction:column;gap:4px;min-width:0;
@@ -687,11 +690,28 @@ main{padding:16px 14px 40px;max-width:640px;margin:0 auto;}
   filter:invert(.5);cursor:pointer;
 }
 [data-theme="light"] .alert-date-filter .adf-group input::-webkit-calendar-picker-indicator{filter:none;}
-.alert-date-actions{
-  grid-column:1 / -1;
-  display:flex;gap:6px;margin-top:4px;
+
+/* Reset button — icon only, sejajar dengan date input */
+.adf-reset{
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: none;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .15s var(--ease), color .15s var(--ease);
 }
-.alert-date-actions .btn-soft{flex:1;justify-content:center;min-height:36px;}
+.adf-reset:hover,
+.adf-reset:active{
+  background: var(--surface-3);
+  color: var(--text);
+}
 
 .alert-bulk-bar{
   display:flex;align-items:center;gap:10px;

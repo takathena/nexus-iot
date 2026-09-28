@@ -239,21 +239,18 @@
       </button>
     </div>
 
-    <div class="map-hint">
-      <i class="fa-solid fa-circle-info"></i>
-      <span>Pilih device di bawah → peta zoom. Drag marker atau tap peta untuk atur, lalu <b>Simpan</b>.</span>
-    </div>
+    <div class="map-toolbar">
+      <div class="search">
+        <i class="fa-solid fa-magnifying-glass"></i>
+        <input type="text" id="mapSearch" placeholder="Cari device...">
+      </div>
 
-    <div class="search" style="margin-top:14px;">
-      <i class="fa-solid fa-magnifying-glass"></i>
-      <input type="text" id="mapSearch" placeholder="Cari device...">
-    </div>
-
-    <div class="chips" id="mapChips">
-      <button class="chip active" data-mf="all" onclick="setMapFilter('all')">Semua</button>
-      <button class="chip" data-mf="online" onclick="setMapFilter('online')">Online</button>
-      <button class="chip" data-mf="offline" onclick="setMapFilter('offline')">Offline</button>
-      <button class="chip" data-mf="alert" onclick="setMapFilter('alert')">Alert</button>
+      <div class="chips" id="mapChips">
+        <button class="chip active" data-mf="all" onclick="setMapFilter('all')">Semua</button>
+        <button class="chip" data-mf="online" onclick="setMapFilter('online')">Online</button>
+        <button class="chip" data-mf="offline" onclick="setMapFilter('offline')">Offline</button>
+        <button class="chip" data-mf="alert" onclick="setMapFilter('alert')">Alert</button>
+      </div>
     </div>
 
     <div class="group">
@@ -358,6 +355,9 @@
     <div class="date-row">
       <input type="date" id="dateStart" onchange="loadAttend()">
       <input type="date" id="dateEnd" onchange="loadAttend()">
+      <button class="adf-reset" onclick="resetAttendDate()" title="Reset" aria-label="Reset tanggal">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
     <div class="group">
@@ -489,20 +489,15 @@
     <div class="alert-date-filter">
       <div class="adf-group">
         <label for="alertDateStart">Dari</label>
-        <input type="date" id="alertDateStart">
+        <input type="date" id="alertDateStart" onchange="applyAlertDateFilter()">
       </div>
       <div class="adf-group">
         <label for="alertDateEnd">Sampai</label>
-        <input type="date" id="alertDateEnd">
+        <input type="date" id="alertDateEnd" onchange="applyAlertDateFilter()">
       </div>
-      <div class="alert-date-actions">
-        <button class="btn-soft" onclick="applyAlertDateFilter()">
-          <i class="fa-solid fa-filter"></i> Terapkan
-        </button>
-        <button class="btn-soft" onclick="resetAlertDateFilter()">
-          <i class="fa-solid fa-xmark"></i> Reset
-        </button>
-      </div>
+      <button class="adf-reset" onclick="resetAlertDateFilter()" title="Reset" aria-label="Reset filter">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
     </div>
 
     <div class="alert-bulk-bar" id="alertBulkBar" style="display:none;">

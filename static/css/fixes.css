@@ -1,6 +1,6 @@
 /* ==========================================================
-   NEXUS — Fixes (Sure Style v4)
-   Segmented control untuk chip, tab, page-actions
+   NEXUS — Fixes (Sure Style v6)
+   Segmented control + border + gap + date row 3 kolom
    ========================================================== */
 
 /* ---------- ACTIVE STATE TOKENS ---------- */
@@ -20,17 +20,18 @@
 }
 
 /* ==========================================================
-   DROPDOWN — background only, no border
+   DROPDOWN — border tegas
    ========================================================== */
 .ios-dd-trigger,
 .ios-dropdown-trigger {
-  background: var(--surface-2);
-  border: none !important;
+  background: var(--surface);
+  border: 1px solid var(--hairline) !important;
   box-shadow: none !important;
 }
 .ios-dd-trigger:hover,
 .ios-dropdown-trigger:hover {
-  background: var(--surface-3);
+  background: var(--surface-2);
+  border-color: var(--text-3) !important;
 }
 .ios-dd.open .ios-dd-trigger,
 .ios-dropdown.open .ios-dropdown-trigger,
@@ -38,15 +39,15 @@
 .ios-dd-trigger:focus-visible,
 .ios-dropdown-trigger:focus,
 .ios-dropdown-trigger:focus-visible {
-  background: var(--surface-3);
-  border: none !important;
+  background: var(--surface-2);
+  border-color: var(--text-3) !important;
   box-shadow: none !important;
   outline: none !important;
 }
 .ios-dd-menu,
 .ios-dropdown-menu {
   background: var(--surface);
-  border: none !important;
+  border: 1px solid var(--hairline) !important;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.24);
 }
 [data-theme="dark"] .ios-dd-menu,
@@ -55,22 +56,22 @@
 }
 .ios-dd-item,
 .ios-dropdown-item {
-  border: none !important;
+  border: 1px solid transparent !important;
 }
 
 /* ==========================================================
-   SEGMENTED CONTROL — chips & tabs
+   SEGMENTED CONTROL — chips & tabs (dengan gap)
    ========================================================== */
 .chips,
 .attend-tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0;
+  gap: 4px;
   padding: 3px;
   background: var(--surface-2);
+  border: 1px solid var(--hairline) !important;
   border-radius: var(--radius-md);
   margin-bottom: 14px;
-  border: none;
 }
 .chips.chips-3 { grid-template-columns: repeat(3, 1fr); }
 .chips.chips-5 { grid-template-columns: repeat(5, 1fr); }
@@ -84,7 +85,7 @@
   height: 34px;
   padding: 0 10px;
   background: transparent !important;
-  border: none !important;
+  border: 1px solid transparent !important;
   border-radius: var(--radius-sm);
   font-size: 12.5px;
   font-weight: 500;
@@ -97,7 +98,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   letter-spacing: -0.005em;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
   cursor: pointer;
 }
 .chip > span:first-child,
@@ -111,6 +112,7 @@
 .attend-tab:active {
   background: var(--surface-3) !important;
   color: var(--text-2) !important;
+  border-color: var(--hairline) !important;
 }
 
 [data-theme="dark"] .chip.active,
@@ -118,6 +120,7 @@
   background: var(--surface-3) !important;
   color: var(--text) !important;
   font-weight: 600 !important;
+  border-color: var(--hairline) !important;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
 }
 [data-theme="light"] .chip.active,
@@ -125,6 +128,7 @@
   background: var(--surface) !important;
   color: var(--text) !important;
   font-weight: 600 !important;
+  border-color: var(--hairline) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08) !important;
 }
 
@@ -148,16 +152,16 @@
 }
 
 /* ==========================================================
-   PAGE ACTIONS — segmented control untuk tombol header
+   PAGE ACTIONS — segmented control (gap + border tiap tombol)
    ========================================================== */
 .page-actions {
   display: inline-flex;
   align-items: center;
-  gap: 0;
+  gap: 4px;
   padding: 3px;
   background: var(--surface-2);
+  border: 1px solid var(--hairline) !important;
   border-radius: var(--radius-md);
-  border: none;
   flex-shrink: 0;
 }
 .page-actions .page-action {
@@ -165,37 +169,155 @@
   height: 34px;
   border-radius: var(--radius-sm);
   background: transparent;
-  border: none;
-  color: var(--text-3);
+  border: 1px solid var(--hairline) !important;
+  color: var(--text-2);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 13px;
   flex-shrink: 0;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
 }
 .page-actions .page-action:active,
 .page-actions .page-action:hover {
   background: var(--surface-3);
-  color: var(--text-2);
+  color: var(--text);
+  border-color: var(--text-3) !important;
 }
 .page-actions .page-action-primary {
   background: var(--primary) !important;
   color: var(--primary-fg) !important;
+  border: 1px solid var(--primary) !important;
   font-weight: 600;
 }
 .page-actions .page-action-primary:active,
 .page-actions .page-action-primary:hover {
   background: var(--primary-hover) !important;
   color: var(--primary-fg) !important;
+  border-color: var(--primary-hover) !important;
 }
 [data-theme="dark"] .page-actions .page-action-primary {
   background: #fafafa !important;
   color: #0a0a0a !important;
+  border-color: #fafafa !important;
 }
 [data-theme="light"] .page-actions .page-action-primary {
   background: #0a0a0a !important;
   color: #ffffff !important;
+  border-color: #0a0a0a !important;
+}
+
+/* ==========================================================
+   DATE ROW — 3 kolom: input | input | X reset
+   ========================================================== */
+.date-row {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr auto !important;
+  gap: 8px !important;
+  margin-bottom: 12px !important;
+  align-items: end !important;
+}
+
+.date-row input {
+  width: 100% !important;
+  height: 36px !important;
+  padding: 0 12px !important;
+  background: var(--surface) !important;
+  color: var(--text) !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--hairline) !important;
+  font-size: 13px !important;
+  outline: none !important;
+  font-family: inherit !important;
+  transition: border-color .15s var(--ease), background .15s var(--ease) !important;
+}
+.date-row input:focus {
+  border-color: var(--text-3) !important;
+}
+
+/* ==========================================================
+   ALERT DATE FILTER — 3 kolom dengan X reset
+   ========================================================== */
+.alert-date-filter {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr auto !important;
+  gap: 8px !important;
+  margin-bottom: 10px !important;
+  align-items: end !important;
+}
+
+.alert-date-filter .adf-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.alert-date-filter .adf-group label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+  padding-left: 3px;
+}
+
+.alert-date-filter .adf-group input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--hairline) !important;
+  font-size: 13px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color .15s var(--ease);
+}
+.alert-date-filter .adf-group input:focus {
+  border-color: var(--text-3) !important;
+}
+
+/* ==========================================================
+   ADJUST-RESET BUTTON (X reset) — dipakai di Absensi & Alert
+   ========================================================== */
+.adf-reset {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: var(--radius-md) !important;
+  background: var(--surface) !important;
+  border: 1px solid var(--hairline) !important;
+  color: var(--text-3) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  flex-shrink: 0 !important;
+  transition: background .15s var(--ease), color .15s var(--ease), border-color .15s var(--ease) !important;
+}
+.adf-reset:hover,
+.adf-reset:active {
+  background: var(--surface-2) !important;
+  color: var(--text) !important;
+  border-color: var(--text-3) !important;
+}
+
+/* ==========================================================
+   MAP TOOLBAR — search + chips
+   ========================================================== */
+.map-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+.map-toolbar .search {
+  margin-bottom: 0;
+}
+.map-toolbar .chips {
+  margin-bottom: 0;
 }
 
 /* ==========================================================
@@ -205,26 +327,31 @@
 .ios-dropdown-item[data-value="danger"].active {
   background: var(--accent-crit-bg) !important;
   color: var(--accent-crit) !important;
+  border-color: var(--accent-crit) !important;
 }
 .ios-dd-item[data-value="warning"].active,
 .ios-dropdown-item[data-value="warning"].active {
   background: var(--accent-warn-bg) !important;
   color: var(--accent-warn) !important;
+  border-color: var(--accent-warn) !important;
 }
 .ios-dd-item[data-value="info"].active,
 .ios-dropdown-item[data-value="info"].active {
   background: var(--accent-info-bg) !important;
   color: var(--accent-info) !important;
+  border-color: var(--accent-info) !important;
 }
 .ios-dd-item[data-value="active"].active,
 .ios-dropdown-item[data-value="active"].active {
   background: var(--accent-crit-bg) !important;
   color: var(--accent-crit) !important;
+  border-color: var(--accent-crit) !important;
 }
 .ios-dd-item[data-value="resolved"].active,
 .ios-dropdown-item[data-value="resolved"].active {
   background: var(--accent-ok-bg) !important;
   color: var(--accent-ok) !important;
+  border-color: var(--accent-ok) !important;
 }
 
 /* ==========================================================
@@ -240,16 +367,6 @@
 .activity-item:hover,
 .alert-row:hover {
   background: var(--surface-2);
-}
-
-/* ==========================================================
-   DATE INPUT
-   ========================================================== */
-.date-row input,
-.alert-date-filter input[type="date"],
-.attendance-filter-bar input[type="date"],
-.alert-filter-bar input[type="date"] {
-  border: 1px solid var(--hairline);
 }
 
 /* ==========================================================
@@ -287,15 +404,133 @@
 }
 
 /* ==========================================================
-   SEARCH — background only
+   SEARCH — border
    ========================================================== */
 .search input {
-  background: var(--surface-2);
-  border: none;
+  background: var(--surface);
+  border: 1px solid var(--hairline) !important;
 }
 .search input:focus {
-  background: var(--surface-3);
-  border: none;
+  background: var(--surface);
+  border-color: var(--text-3) !important;
   box-shadow: none;
   outline: none;
 }
+
+/* ==========================================================
+   BORDER UNTUK SEMUA TOMBOL
+   ========================================================== */
+.btn,
+.btn-secondary,
+.btn-ghost,
+.btn-soft,
+.btn-icon,
+.page-action {
+  border: 1px solid var(--hairline) !important;
+}
+.btn-primary {
+  border: 1px solid var(--primary) !important;
+}
+.btn-success, .btn-ok {
+  border: 1px solid var(--accent-ok) !important;
+}
+.btn-danger {
+  border: 1px solid var(--accent-crit) !important;
+}
+.btn-warning {
+  border: 1px solid var(--accent-warn) !important;
+}
+
+.hdr-icon-btn {
+  border: 1px solid transparent !important;
+}
+.hdr-icon-btn:hover,
+.hdr-icon-btn:active {
+  border-color: var(--hairline) !important;
+}
+
+.map-banner .btn-soft,
+.map-banner .btn-save,
+.map-reset-btn {
+  border: 1px solid var(--hairline) !important;
+}
+.map-banner .btn-save {
+  border-color: var(--primary) !important;
+}
+
+.modal-close {
+  border: 1px solid var(--hairline) !important;
+}
+
+.group-action,
+.chart-act,
+.row-more {
+  border: 1px solid transparent !important;
+}
+.group-action:hover,
+.group-action:active,
+.chart-act:hover,
+.chart-act:active,
+.row-more:hover,
+.row-more:active {
+  border-color: var(--hairline) !important;
+}
+
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="password"],
+select,
+textarea {
+  border: 1px solid var(--hairline) !important;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--text-3) !important;
+}
+
+/* ==========================================================
+   FIX: Leaflet z-index
+   ========================================================== */
+.leaflet-container {
+  z-index: 1 !important;
+  position: relative;
+}
+.leaflet-pane,
+.leaflet-tile,
+.leaflet-marker-icon,
+.leaflet-marker-shadow,
+.leaflet-tile-pane,
+.leaflet-overlay-pane,
+.leaflet-shadow-pane,
+.leaflet-marker-pane,
+.leaflet-tooltip-pane,
+.leaflet-popup-pane,
+.leaflet-map-pane canvas,
+.leaflet-map-pane svg {
+  z-index: 1 !important;
+}
+.leaflet-control,
+.leaflet-top,
+.leaflet-bottom,
+.leaflet-control-zoom,
+.leaflet-control-attribution {
+  z-index: 2 !important;
+}
+.map-wrap,
+#mMapFull,
+#mapFull,
+#mapPreview {
+  isolation: isolate;
+  position: relative;
+  z-index: 0;
+}
+.drawer { z-index: 200 !important; }
+.drawer-backdrop { z-index: 190 !important; }
+.modal { z-index: 9999 !important; }
+.modal-inner { z-index: 10000 !important; }
+.chat-fab-mobile { z-index: 210 !important; }
+.chat-panel { z-index: 220 !important; }
+.app-hdr { z-index: 60 !important; }
+.toast { z-index: 999999 !important; }

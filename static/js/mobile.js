@@ -977,6 +977,14 @@ function setAttendView(v){
   document.querySelectorAll('.attend-tab').forEach(t => t.classList.toggle('active', t.dataset.t === v));
   loadAttend();
 }
+function resetAttendDate(){
+  const s = document.getElementById('dateStart');
+  const e = document.getElementById('dateEnd');
+  if(s) s.value = '';
+  if(e) e.value = '';
+  loadAttend();
+  toast('Filter tanggal direset');
+}
 async function loadAttend(){
   const c = document.getElementById('attendList'); if(!c) return;
   c.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
