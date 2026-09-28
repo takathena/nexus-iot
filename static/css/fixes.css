@@ -534,3 +534,128 @@ textarea:focus {
 .chat-panel { z-index: 220 !important; }
 .app-hdr { z-index: 60 !important; }
 .toast { z-index: 999999 !important; }
+/* ==========================================================
+   MOBILE CARD BORDERS — tambah hairline biar konsisten
+   ========================================================== */
+
+/* ---------- 1. Stat grid (Absensi, Alert) ---------- */
+.stat {
+  border: 1px solid var(--hairline) !important;
+  background: var(--surface) !important;
+}
+.stat:active {
+  border-color: var(--text-3) !important;
+}
+
+/* ---------- 2. Stat list (Dashboard: Total/Online/Offline/Alert) ---------- */
+.stat-list {
+  border: 1px solid var(--hairline) !important;
+}
+
+/* ---------- 3. Group / card wrapper ---------- */
+/* Ini container untuk: activity list, device list, chart, alerts, dll */
+.group {
+  border: 1px solid var(--hairline) !important;
+}
+
+/* ---------- 4. Hero card (Dashboard ring) ---------- */
+.hero-card {
+  border: 1px solid var(--hairline) !important;
+}
+
+/* ---------- 5. Chart card (Analitik) ---------- */
+.chart-card {
+  border: 1px solid var(--hairline) !important;
+}
+
+/* ---------- 6. Map wrapper (Peta) ---------- */
+.map-wrap {
+  border: 1px solid var(--hairline) !important;
+}
+
+/* ---------- 7. Attendance item (Absensi) ---------- */
+.attend-item {
+  border: 1px solid var(--hairline) !important;
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface) !important;
+  margin-bottom: 8px !important;
+  padding: 14px !important;
+}
+/* Hilangkan divider internal karena udah ada border per-card */
+.attend-item::after { display: none !important; }
+.attend-item:last-child { margin-bottom: 0 !important; }
+
+/* ---------- 8. Alert item (Alert Center) ---------- */
+.alert-item {
+  border: 1px solid var(--hairline) !important;
+  border-left-width: 3px !important; /* tetep ada accent severity */
+  border-radius: var(--radius-lg) !important;
+  background: var(--surface) !important;
+  margin-bottom: 8px !important;
+  padding: 12px 14px !important;
+}
+.alert-item::after { display: none !important; }
+.alert-item:last-child { margin-bottom: 0 !important; }
+.alert-item.danger  { border-left-color: var(--accent-crit) !important; }
+.alert-item.warning { border-left-color: var(--accent-warn) !important; }
+.alert-item.info    { border-left-color: var(--accent-info) !important; }
+.alert-item.resolved{ border-left-color: var(--accent-ok) !important; }
+
+/* ---------- 9. Chips & segmented control ---------- */
+.chips,
+.attend-tabs {
+  border: 1px solid var(--hairline) !important;
+  background: var(--surface) !important;
+}
+
+/* ---------- 10. iOS dropdown trigger ---------- */
+.ios-dd-trigger {
+  border: 1px solid var(--hairline) !important;
+  background: var(--surface) !important;
+}
+.ios-dd.open .ios-dd-trigger {
+  border-color: var(--text-3) !important;
+}
+
+/* ---------- 11. Date inputs (Absensi + Alert) ---------- */
+.date-row input,
+.alert-date-filter .adf-group input {
+  border: 1px solid var(--hairline) !important;
+  background: var(--surface) !important;
+}
+.date-row input:focus,
+.alert-date-filter .adf-group input:focus {
+  border-color: var(--text-3) !important;
+}
+
+/* ---------- 12. adf-reset (tombol X reset tanggal) ---------- */
+.adf-reset {
+  border: 1px solid var(--hairline) !important;
+  background: var(--surface) !important;
+}
+.adf-reset:active {
+  border-color: var(--text-3) !important;
+  background: var(--surface-2) !important;
+}
+
+/* ---------- 13. Search input ---------- */
+.search input {
+  border: 1px solid var(--hairline) !important;
+  background: var(--surface) !important;
+}
+.search input:focus {
+  border-color: var(--text-3) !important;
+}
+
+/* ---------- 14. Alert bulk bar ---------- */
+.alert-bulk-bar {
+  border: 1px solid var(--hairline) !important;
+}
+
+/* ---------- 15. Empty state di dalam group (biar keliatan kotaknya) ---------- */
+.group-body .empty {
+  padding: 48px 20px;
+}
+#s-map #mapChips {
+  margin-bottom: 10px !important;
+}
