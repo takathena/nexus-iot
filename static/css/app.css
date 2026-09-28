@@ -1,10 +1,10 @@
 /* ==========================================================
    NEXUS IoT — Application Layout (Sure Style)
-   Sidebar + Topbar + Cards + Stats + Table + Modal + Chart
+   Unified sizing: buttons, dropdowns, inputs = 36px
    ========================================================== */
 
 /* ==========================================================
-   SIDEBAR (narrow, flat, minimal)
+   SIDEBAR
    ========================================================== */
 .sidebar {
   width: var(--sidebar-w);
@@ -121,7 +121,7 @@
   display: inline-flex;
 }
 
-/* ---------- Sidebar collapsed state ---------- */
+/* ---------- Sidebar collapsed ---------- */
 .sidebar.collapsed .sidebar-header {
   padding: 0;
   justify-content: center;
@@ -192,7 +192,6 @@
   line-height: 1.4;
 }
 
-/* Active state (Sure style: subtle bg, no indicator bar) */
 .sidebar:not(.collapsed) .nav-item.active {
   background: var(--surface-2);
   color: var(--text);
@@ -203,7 +202,6 @@
   background: var(--surface-3);
 }
 
-/* ---------- Collapsed nav ---------- */
 .sidebar.collapsed .nav-item {
   width: 40px;
   min-width: 40px;
@@ -282,7 +280,7 @@
 .sidebar.collapsed .sidebar-footer .nav-item .label { display: none; }
 
 /* ==========================================================
-   TOPBAR (minimal, blur)
+   TOPBAR
    ========================================================== */
 .topbar {
   position: sticky;
@@ -334,11 +332,12 @@
   text-overflow: ellipsis;
 }
 
-/* Search box */
+/* Search box — 36px */
 .search-box { position: relative; }
 .search-box input {
   width: 220px;
-  padding: 7px 12px 7px 34px;
+  height: 36px;
+  padding: 0 12px 0 34px;
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
@@ -380,7 +379,7 @@
   letter-spacing: -0.02em;
 }
 
-/* AI toggle button */
+/* AI toggle button — 36x36 */
 .topbar-ai-btn {
   width: 36px;
   height: 36px;
@@ -409,7 +408,7 @@
 .content-area { padding: 20px 20px 40px; }
 
 /* ==========================================================
-   CARDS (Sure style: flat, subtle border, no shadow)
+   CARDS
    ========================================================== */
 .section-card,
 .ring-card,
@@ -471,7 +470,7 @@
 }
 @media (max-width: 768px) { .overview-grid { grid-template-columns: 1fr; } }
 
-/* ---------- Ring card (Sure: orange ring, thin, minimal) ---------- */
+/* ---------- Ring card ---------- */
 .ring-card {
   display: flex;
   flex-direction: column;
@@ -534,7 +533,7 @@
   line-height: 1.4;
 }
 
-/* ---------- Stats grid 2x2 (Sure: big mono numbers) ---------- */
+/* ---------- Stats grid ---------- */
 .stats-grid-2x2 {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -619,16 +618,16 @@
 .activity-title i { color: var(--accent-warn); font-size: 11px; }
 
 .activity-refresh {
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-sm);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   background: transparent;
   border: 1px solid var(--hairline);
   color: var(--text-3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
@@ -684,7 +683,7 @@
 }
 
 /* ==========================================================
-   DEVICES TOOLBAR (chips style, Sure)
+   DEVICES TOOLBAR — chips & filter
    ========================================================== */
 .devices-toolbar {
   display: flex;
@@ -704,20 +703,25 @@
   align-items: center;
   flex-wrap: wrap;
 }
+
+/* Filter button — 36px uniform */
 .filter-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 6px 12px;
-  border-radius: 8px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
-  min-height: 30px;
-  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+  transition: background 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
 }
 .filter-btn:hover { background: var(--surface-2); color: var(--text); }
 .filter-btn.active {
@@ -749,7 +753,7 @@
 }
 
 /* ==========================================================
-   TABLE (Sure: minimal, no borders between, hover subtle)
+   TABLE
    ========================================================== */
 .table-wrapper { overflow-x: auto; }
 .device-table { width: 100%; border-collapse: collapse; min-width: 800px; }
@@ -789,28 +793,29 @@
 .device-name { font-weight: 500; color: var(--text); font-size: 13px; }
 .device-actions { display: flex; gap: 2px; }
 
+/* Action button — 36x36 uniform */
 .action-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 13px;
   cursor: pointer;
-  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+  transition: background 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
 }
-.action-btn:hover { background: var(--surface-2); color: var(--text); }
+.action-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--hairline); }
 .action-btn.view:hover,
 .action-btn.config:hover { background: var(--surface-3); color: var(--text); }
-.action-btn.delete:hover { background: var(--accent-crit-bg); color: var(--accent-crit); }
-.action-btn.regenerate:hover { background: var(--accent-warn-bg); color: var(--accent-warn); }
+.action-btn.delete:hover { background: var(--accent-crit-bg); color: var(--accent-crit); border-color: var(--accent-crit); }
+.action-btn.regenerate:hover { background: var(--accent-warn-bg); color: var(--accent-warn); border-color: var(--accent-warn); }
 
 /* ==========================================================
-   MODALS (Sure: clean, big radius)
+   MODALS
    ========================================================== */
 .modal {
   position: fixed;
@@ -864,9 +869,11 @@
   font-weight: 700;
   letter-spacing: -0.02em;
 }
+
+/* Modal close — 36x36 uniform */
 .modal-close {
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-md);
   background: transparent;
   border: 1px solid transparent;
@@ -877,9 +884,9 @@
   font-size: 15px;
   flex-shrink: 0;
   cursor: pointer;
-  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+  transition: background 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
 }
-.modal-close:hover { background: var(--surface-2); color: var(--text); }
+.modal-close:hover { background: var(--surface-2); color: var(--text); border-color: var(--hairline); }
 
 .modal-actions {
   display: flex;
@@ -889,10 +896,6 @@
 }
 .modal-actions .btn {
   min-width: 96px;
-  min-height: 40px;
-  padding: 10px 20px;
-  border-radius: var(--radius-md);
-  font-size: 13.5px;
 }
 @media (max-width: 768px) {
   .modal-actions { gap: 6px; }
@@ -962,26 +965,27 @@
 }
 .alert-rule-sensor-select {
   flex: 1;
+  height: 36px;
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-sm);
-  padding: 7px 10px;
+  padding: 0 10px;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   outline: none;
 }
 .alert-rule-remove {
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-sm);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   background: transparent;
   border: none;
   color: var(--text-3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   flex-shrink: 0;
   cursor: pointer;
   transition: background 0.12s var(--ease), color 0.12s var(--ease);
@@ -1023,10 +1027,11 @@
 .severity-row.danger  .dot { background: var(--accent-crit); }
 .severity-input {
   width: 100%;
+  height: 32px;
   background: var(--surface-2);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  padding: 6px 8px;
+  padding: 0 8px;
   color: var(--text);
   font-size: 12px;
   font-family: var(--mono);
@@ -1038,12 +1043,13 @@
 }
 .btn-add-rule {
   width: 100%;
-  padding: 10px;
+  height: 36px;
+  padding: 0 14px;
   border: 1px dashed var(--hairline);
   border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   display: flex;
   align-items: center;
@@ -1066,7 +1072,7 @@
 }
 
 /* ==========================================================
-   iOS DROPDOWN
+   iOS DROPDOWN — 36px uniform
    ========================================================== */
 .ios-dropdown {
   position: relative;
@@ -1077,15 +1083,18 @@
   width: 100%;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  padding: 0 12px;
-  height: 34px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 14px;
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
   text-align: left;
   transition: background 0.12s var(--ease), border-color 0.12s var(--ease);
@@ -1097,7 +1106,7 @@
 }
 .ios-dropdown-trigger > i:first-child {
   color: var(--text-3);
-  font-size: 11px;
+  font-size: 12px;
   flex-shrink: 0;
 }
 .ios-dropdown-label {
@@ -1109,7 +1118,7 @@
 }
 .ios-dropdown-chev {
   color: var(--text-3);
-  font-size: 9px;
+  font-size: 10px;
   flex-shrink: 0;
   transition: transform 0.18s var(--ease);
 }
@@ -1196,34 +1205,48 @@
 .ios-dropdown-item[data-value="resolved"].active { color: var(--accent-ok); background: var(--accent-ok-bg); }
 
 /* ==========================================================
-   TIME RANGE & TAB DROPDOWNS
+   TIME RANGE & TAB DROPDOWNS — 36px uniform
    ========================================================== */
 .time-range-dropdown, .tab-dropdown { position: relative; }
+
 .time-range-trigger, .tab-dropdown-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 14px;
   border-radius: var(--radius-md);
   background: var(--surface);
   border: 1px solid var(--hairline);
   color: var(--text);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
   white-space: nowrap;
-  max-width: 200px;
+  max-width: 220px;
   transition: background 0.12s var(--ease), border-color 0.12s var(--ease);
 }
 .time-range-trigger:hover, .tab-dropdown-trigger:hover {
   background: var(--surface-2);
   border-color: var(--text-3);
 }
+.time-range-trigger > i:first-child,
+.tab-dropdown-trigger > i:first-child {
+  color: var(--text-3);
+  font-size: 12px;
+  flex-shrink: 0;
+}
 .tab-dropdown-trigger .tab-label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 13px;
+  font-weight: 500;
 }
+
 .time-range-menu, .tab-dropdown-menu {
   display: none;
   position: absolute;
@@ -1460,25 +1483,28 @@
   text-overflow: ellipsis;
 }
 .chart-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+/* Chart action — 36x36 uniform */
 .chart-action-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius-sm);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-3);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 9px;
+  font-size: 12px;
   cursor: pointer;
-  transition: background 0.12s, color 0.12s;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
-.chart-action-btn:hover { background: var(--surface-2); color: var(--text); }
+.chart-action-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--hairline); }
 .chart-action-btn.remove:hover,
 .chart-action-btn.danger:hover {
   background: var(--accent-crit-bg);
   color: var(--accent-crit);
+  border-color: var(--accent-crit);
 }
 .chart-card-body { flex: 1; min-height: 0; padding: 6px 8px 8px; overflow: hidden; }
 .chart-canvas-container {
@@ -1602,11 +1628,6 @@
   letter-spacing: -0.02em;
 }
 .map-selected-banner-right { display: flex; gap: 6px; flex-shrink: 0; }
-.map-selected-banner-right .btn {
-  padding: 7px 12px;
-  font-size: 12px;
-  min-height: 32px;
-}
 
 #mapFull, #mapPreview, #mMapFull {
   height: 70vh;
@@ -1623,6 +1644,7 @@
   border: 1px solid var(--hairline);
 }
 
+/* Map reset — 36x36 uniform */
 .map-reset-btn {
   position: absolute;
   bottom: 14px;
@@ -1647,6 +1669,7 @@
   border-color: var(--text-3);
 }
 
+/* Map search — 36px */
 .map-list-search { position: relative; }
 .map-list-search i {
   position: absolute;
@@ -1659,10 +1682,11 @@
 }
 .map-list-search input {
   width: 100%;
+  height: 36px;
   background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
-  padding: 9px 12px 9px 32px;
+  padding: 0 12px 0 32px;
   font-size: 13px;
   color: var(--text);
   outline: none;
@@ -1673,15 +1697,19 @@
 
 .map-filter-chips { display: flex; gap: 4px; flex-wrap: wrap; }
 .map-chip {
-  padding: 5px 10px;
-  border-radius: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-2);
-  font-size: 11.5px;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
-  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+  display: inline-flex;
+  align-items: center;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease), border-color 0.12s var(--ease);
 }
 .map-chip:hover { background: var(--surface-2); color: var(--text); }
 .map-chip.active {
@@ -1778,12 +1806,14 @@
   gap: 2px;
 }
 .attendance-tab {
-  padding: 6px 14px;
+  height: 36px;
+  padding: 0 14px;
   border: none;
   background: transparent;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
+  line-height: 1;
   cursor: pointer;
   border-radius: var(--radius-sm);
   display: inline-flex;
@@ -1792,7 +1822,7 @@
   white-space: nowrap;
   transition: background 0.15s var(--ease), color 0.15s var(--ease);
 }
-.attendance-tab i { font-size: 10px; opacity: 0.7; }
+.attendance-tab i { font-size: 11px; opacity: 0.7; }
 .attendance-tab:hover { color: var(--text); }
 .attendance-tab.active {
   background: var(--surface);
@@ -1904,11 +1934,12 @@
 }
 .attendance-filter-group input[type="date"],
 #attendanceSection .attendance-filter-bar input[type="date"] {
+  height: 36px;
   background: var(--surface-2);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
-  padding: 7px 10px;
-  font-size: 12.5px;
+  padding: 0 10px;
+  font-size: 13px;
   color: var(--text);
   outline: none;
   transition: border-color 0.15s var(--ease);
@@ -2059,51 +2090,61 @@
 .alert-filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .alert-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 
-.alert-filter-bar {
-  background: var(--surface);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  padding: 12px 14px;
-  margin-bottom: 12px;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.alert-filter-group {
-  display: flex;
+/* Date inline (replaces old filter bar) */
+.alert-date-inline {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-.alert-filter-group label {
-  font-size: 10.5px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-3);
-}
-.alert-filter-bar input[type="date"] {
-  background: var(--surface-2);
+.alert-date-inline input[type="date"] {
+  height: 36px;
+  padding: 0 12px;
+  background: var(--surface);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
-  padding: 7px 10px;
-  font-size: 12.5px;
   color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
   outline: none;
   transition: border-color 0.15s var(--ease);
 }
-.alert-filter-bar input[type="date"]:focus {
+.alert-date-inline input[type="date"]:focus {
   border-color: var(--text-3);
 }
-.alert-filter-actions { display: flex; gap: 6px; }
-.alert-filter-info {
-  margin-left: auto;
-  font-size: 11px;
-  color: var(--text-2);
-  font-family: var(--mono);
-  font-weight: 500;
-  letter-spacing: -0.02em;
+.alert-date-inline input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.5);
+  cursor: pointer;
 }
+[data-theme="light"] .alert-date-inline input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: none;
+}
+
+/* Reset button X — 36x36 */
+.adf-reset {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s var(--ease), color 0.15s var(--ease), border-color 0.15s var(--ease);
+}
+.adf-reset:hover,
+.adf-reset:active {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--text-3);
+}
+
+/* Hide legacy filter bar */
+.alert-filter-bar { display: none !important; }
 
 /* Alert groups */
 .alert-group { border-bottom: 1px solid var(--hairline-soft); }
@@ -2247,23 +2288,25 @@
   letter-spacing: -0.02em;
 }
 .alert-acts { display: flex; gap: 2px; flex-shrink: 0; }
+
+/* Alert action buttons — 36x36 */
 .alert-act-btn {
-  width: 26px;
-  height: 26px;
-  border-radius: var(--radius-sm);
-  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-3);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 12px;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
-.alert-act-btn:hover { background: var(--surface-2); color: var(--text); }
-.alert-act-btn.view:hover { background: var(--accent-info-bg); color: var(--accent-info); }
-.alert-act-btn.ack:hover { background: var(--accent-ok-bg); color: var(--accent-ok); }
+.alert-act-btn:hover { background: var(--surface-2); color: var(--text); border-color: var(--hairline); }
+.alert-act-btn.view:hover { background: var(--accent-info-bg); color: var(--accent-info); border-color: var(--accent-info); }
+.alert-act-btn.ack:hover { background: var(--accent-ok-bg); color: var(--accent-ok); border-color: var(--accent-ok); }
 
 .alert-row.is-new .alert-icon { animation: alertPulse 1.5s ease-in-out 3; }
 @keyframes alertPulse {
@@ -2403,6 +2446,18 @@
   .alert-filters, .alert-actions { width: 100%; }
   .alert-filters .ios-dropdown { flex: 1; min-width: 0; }
   .alert-actions .btn { flex: 1; }
+
+  /* Alert date inline → grid di mobile */
+  .alert-date-inline {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 6px;
+  }
+  .alert-date-inline input[type="date"] {
+    width: 100%;
+  }
+
   .alert-row { padding: 10px 14px; gap: 8px; }
   .alert-row-check { display: none; }
   .alert-time { margin-left: 0; }

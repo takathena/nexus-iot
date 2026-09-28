@@ -604,10 +604,6 @@
         const bulkAckBtn = $('bulkAckBtn');
         if (bulkAckBtn) bulkAckBtn.addEventListener('click', bulkAcknowledge);
 
-        // Date filter: Terapkan
-        const applyBtn = $('alertApplyFilter');
-        if (applyBtn) applyBtn.addEventListener('click', applyDateFilter);
-
         // Date filter: Reset
         const clearBtn = $('alertClearFilter');
         if (clearBtn) clearBtn.addEventListener('click', clearDateFilter);

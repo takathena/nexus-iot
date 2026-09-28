@@ -31,7 +31,7 @@
         </div>
     </div>
 
-    <!-- Toolbar: dropdown filter + actions -->
+    <!-- Toolbar: dropdown filter + date inline + actions -->
     <div class="alert-toolbar">
         <div class="alert-filters">
 
@@ -92,7 +92,17 @@
                 </div>
             </div>
 
+            <!-- Date range inline (auto-apply on change) -->
+            <div class="alert-date-inline">
+                <input type="date" id="alertStartDate" autocomplete="off" aria-label="Dari tanggal">
+                <input type="date" id="alertEndDate" autocomplete="off" aria-label="Sampai tanggal">
+                <button class="adf-reset" id="alertClearFilter" title="Reset filter tanggal" aria-label="Reset">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
         </div>
+
         <div class="alert-actions">
             <button class="btn btn-secondary" id="markAllReadBtn" title="Tandai semua alert yang tampil sebagai selesai">
                 <i class="fa-solid fa-check-double"></i> Tandai Semua
@@ -103,29 +113,7 @@
         </div>
     </div>
 
-    <!-- Filter tanggal -->
-    <div class="alert-filter-bar" id="alertDateFilterBar">
-        <div class="alert-filter-group">
-            <label for="alertStartDate">Dari:</label>
-            <input type="date" id="alertStartDate" autocomplete="off">
-        </div>
-        <div class="alert-filter-group">
-            <label for="alertEndDate">Sampai:</label>
-            <input type="date" id="alertEndDate" autocomplete="off">
-        </div>
-        <div class="alert-filter-actions">
-            <button class="btn btn-secondary" id="alertApplyFilter">
-                <i class="fa-solid fa-filter"></i> Terapkan
-            </button>
-            <button class="btn btn-secondary" id="alertClearFilter">
-                <i class="fa-solid fa-xmark"></i> Reset
-            </button>
-        </div>
-        <span class="alert-filter-info" id="alertFilterInfo"></span>
-    </div>
-
     <!-- Bulk action bar -->
-   <!-- Bulk action bar -->
     <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
         <div class="bulk-left">
             <label class="bulk-checkbox">
