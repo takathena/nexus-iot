@@ -1,5 +1,4 @@
 <style>
-    /* Delete modal harus muncul DI ATAS modal lain (mis. cardholder list) */
     #deleteModal {
         z-index: 10050;
     }
@@ -14,7 +13,6 @@
         transform: none;
         box-shadow: none;
     }
-    /* Info box untuk interval auto-detect */
     .interval-info-box {
         background: var(--surface-2);
         border: 1px solid var(--hairline);
@@ -38,6 +36,9 @@
         font-weight: 500;
         text-transform: none;
         letter-spacing: 0;
+    }
+    .form-group textarea {
+        font-family: inherit;
     }
 </style>
 
@@ -74,6 +75,18 @@
             <input type="text" id="addDeviceLocation" placeholder="Ruang Server"
                    autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
+        <div class="form-group">
+            <label>Firmware Version (opsional)</label>
+            <input type="text" id="addDeviceFirmware" placeholder="v1.2.3"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+            <label>Deskripsi (opsional)</label>
+            <textarea id="addDeviceDescription" rows="2"
+                      placeholder="Catatan tambahan tentang perangkat ini"
+                      style="width:100%;padding:9px 12px;background:var(--surface);color:var(--text);border:1px solid var(--hairline);border-radius:var(--radius-md);font-size:13.5px;outline:none;font-family:inherit;resize:vertical;min-height:60px;"
+                      autocomplete="off" spellcheck="false"></textarea>
+        </div>
 
         <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
         <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">
@@ -81,23 +94,28 @@
         </p>
 
         <div class="form-group">
-            <label>Interval Kirim Data</label>
-            <div class="interval-info-box">
-                <div>
-                    <div class="value" style="color:var(--accent-info);">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i> Otomatis
-                    </div>
-                    <div class="hint">Terdeteksi dari data perangkat</div>
-                </div>
-            </div>
+            <label>Interval Kirim Data (detik)</label>
+            <input type="number" id="addDeviceInterval" placeholder="Kosongkan = auto-detect" min="10" max="86400" autocomplete="off">
+            <small style="font-size:10px;color:var(--text-3);margin-top:4px;display:block;">
+                Kosongkan = auto-detect dari data yang masuk
+            </small>
         </div>
 
         <div class="form-group">
             <label>Offline Timeout (detik) - Opsional</label>
             <input type="number" id="addDeviceOfflineTimeout" placeholder="Auto: 2× interval" min="10" max="604800" autocomplete="off">
             <small style="font-size:10px;color:var(--text-3);margin-top:4px;display:block;">
-                Kosongkan = otomatis 2× interval kirim (mis. interval 60s → timeout 120s)
+                Kosongkan = otomatis 2× interval kirim
             </small>
+        </div>
+
+        <div class="form-group">
+            <label>Severity Alert Offline</label>
+            <select id="addDeviceOfflineSeverity">
+                <option value="danger">Bahaya (Danger)</option>
+                <option value="warning">Peringatan (Warning)</option>
+                <option value="info">Info</option>
+            </select>
         </div>
 
         <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
@@ -131,20 +149,60 @@
 <div class="modal" id="editDeviceConfigModal">
     <div class="modal-content" style="max-width:560px;">
         <div class="modal-header">
-            <h3>Konfigurasi Monitoring</h3>
+            <h3>Konfigurasi Perangkat</h3>
             <button class="modal-close">&times;</button>
         </div>
         <input type="hidden" id="editConfigDeviceId">
 
+        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">
+            Informasi Perangkat
+        </p>
+
         <div class="form-group">
-            <label>Interval Kirim Data</label>
-            <div class="interval-info-box">
-                <div>
-                    <div class="value" id="editDeviceIntervalDisplay">—</div>
-                    <div class="hint">Terdeteksi otomatis dari data</div>
-                </div>
-                <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--accent-info);font-size:14px;"></i>
-            </div>
+            <label>Nama Perangkat</label>
+            <input type="text" id="editDeviceName" placeholder="Sensor Suhu Server"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+            <label>Tipe</label>
+            <select id="editDeviceType">
+                <option>ESP32</option>
+                <option>ESP8266</option>
+                <option>Arduino</option>
+                <option>Raspberry Pi</option>
+                <option>RFID Reader</option>
+                <option>Other</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Lokasi</label>
+            <input type="text" id="editDeviceLocation" placeholder="Ruang Server"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+            <label>Firmware Version (opsional)</label>
+            <input type="text" id="editDeviceFirmware" placeholder="v1.2.3"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+            <label>Deskripsi (opsional)</label>
+            <textarea id="editDeviceDescription" rows="2"
+                      placeholder="Catatan tambahan"
+                      style="width:100%;padding:9px 12px;background:var(--surface);color:var(--text);border:1px solid var(--hairline);border-radius:var(--radius-md);font-size:13.5px;outline:none;font-family:inherit;resize:vertical;min-height:60px;"
+                      autocomplete="off" spellcheck="false"></textarea>
+        </div>
+
+        <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
+        <p style="font-size:11px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">
+            Konfigurasi Monitoring
+        </p>
+
+        <div class="form-group">
+            <label>Interval Kirim Data (detik)</label>
+            <input type="number" id="editDeviceInterval" placeholder="Auto-detect" min="10" max="86400" autocomplete="off">
+            <small style="font-size:10px;color:var(--text-3);margin-top:4px;display:block;">
+                Nilai terdeteksi otomatis: <span id="editDeviceIntervalDisplay" style="font-family:var(--mono);color:var(--accent-info);">—</span>
+            </small>
         </div>
 
         <div class="form-group">
@@ -153,6 +211,15 @@
             <small style="font-size:10px;color:var(--text-3);margin-top:4px;display:block;">
                 Kosongkan = otomatis 2× interval kirim
             </small>
+        </div>
+
+        <div class="form-group">
+            <label>Severity Alert Offline</label>
+            <select id="editDeviceOfflineSeverity">
+                <option value="danger">Bahaya (Danger)</option>
+                <option value="warning">Peringatan (Warning)</option>
+                <option value="info">Info</option>
+            </select>
         </div>
 
         <hr style="border:none;border-top:1px solid var(--hairline);margin:20px 0;">
@@ -170,9 +237,16 @@
             <div id="editAlertRulesBuilder" class="alert-rules-builder">
                 <div class="alert-rule-empty">Belum ada custom rule. Pakai global default.</div>
             </div>
-            <button type="button" class="btn-add-rule" onclick="addAlertRule('edit')">
-                <i class="fa-solid fa-plus"></i> Tambah Sensor
-            </button>
+            <div style="display:flex;gap:8px;margin-top:8px;">
+                <button type="button" class="btn-add-rule" onclick="addAlertRule('edit')" style="flex:1;">
+                    <i class="fa-solid fa-plus"></i> Tambah Sensor
+                </button>
+                <button type="button" class="btn btn-secondary" id="resetAlertRulesBtn"
+                        title="Reset semua custom rules ke default global"
+                        style="flex:0 0 auto;white-space:nowrap;">
+                    <i class="fa-solid fa-rotate-left"></i> Reset
+                </button>
+            </div>
         </div>
 
         <div class="modal-actions">
@@ -273,7 +347,7 @@
             Tindakan ini tidak dapat dibatalkan.
         </p>
         <div class="form-group" id="deleteConfirmGroup">
-            <label style="color:var(--red);" id="deleteConfirmLabel">
+            <label style="color:var(--accent-crit);" id="deleteConfirmLabel">
                 Ketik nama device untuk konfirmasi
             </label>
             <input type="text" id="deleteConfirmInput"
@@ -359,6 +433,545 @@
             <button class="btn btn-primary" data-action="save-analytics-tab">
                 <i class="fa-solid fa-check"></i> Simpan
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- SYSTEM INFO MODAL -->
+<div class="modal" id="systemInfoModal">
+    <div class="modal-content" style="max-width:520px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-circle-info"></i> Informasi Sistem</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <div id="systemInfoBody">
+            <div class="loading" style="padding:32px;text-align:center;">
+                <div class="spinner"></div>
+                <div style="margin-top:10px;font-size:12.5px;color:var(--text-3);">Memuat...</div>
+            </div>
+        </div>
+        <div class="modal-actions" style="margin-top:14px;">
+            <button class="btn btn-secondary modal-close" style="width:100%;">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<!-- ALERT HISTORY MODAL -->
+<div class="modal" id="alertHistoryModal">
+    <div class="modal-content" style="max-width:760px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Alert</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div class="alert-history-filters">
+            <div class="alert-history-filter-group">
+                <label for="historyDeviceFilter">Perangkat</label>
+                <select id="historyDeviceFilter">
+                    <option value="">Semua Perangkat</option>
+                </select>
+            </div>
+            <div class="alert-history-filter-group">
+                <label for="historySeverityFilter">Severity</label>
+                <select id="historySeverityFilter">
+                    <option value="">Semua</option>
+                    <option value="danger">Bahaya</option>
+                    <option value="warning">Peringatan</option>
+                    <option value="info">Info</option>
+                    <option value="healthy">Normal</option>
+                </select>
+            </div>
+            <button class="btn btn-secondary" id="historyRefreshBtn" style="flex-shrink:0;align-self:flex-end;">
+                <i class="fa-solid fa-rotate"></i> Refresh
+            </button>
+        </div>
+
+        <div class="alert-history-body" id="alertHistoryBody">
+            <div class="loading" style="padding:40px;text-align:center;">
+                <div class="spinner"></div>
+                <div style="margin-top:10px;font-size:12.5px;color:var(--text-3);">Memuat riwayat...</div>
+            </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:14px;">
+            <span class="alert-history-count" id="alertHistoryCount"></span>
+            <button class="btn btn-secondary modal-close">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<!-- DASHBOARD CREATE/EDIT MODAL -->
+<div class="modal" id="dashboardModal">
+    <div class="modal-content" style="max-width:480px;">
+        <div class="modal-header">
+            <h3 id="dashboardModalTitle">Dashboard Baru</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+        <input type="hidden" id="dashboardEditId" value="">
+
+        <div class="form-group">
+            <label>Nama Dashboard</label>
+            <input type="text" id="dashboardName" placeholder="Contoh: Monitoring Suhu"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+
+        <div class="form-group">
+            <label>Slug (URL)</label>
+            <input type="text" id="dashboardSlug" placeholder="monitoring-suhu"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            <small style="font-size:10.5px;color:var(--text-3);margin-top:4px;display:block;">
+                Huruf kecil, angka, dan dash. Kosongkan untuk auto dari nama.
+            </small>
+        </div>
+
+        <div class="form-group">
+            <label>Deskripsi (opsional)</label>
+            <input type="text" id="dashboardDescription" placeholder="Keterangan singkat"
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        </div>
+
+        <div class="form-group">
+            <label>Ikon</label>
+            <select id="dashboardIcon">
+                <option value="fa-chart-line">Chart Line</option>
+                <option value="fa-chart-pie">Chart Pie</option>
+                <option value="fa-chart-column">Chart Column</option>
+                <option value="fa-chart-area">Chart Area</option>
+                <option value="fa-temperature-half">Suhu</option>
+                <option value="fa-droplet">Kelembaban</option>
+                <option value="fa-fire">Api / Gas</option>
+                <option value="fa-id-card">RFID / Absensi</option>
+                <option value="fa-map">Peta</option>
+                <option value="fa-microchip">Perangkat</option>
+                <option value="fa-bell">Alert</option>
+                <option value="fa-gauge">Gauge</option>
+                <option value="fa-folder">Folder</option>
+                <option value="fa-star">Bintang</option>
+                <option value="fa-wrench">Wrench</option>
+            </select>
+        </div>
+
+        <div class="form-group" id="dashboardDefaultGroup" style="display:none;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;">
+                <input type="checkbox" id="dashboardIsDefault" style="width:15px;height:15px;accent-color:var(--text);cursor:pointer;">
+                <span>Jadikan dashboard default</span>
+            </label>
+        </div>
+
+        <div class="modal-actions">
+            <button class="btn btn-danger" id="dashboardDeleteBtn" style="display:none;margin-right:auto;">
+                <i class="fa-solid fa-trash"></i> Hapus
+            </button>
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-primary" id="dashboardSaveBtn">
+                <i class="fa-solid fa-check"></i> Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- USER MANAGEMENT MODAL -->
+<div class="modal" id="userModal">
+    <div class="modal-content" style="max-width:600px;">
+        <div class="modal-header">
+            <h3 id="userModalTitle"><i class="fa-solid fa-users"></i> Kelola User</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div id="userListView">
+            <div class="user-list" id="userList">
+                <div class="loading" style="padding:32px;text-align:center;">
+                    <div class="spinner"></div>
+                    <div style="margin-top:10px;font-size:12.5px;color:var(--text-3);">Memuat user...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="userFormView" style="display:none;">
+            <input type="hidden" id="userFormId" value="">
+
+            <div class="form-group">
+                <label>Username</label>
+                <input type="text" id="userFormUsername" placeholder="username"
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                <small style="font-size:10.5px;color:var(--text-3);margin-top:4px;display:block;">
+                    Huruf, angka, titik, dash, underscore. Min 3 karakter.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label>Nama Tampilan</label>
+                <input type="text" id="userFormDisplayName" placeholder="Nama lengkap"
+                       autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+            </div>
+
+            <div class="form-group">
+                <label id="userFormPasswordLabel">Password</label>
+                <input type="password" id="userFormPassword"
+                       placeholder="Minimal 8 karakter"
+                       autocomplete="new-password">
+                <small style="font-size:10.5px;color:var(--text-3);margin-top:4px;display:block;"
+                       id="userFormPasswordHint">
+                    Minimal 8 karakter.
+                </small>
+            </div>
+
+            <div class="form-group">
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:500;">
+                    <input type="checkbox" id="userFormIsAdmin"
+                           style="width:15px;height:15px;accent-color:var(--text);cursor:pointer;">
+                    <span>Admin (bisa kelola user & akses semua fitur)</span>
+                </label>
+            </div>
+
+            <div id="userFormError" style="display:none;background:var(--accent-crit-bg);border:1px solid var(--accent-crit);color:var(--accent-crit);padding:9px 12px;border-radius:var(--radius-md);font-size:12.5px;font-weight:500;margin-top:8px;"></div>
+        </div>
+
+        <div class="modal-actions" id="userModalActions">
+            <button class="btn btn-primary" id="userAddNewBtn" style="width:100%;">
+                <i class="fa-solid fa-plus"></i> Tambah User Baru
+            </button>
+
+            <button class="btn btn-secondary" id="userCancelBtn" style="display:none;flex:1;">
+                Batal
+            </button>
+            <button class="btn btn-primary" id="userSaveBtn" style="display:none;flex:1;">
+                <i class="fa-solid fa-check"></i> <span id="userSaveBtnLabel">Simpan</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- BACKUP MODAL -->
+<div class="modal" id="backupModal">
+    <div class="modal-content" style="max-width:640px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-database"></i> Backup Database</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div class="backup-info-bar" id="backupInfoBar">
+            <div class="backup-info-item">
+                <span class="backup-info-label">Auto Backup</span>
+                <span class="backup-info-value" id="backupAutoStatus">—</span>
+            </div>
+            <div class="backup-info-item">
+                <span class="backup-info-label">Interval</span>
+                <span class="backup-info-value" id="backupInterval">—</span>
+            </div>
+            <div class="backup-info-item">
+                <span class="backup-info-label">Retensi</span>
+                <span class="backup-info-value" id="backupRetention">—</span>
+            </div>
+        </div>
+
+        <button class="btn btn-primary backup-trigger-btn" id="backupNowBtn">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <span>Backup Sekarang</span>
+        </button>
+
+        <div class="backup-list-header">
+            <span class="backup-list-title">File Backup Tersedia</span>
+            <span class="backup-list-count" id="backupListCount"></span>
+        </div>
+
+        <div class="backup-list" id="backupList">
+            <div class="loading" style="padding:32px;text-align:center;">
+                <div class="spinner"></div>
+                <div style="margin-top:10px;font-size:12.5px;color:var(--text-3);">Memuat...</div>
+            </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:14px;">
+            <button class="btn btn-secondary modal-close" style="width:100%;">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="modal" id="changePasswordModal">
+    <div class="modal-content" style="max-width:440px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-key"></i> Ganti Password</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div class="form-group">
+            <label>Password Lama</label>
+            <input type="password" id="cpOldPassword" placeholder="Password saat ini"
+                   autocomplete="current-password">
+        </div>
+
+        <div class="form-group">
+            <label>Password Baru</label>
+            <input type="password" id="cpNewPassword" placeholder="Minimal 8 karakter"
+                   autocomplete="new-password">
+        </div>
+
+        <div class="form-group">
+            <label>Konfirmasi Password Baru</label>
+            <input type="password" id="cpConfirmPassword" placeholder="Ketik ulang password baru"
+                   autocomplete="new-password">
+        </div>
+
+        <div id="cpError" style="display:none;background:var(--accent-crit-bg);border:1px solid var(--accent-crit);color:var(--accent-crit);padding:9px 12px;border-radius:var(--radius-md);font-size:12.5px;font-weight:500;margin-top:8px;"></div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary modal-close" style="flex:1;">Batal</button>
+            <button class="btn btn-primary" id="cpSaveBtn" style="flex:1;">
+                <i class="fa-solid fa-check"></i> Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- GLOBAL ALERT RULES MODAL (Batch 8) -->
+<div class="modal" id="globalRulesModal">
+    <div class="modal-content" style="max-width:760px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-sliders"></i> Global Alert Rules</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div style="background:var(--surface-2);border:1px solid var(--hairline);border-radius:var(--radius-md);padding:11px 14px;margin-bottom:14px;font-size:12px;color:var(--text-2);display:flex;gap:8px;align-items:flex-start;line-height:1.5;">
+            <i class="fa-solid fa-circle-info" style="color:var(--accent-info);margin-top:1px;flex-shrink:0;"></i>
+            <div>
+                <b>Rules ini berlaku untuk semua device</b> yang tidak punya custom rules.
+                Klik "Reset ke Default" untuk kembali ke nilai dari <code style="font-family:var(--mono);background:var(--surface);padding:1px 5px;border-radius:4px;">config.py</code>.
+            </div>
+        </div>
+
+        <div id="globalRulesStatus" style="margin-bottom:14px;display:none;font-size:12px;padding:8px 12px;border-radius:var(--radius-md);">
+        </div>
+
+        <div class="global-rules-list" id="globalRulesList">
+            <div class="loading" style="padding:32px;text-align:center;">
+                <div class="spinner"></div>
+                <div style="margin-top:10px;font-size:12.5px;color:var(--text-3);">Memuat rules...</div>
+            </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:18px;">
+            <button class="btn btn-secondary" id="globalRulesResetBtn" style="margin-right:auto;display:none;">
+                <i class="fa-solid fa-rotate-left"></i> Reset ke Default
+            </button>
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-primary" id="globalRulesSaveBtn">
+                <i class="fa-solid fa-check"></i> Simpan
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- RESTORE DATABASE MODAL (Batch 8) -->
+<div class="modal" id="restoreModal">
+    <div class="modal-content" style="max-width:560px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-crit);"></i> Restore Database</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div style="background:var(--accent-crit-bg);border:1px solid var(--accent-crit);border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;font-size:12.5px;color:var(--accent-crit);font-weight:500;line-height:1.55;display:flex;gap:8px;align-items:flex-start;">
+            <i class="fa-solid fa-triangle-exclamation" style="margin-top:2px;flex-shrink:0;font-size:14px;"></i>
+            <div>
+                <b style="display:block;margin-bottom:4px;">Tindakan ini BERBAHAYA!</b>
+                Semua data saat ini (device, sensor, alert, absensi) akan <b>digantikan</b> dengan data dari file backup.
+                <br><br>
+                Pre-restore backup otomatis dibuat sebelum proses. Restart container <b>WAJIB</b> dilakukan setelah restore.
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Pilih File Backup</label>
+            <select id="restoreFileSelect" style="width:100%;padding:10px 12px;background:var(--surface);color:var(--text);border:1px solid var(--hairline);border-radius:var(--radius-md);font-size:13.5px;outline:none;font-family:inherit;cursor:pointer;">
+                <option value="">— Memuat file backup —</option>
+            </select>
+            <small style="font-size:10.5px;color:var(--text-3);margin-top:6px;display:block;">
+                Hanya file <code style="font-family:var(--mono);">.db</code> dari folder backup yang valid.
+            </small>
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
+            <label style="color:var(--accent-crit);font-weight:600;">
+                Ketik <code style="background:var(--surface-2);padding:2px 6px;border-radius:4px;font-family:var(--mono);">RESTORE</code> untuk konfirmasi
+            </label>
+            <input type="text" id="restoreConfirmInput" placeholder="Ketik RESTORE..."
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+                   style="width:100%;padding:11px 13px;background:var(--surface);color:var(--text);border:1px solid var(--hairline);border-radius:var(--radius-md);font-size:13.5px;outline:none;font-family:inherit;margin-top:6px;letter-spacing:0.05em;text-transform:uppercase;">
+        </div>
+
+        <div id="restoreError" style="display:none;background:var(--accent-crit-bg);border:1px solid var(--accent-crit);color:var(--accent-crit);padding:9px 12px;border-radius:var(--radius-md);font-size:12.5px;font-weight:500;margin-top:10px;"></div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-danger" id="restoreConfirmBtn" disabled>
+                <i class="fa-solid fa-triangle-exclamation"></i> Restore Sekarang
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- BULK IMPORT MODAL (Batch 8) -->
+<div class="modal" id="bulkImportModal">
+    <div class="modal-content" style="max-width:720px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-file-import"></i> Bulk Import Device</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div class="bulk-import-tabs">
+            <button class="bulk-import-tab active" data-mode="paste">
+                <i class="fa-solid fa-paste"></i> Paste JSON
+            </button>
+            <button class="bulk-import-tab" data-mode="csv">
+                <i class="fa-solid fa-file-csv"></i> Upload CSV
+            </button>
+        </div>
+
+        <!-- View: Paste JSON -->
+        <div id="bulkImportPasteView">
+            <div class="form-group">
+                <label style="display:flex;justify-content:space-between;align-items:center;">
+                    <span>Array JSON device</span>
+                    <button type="button" class="bulk-import-sample-btn" id="bulkImportSampleBtn" style="font-size:10.5px;color:var(--accent-info);background:none;border:none;cursor:pointer;font-family:inherit;padding:0;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i> Isi contoh
+                    </button>
+                </label>
+                <textarea id="bulkImportJson" rows="12"
+                          placeholder='[
+  {"device_id": "ESP32-001", "device_name": "Sensor Suhu 1", "device_type": "ESP32", "location": "Ruang A"},
+  {"device_id": "ESP32-002", "device_name": "Sensor Suhu 2", "device_type": "ESP32", "location": "Ruang B"}
+]'
+                          style="width:100%;padding:11px 13px;background:var(--surface);color:var(--text);border:1px solid var(--hairline);border-radius:var(--radius-md);font-size:12.5px;outline:none;font-family:var(--mono);resize:vertical;min-height:220px;line-height:1.5;letter-spacing:-0.02em;"
+                          spellcheck="false"></textarea>
+            </div>
+        </div>
+
+        <!-- View: Upload CSV -->
+        <div id="bulkImportCsvView" style="display:none;">
+            <div class="form-group">
+                <label>Upload File CSV</label>
+                <div class="bulk-import-dropzone" id="bulkImportDropzone">
+                    <i class="fa-solid fa-cloud-arrow-up"></i>
+                    <div class="bulk-import-dropzone-text">
+                        <b>Klik atau drop file CSV</b>
+                        <span>Kolom: device_id, device_name, device_type, location, description, firmware_version</span>
+                    </div>
+                    <input type="file" id="bulkImportFileInput" accept=".csv,text/csv" style="display:none;">
+                </div>
+                <div id="bulkImportFileName" style="margin-top:10px;font-size:12px;color:var(--text-3);font-family:var(--mono);display:none;"></div>
+            </div>
+            <div style="margin-top:12px;">
+                <a href="#" id="bulkImportDownloadTemplate" style="font-size:12px;color:var(--accent-info);text-decoration:none;">
+                    <i class="fa-solid fa-download"></i> Download template CSV
+                </a>
+            </div>
+        </div>
+
+        <div id="bulkImportPreview" style="display:none;margin-top:14px;">
+            <div class="bulk-import-preview-header">
+                <span>Preview</span>
+                <span id="bulkImportPreviewCount"></span>
+            </div>
+            <div class="bulk-import-preview" id="bulkImportPreviewList"></div>
+        </div>
+
+        <div id="bulkImportError" style="display:none;background:var(--accent-crit-bg);border:1px solid var(--accent-crit);color:var(--accent-crit);padding:9px 12px;border-radius:var(--radius-md);font-size:12.5px;font-weight:500;margin-top:10px;"></div>
+
+        <div class="modal-actions">
+            <button class="btn btn-secondary modal-close">Batal</button>
+            <button class="btn btn-primary" id="bulkImportSubmitBtn">
+                <i class="fa-solid fa-upload"></i> Import Sekarang
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- BULK IMPORT RESULT MODAL (Batch 8) -->
+<div class="modal" id="bulkImportResultModal">
+    <div class="modal-content" style="max-width:720px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-circle-check" style="color:var(--accent-ok);"></i> Hasil Import</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div class="bulk-result-summary" id="bulkResultSummary"></div>
+
+        <div id="bulkResultCreatedSection" style="display:none;">
+            <div class="bulk-result-section-title">
+                <i class="fa-solid fa-check" style="color:var(--accent-ok);"></i>
+                <span>Berhasil Dibuat</span>
+                <span class="bulk-result-section-count" id="bulkResultCreatedCount">0</span>
+            </div>
+            <div class="bulk-result-table-wrap">
+                <table class="bulk-result-table">
+                    <thead>
+                        <tr><th>Device ID</th><th>Nama</th><th>API Key</th></tr>
+                    </thead>
+                    <tbody id="bulkResultCreatedBody"></tbody>
+                </table>
+            </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:10px;gap:6px;">
+                <button class="btn btn-secondary" id="bulkResultCopyAllBtn" style="font-size:12px;">
+                    <i class="fa-solid fa-copy"></i> Copy Semua API Key
+                </button>
+                <button class="btn btn-secondary" id="bulkResultDownloadCsvBtn" style="font-size:12px;">
+                    <i class="fa-solid fa-download"></i> Download CSV
+                </button>
+            </div>
+        </div>
+
+        <div id="bulkResultSkippedSection" style="display:none;">
+            <div class="bulk-result-section-title">
+                <i class="fa-solid fa-forward" style="color:var(--accent-warn);"></i>
+                <span>Di-skip (sudah ada)</span>
+                <span class="bulk-result-section-count" id="bulkResultSkippedCount">0</span>
+            </div>
+            <div class="bulk-result-table-wrap">
+                <table class="bulk-result-table">
+                    <thead><tr><th>Row</th><th>Device ID</th><th>Alasan</th></tr></thead>
+                    <tbody id="bulkResultSkippedBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="bulkResultErrorSection" style="display:none;">
+            <div class="bulk-result-section-title">
+                <i class="fa-solid fa-xmark" style="color:var(--accent-crit);"></i>
+                <span>Error</span>
+                <span class="bulk-result-section-count" id="bulkResultErrorCount">0</span>
+            </div>
+            <div class="bulk-result-table-wrap">
+                <table class="bulk-result-table">
+                    <thead><tr><th>Row</th><th>Device ID</th><th>Error</th></tr></thead>
+                    <tbody id="bulkResultErrorBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:18px;">
+            <button class="btn btn-primary modal-close" style="width:100%;">Tutup</button>
+        </div>
+    </div>
+</div>
+
+<!-- NOTIFICATION CONFIG MODAL (Batch 8) -->
+<div class="modal" id="notificationConfigModal">
+    <div class="modal-content" style="max-width:560px;">
+        <div class="modal-header">
+            <h3><i class="fa-solid fa-bell"></i> Konfigurasi Notifikasi</h3>
+            <button class="modal-close">&times;</button>
+        </div>
+
+        <div id="notificationConfigBody">
+            <div class="loading" style="padding:32px;text-align:center;">
+                <div class="spinner"></div>
+                <div style="margin-top:10px;font-size:12.5px;color:var(--text-3);">Memuat...</div>
+            </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:14px;">
+            <button class="btn btn-secondary modal-close" style="width:100%;">Tutup</button>
         </div>
     </div>
 </div>

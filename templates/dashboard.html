@@ -117,12 +117,44 @@
             <span class="label">Alert Center</span>
             <span class="badge" id="alertBadge">0</span>
         </a>
+        <div class="nav-item" id="manageUsersBtn" style="display:none;cursor:pointer;" title="Kelola User">
+            <span class="icon"><i class="fa-solid fa-users"></i></span>
+            <span class="label">Kelola User</span>
+        </div>
     </nav>
     <div class="sidebar-footer">
         <button class="theme-toggle-btn" id="themeToggleBtn">
             <span class="icon"><i class="fa-solid fa-moon" id="themeIcon"></i></span>
             <span class="label" id="themeLabel">Tema Gelap</span>
         </button>
+        <div class="nav-item" id="changePasswordBtn" style="cursor:pointer;" title="Ganti Password">
+            <span class="icon"><i class="fa-solid fa-key"></i></span>
+            <span class="label">Ganti Password</span>
+        </div>
+        <div class="nav-item" id="notificationConfigBtn" style="cursor:pointer;" title="Konfigurasi Notifikasi">
+            <span class="icon"><i class="fa-solid fa-bell"></i></span>
+            <span class="label">Konfigurasi Notif</span>
+        </div>
+        <div class="nav-item" id="globalRulesBtn" style="display:none;cursor:pointer;" title="Global Alert Rules">
+            <span class="icon"><i class="fa-solid fa-sliders"></i></span>
+            <span class="label">Global Rules</span>
+        </div>
+        <div class="nav-item" id="bulkImportBtn" style="display:none;cursor:pointer;" title="Bulk Import Device">
+            <span class="icon"><i class="fa-solid fa-file-import"></i></span>
+            <span class="label">Bulk Import</span>
+        </div>
+        <div class="nav-item" id="backupBtn" style="display:none;cursor:pointer;" title="Backup Database">
+            <span class="icon"><i class="fa-solid fa-database"></i></span>
+            <span class="label">Backup Database</span>
+        </div>
+        <div class="nav-item" id="cleanupBtn" style="display:none;cursor:pointer;" title="Cleanup Data Lama">
+            <span class="icon"><i class="fa-solid fa-broom"></i></span>
+            <span class="label">Cleanup Data</span>
+        </div>
+        <div class="nav-item" id="systemInfoBtn" style="cursor:pointer;" title="Info Sistem">
+            <span class="icon"><i class="fa-solid fa-circle-info"></i></span>
+            <span class="label">Info Sistem</span>
+        </div>
         <div class="nav-item" id="logoutBtn">
             <span class="icon"><i class="fa-solid fa-arrow-right-from-bracket"></i></span>
             <span class="label">Logout</span>
@@ -144,7 +176,27 @@
             </button>
 
             <nav class="breadcrumb" aria-label="Breadcrumb">
-                <h1 class="breadcrumb-current" id="pageTitle">Dashboard</h1>
+                <div class="dashboard-switcher" id="dashboardSwitcher">
+                    <button class="dashboard-switcher-trigger" id="dashboardSwitcherTrigger"
+                            type="button" title="Ganti Dashboard">
+                        <i class="fa-solid fa-layer-group" id="dashboardSwitcherIcon" style="font-size:12px;color:var(--text-3);"></i>
+                        <span class="dashboard-switcher-label" id="dashboardSwitcherLabel">Dashboard</span>
+                        <i class="fa-solid fa-chevron-down" style="font-size:9px;opacity:.6;"></i>
+                    </button>
+                    <div class="dashboard-switcher-menu" id="dashboardSwitcherMenu">
+                        <div class="dashboard-switcher-list" id="dashboardSwitcherList">
+                            <div class="dashboard-switcher-loading">
+                                <i class="fa-solid fa-spinner fa-spin"></i>
+                                <span>Memuat...</span>
+                            </div>
+                        </div>
+                        <div class="dashboard-switcher-divider"></div>
+                        <button class="dashboard-switcher-add" id="dashboardSwitcherAdd">
+                            <i class="fa-solid fa-plus"></i>
+                            <span>Dashboard Baru</span>
+                        </button>
+                    </div>
+                </div>
             </nav>
         </div>
         <div class="topbar-right">

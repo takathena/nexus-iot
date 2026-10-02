@@ -1,6 +1,6 @@
 /* ============================================================
    NEXUS — Device Detail page (Sure Style)
-   Clean, minimal, monochrome + orange accent
+   Batch 1-7 integrated
    ============================================================ */
 :root{
   --hdr-h: 52px;
@@ -43,6 +43,66 @@ input,select{font-family:inherit;}
   transition:background .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease);
 }
 .hdr-btn:hover{background:var(--surface);border-color:var(--hairline);color:var(--text);}
+
+/* ---------- Export dropdown ---------- */
+.hdr-export-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.hdr-export-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 190px;
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+}
+
+.hdr-export-menu.open {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.hdr-export-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 11px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  font-size: 12.5px;
+  font-weight: 500;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+}
+
+.hdr-export-item:hover,
+.hdr-export-item:active {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.hdr-export-item i {
+  font-size: 13px;
+  width: 14px;
+  text-align: center;
+  flex-shrink: 0;
+}
 
 /* ---------- Main ---------- */
 main{
@@ -142,6 +202,17 @@ main{
 .group-body{
   padding:0 16px 16px;
 }
+.group-action{
+  width:28px;height:28px;
+  border-radius:var(--radius-sm);
+  background:transparent;
+  border:none;
+  color:var(--text-3);
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;flex-shrink:0;cursor:pointer;
+  transition:background 0.15s var(--ease),color 0.15s var(--ease);
+}
+.group-action:hover{background:var(--surface-2);color:var(--text);}
 
 /* ---------- Info rows ---------- */
 .info-list{display:flex;flex-direction:column;}
@@ -235,6 +306,155 @@ main{
 .sensor-gauge-fill{
   height:100%;border-radius:2px;
   transition:width .6s var(--ease);
+}
+
+/* ---------- Chart History ---------- */
+.chart-range-picker {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+}
+
+.chart-range-btn {
+  height: 26px;
+  padding: 0 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--mono);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background 0.12s var(--ease), color 0.12s var(--ease);
+  white-space: nowrap;
+  letter-spacing: -0.02em;
+}
+.chart-range-btn:hover { color: var(--text-2); }
+.chart-range-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.15);
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  margin-bottom: 10px;
+}
+
+.chart-canvas-wrap canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.chart-empty-msg {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--text-3);
+  font-size: 12px;
+  pointer-events: none;
+}
+.chart-empty-msg i {
+  font-size: 24px;
+  opacity: 0.4;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-2);
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+
+.chart-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ---------- Status History ---------- */
+.status-log-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  position: relative;
+}
+
+.status-log-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background: var(--hairline-soft);
+}
+
+.status-log-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.status-log-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.status-log-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.status-log-reason {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-3);
+  font-family: var(--mono);
+  letter-spacing: -0.02em;
+}
+
+.status-log-time {
+  font-size: 11px;
+  color: var(--text-3);
+  font-family: var(--mono);
+  letter-spacing: -0.02em;
+  flex-shrink: 0;
+  text-align: right;
 }
 
 /* ---------- Action rows ---------- */
@@ -378,7 +598,7 @@ main{
   font-weight:500;letter-spacing:-0.02em;
 }
 
-/* ---------- Toast (lokasi) ---------- */
+/* ---------- Toast ---------- */
 .toast{
   position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
   background:var(--surface);color:var(--text);
@@ -401,8 +621,26 @@ main{
   .device-hero{gap:18px;}
   .device-icon{width:60px;height:60px;font-size:26px;border-radius:var(--radius-xl);}
 }
+@media (max-width: 640px) {
+  .chart-range-picker {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .chart-range-btn {
+    flex: 1;
+    padding: 0 6px;
+    font-size: 10.5px;
+  }
+  .chart-canvas-wrap { height: 200px; }
+}
 @media(max-width:380px){
   .sensor-grid{grid-template-columns:1fr 1fr;gap:8px;}
   .sensor-card{padding:11px;}
   .sensor-value{font-size:20px;}
+}
+@media (max-width: 400px) {
+  .status-log-item { gap: 10px; padding: 10px 0; }
+  .status-log-icon { width: 26px; height: 26px; font-size: 11px; }
+  .status-log-title { font-size: 12.5px; }
+  .status-log-time { font-size: 10.5px; }
 }

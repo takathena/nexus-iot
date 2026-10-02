@@ -1,13 +1,10 @@
 /* ============================================================
-   NEXUS — Device Detail page logic
-   Requires: api.js? (page-local api() below), theme.js (ThemeManager)
-   ============================================================ */
-/* ============================================================
-   NEXUS Device Detail — v3
+   NEXUS Device Detail — v5
+   Batch 7 integrated
    ============================================================ */
 const CSRF = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
 
-/* ---------- Sensor meta (palette vibrant) ---------- */
+/* ---------- Sensor meta ---------- */
 const SENSOR_META = {
   temperature: {icon:'fa-temperature-half', color:'#ef6a6a', unit:'°C', range:[0,50]},
   humidity:    {icon:'fa-droplet',          color:'#5b9eff', unit:'%',  range:[0,100]},
@@ -93,7 +90,10 @@ document.addEventListener('keydown', e => {
 
 /* ---------- Theme ---------- */
 updateThemeIcon();
-window.ThemeManager.onChange(updateThemeIcon);
+window.ThemeManager.onChange(function(theme){
+  updateThemeIcon();
+  if(historyChart) loadHistoryChart();
+});
 function updateThemeIcon(){
   const i = document.getElementById('themeIcon');
   if(i) i.className = document.documentElement.getAttribute('data-theme') === 'light'
@@ -101,7 +101,7 @@ function updateThemeIcon(){
     : 'fa-solid fa-moon';
 }
 
-/* ---------- Back navigation ---------- */
+/* ---------- Back ---------- */
 (function setupBack(){
   const btn = document.getElementById('btnBack');
   let back = '/mobile';
@@ -116,11 +116,35 @@ function updateThemeIcon(){
 })();
 
 /* ---------- Export ---------- */
-document.getElementById('btnExport').onclick = () => {
-  window.location.href = `/api/v1/devices/${encodeURIComponent(deviceId)}/export?format=csv&hours=24`;
-};
+(function setupExport(){
+  const btn = document.getElementById('btnExport');
+  const menu = document.getElementById('exportMenu');
+  if(!btn || !menu) return;
 
-/* ---------- Render: status ---------- */
+  function closeMenu(){ menu.classList.remove('open'); }
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    menu.classList.toggle('open');
+  });
+  menu.querySelectorAll('.hdr-export-item').forEach(item => {
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const fmt = item.dataset.format || 'csv';
+      const hours = item.dataset.hours || '24';
+      window.location.href = `/api/v1/devices/${encodeURIComponent(deviceId)}/export?format=${encodeURIComponent(fmt)}&hours=${encodeURIComponent(hours)}`;
+      closeMenu();
+      toast(`Export ${fmt.toUpperCase()} (${hours} jam)...`);
+    });
+  });
+  document.addEventListener('click', (e) => {
+    if(!e.target.closest('.hdr-export-wrap')) closeMenu();
+  });
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape') closeMenu();
+  });
+})();
+
+/* ---------- Status ---------- */
 function renderStatus(device){
   const bar = document.getElementById('statusBar');
   const pulse = document.getElementById('statusPulse');
@@ -157,7 +181,7 @@ function renderStatus(device){
   live.style.display = device.status === 'online' ? 'inline-flex' : 'none';
 }
 
-/* ---------- Render: alerts ---------- */
+/* ---------- Alerts ---------- */
 function renderAlerts(alerts){
   const body = document.getElementById('alertBody');
   const count = document.getElementById('alertCount');
@@ -166,8 +190,8 @@ function renderAlerts(alerts){
     count.textContent = '';
     body.innerHTML = `
       <div class="empty">
-        <i class="fa-solid fa-circle-check" style="color:var(--ok);opacity:1;"></i>
-        <div class="empty-title" style="color:var(--ok);">Semua Normal</div>
+        <i class="fa-solid fa-circle-check" style="color:var(--accent-ok);opacity:1;"></i>
+        <div class="empty-title" style="color:var(--accent-ok);">Semua Normal</div>
         <div class="empty-sub">Tidak ada alert aktif</div>
       </div>`;
     return;
@@ -189,7 +213,7 @@ function renderAlerts(alerts){
   }).join('');
 }
 
-/* ---------- Render: info ---------- */
+/* ---------- Info ---------- */
 function renderInfo(device){
   const wifi = device.latest_data?.wifi_ssid || null;
   const uptime = fmtUp(device.latest_data?.uptime_seconds || 0);
@@ -200,6 +224,7 @@ function renderInfo(device){
   const rows = [
     {label:'ID Perangkat', value:device.device_id, mono:true},
     {label:'Tipe', value:device.device_type || 'Universal'},
+    {label:'Firmware', value:device.firmware_version || null, mono:true, muted:!device.firmware_version, emptyText:'—'},
     {label:'Lokasi', value:device.location || null, muted:!device.location, emptyText:'Belum diatur'},
     {label:'WiFi SSID', value:wifi, mono:true, muted:!wifi, emptyText:'—'},
     {label:'Uptime', value:uptime, mono:true},
@@ -226,7 +251,7 @@ function renderInfo(device){
   `;
 }
 
-/* ---------- Render: sensors ---------- */
+/* ---------- Sensors ---------- */
 function renderSensors(device){
   const body = document.getElementById('sensorBody');
   const meta = document.getElementById('sensorMeta');
@@ -276,7 +301,274 @@ function renderSensors(device){
   `;
 }
 
-/* ---------- Load ---------- */
+/* ---------- Chart History (Batch 7) ---------- */
+let historyChart = null;
+let historyHours = 24;
+
+const CHART_COLORS = [
+  '#f97316', '#3b82f6', '#ef4444', '#8b5cf6',
+  '#22c55e', '#14b8a6', '#f59e0b', '#ec4899',
+];
+
+function getChartTheme(){
+  const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+  return {
+    grid: isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)',
+    label: isLight ? '#737373' : '#a3a3a3',
+    legend: isLight ? '#525252' : '#a3a3a3',
+    tooltipBg: isLight ? '#0a0a0a' : '#fafafa',
+    tooltipTitle: isLight ? '#fafafa' : '#0a0a0a',
+    tooltipBody: isLight ? '#a3a3a3' : '#525252',
+    pointBorder: isLight ? '#fafafa' : '#0a0a0a',
+  };
+}
+
+async function loadHistoryChart(){
+  const canvas = document.getElementById('historyChartCanvas');
+  if(!canvas) return;
+
+  try{
+    const limit = Math.min(historyHours * 100, 5000);
+    const r = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}/history?hours=${historyHours}&limit=${limit}`);
+    const d = await r.json();
+
+    if(!d.success || !d.history || !d.history.length){
+      if(historyChart){ historyChart.destroy(); historyChart = null; }
+      canvas.style.display = 'none';
+      const parent = canvas.parentElement;
+      if(parent && !parent.querySelector('.chart-empty-msg')){
+        const msg = document.createElement('div');
+        msg.className = 'chart-empty-msg';
+        msg.innerHTML = '<i class="fa-solid fa-satellite-dish"></i><span>Belum ada data history</span>';
+        parent.appendChild(msg);
+      }
+      return;
+    }
+
+    canvas.style.display = '';
+    const old = canvas.parentElement.querySelector('.chart-empty-msg');
+    if(old) old.remove();
+
+    const allKeys = new Set();
+    d.history.forEach(h => {
+      Object.keys(h.data || {}).forEach(k => {
+        if(k !== 'uid' && k !== 'card_id') allKeys.add(k);
+      });
+    });
+    const keys = Array.from(allKeys);
+
+    if(keys.length === 0){
+      if(historyChart){ historyChart.destroy(); historyChart = null; }
+      canvas.style.display = 'none';
+      return;
+    }
+
+    const timestamps = d.history.map(h => h.timestamp);
+    const labels = timestamps.map(ts => {
+      try{
+        const dt = new Date(String(ts).replace(' ','T') + '+07:00');
+        if(historyHours <= 24){
+          return dt.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', timeZone:'Asia/Jakarta' });
+        }
+        return dt.toLocaleString('id-ID', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', timeZone:'Asia/Jakarta' });
+      }catch(e){ return ''; }
+    });
+
+    const theme = getChartTheme();
+    const font = "'Geist', -apple-system, sans-serif";
+
+    const datasets = keys.map((key, i) => {
+      const meta = getSensor(key);
+      const color = CHART_COLORS[i % CHART_COLORS.length];
+      const values = d.history.map(h => {
+        const v = h.data?.[key];
+        return (typeof v === 'number') ? v : null;
+      });
+      return {
+        label: key.replace(/_/g,' ').replace(/\b\w/g, c => c.toUpperCase()) + (meta.unit ? ` (${meta.unit})` : ''),
+        data: values,
+        borderColor: color,
+        backgroundColor: color + '15',
+        fill: keys.length === 1,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointHoverBackgroundColor: color,
+        pointHoverBorderColor: theme.pointBorder,
+        pointHoverBorderWidth: 2,
+        pointBackgroundColor: color,
+        pointBorderColor: theme.pointBorder,
+        pointBorderWidth: 0,
+        borderWidth: 2,
+        spanGaps: true,
+      };
+    });
+
+    if(historyChart){ historyChart.destroy(); historyChart = null; }
+
+    historyChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        animation: { duration: 300, easing: 'easeOutQuart' },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: theme.tooltipBg,
+            titleColor: theme.tooltipTitle,
+            bodyColor: theme.tooltipBody,
+            borderColor: theme.grid,
+            borderWidth: 1,
+            padding: 10,
+            cornerRadius: 8,
+            titleFont: { size: 11, family: font, weight: '600' },
+            bodyFont: { size: 11, family: font, weight: '500' },
+          },
+        },
+        scales: {
+          x: {
+            grid: { color: theme.grid, drawBorder: false, drawTicks: false },
+            border: { display: false },
+            ticks: {
+              color: theme.label,
+              font: { size: 10, family: font, weight: '500' },
+              maxTicksLimit: 6,
+              maxRotation: 0,
+              autoSkip: true,
+              padding: 6,
+            },
+          },
+          y: {
+            grid: { color: theme.grid, drawBorder: false, drawTicks: false },
+            border: { display: false },
+            ticks: {
+              color: theme.label,
+              font: { size: 10, family: font, weight: '500' },
+              padding: 8,
+            },
+            beginAtZero: false,
+          },
+        },
+      },
+    });
+
+    const legendEl = document.getElementById('chartLegend');
+    if(legendEl){
+      legendEl.innerHTML = datasets.map(ds => {
+        const color = ds.borderColor;
+        return `<div class="chart-legend-item">
+          <span class="chart-legend-dot" style="background:${color};"></span>
+          <span class="chart-legend-label">${esc(ds.label)}</span>
+        </div>`;
+      }).join('');
+    }
+  }catch(e){
+    console.error('[Chart] Error:', e);
+  }
+}
+
+function bindChartRange(){
+  const picker = document.getElementById('chartRangePicker');
+  if(!picker) return;
+  picker.querySelectorAll('.chart-range-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      picker.querySelectorAll('.chart-range-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      historyHours = parseInt(btn.dataset.hours, 10) || 24;
+      loadHistoryChart();
+    });
+  });
+}
+
+/* ---------- Status History ---------- */
+function statusReasonLabel(reason){
+  if(!reason) return '—';
+  const map = {
+    'data_received': 'Data diterima',
+    'recovered': 'Pulih',
+    'never_seen': 'Belum pernah terdeteksi',
+  };
+  if(map[reason]) return map[reason];
+  if(reason.startsWith('timeout_')) {
+    const secs = parseInt(reason.replace('timeout_','').replace('s',''));
+    if(!isNaN(secs)) return `Timeout ${secs}s`;
+  }
+  return reason;
+}
+
+function renderStatusHistory(history){
+  const body = document.getElementById('statusHistoryBody');
+  const meta = document.getElementById('statusHistoryMeta');
+
+  if(!history || !history.length){
+    if(meta) meta.textContent = '';
+    body.innerHTML = `
+      <div class="empty">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <div class="empty-title">Belum Ada Riwayat</div>
+        <div class="empty-sub">Belum ada perubahan status tercatat</div>
+      </div>`;
+    return;
+  }
+
+  if(meta) meta.textContent = `${history.length} log`;
+
+  body.innerHTML = history.map(h => {
+    const isOnline = h.status === 'online';
+    const color = isOnline ? 'var(--accent-ok)' : 'var(--accent-crit)';
+    const icon = isOnline ? 'fa-circle-check' : 'fa-power-off';
+    const title = isOnline ? 'Online' : 'Offline';
+    const reason = statusReasonLabel(h.reason);
+    return `
+      <div class="status-log-item">
+        <span class="status-log-icon" style="background:${color}22;color:${color};">
+          <i class="fa-solid ${icon}"></i>
+        </span>
+        <div class="status-log-body">
+          <div class="status-log-title">
+            <span style="color:${color};">${title}</span>
+            <span class="status-log-reason">${esc(reason)}</span>
+          </div>
+          <div class="status-log-time" title="${esc(fmtTime(h.created_at))}">${esc(fmtRelative(h.created_at))}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadStatusHistory(){
+  const body = document.getElementById('statusHistoryBody');
+  if(!body) return;
+
+  try{
+    const r = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}/status-history?limit=30`);
+    const d = await r.json();
+
+    if(!d.success){
+      body.innerHTML = `
+        <div class="empty">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div class="empty-title">Gagal Memuat</div>
+          <div class="empty-sub">${esc(d.error || 'Koneksi gagal')}</div>
+        </div>`;
+      return;
+    }
+
+    renderStatusHistory(d.history || []);
+  }catch(e){
+    console.error('[DeviceDetail] status-history', e);
+    body.innerHTML = `
+      <div class="empty">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div class="empty-title">Koneksi Gagal</div>
+      </div>`;
+  }
+}
+
+/* ---------- Load Detail ---------- */
 async function loadDetail(){
   try{
     const r = await fetch(`/api/v1/devices/${encodeURIComponent(deviceId)}`);
@@ -308,7 +600,7 @@ async function loadDetail(){
   }
 }
 
-/* ---------- Regenerate key ---------- */
+/* ---------- Regenerate Key ---------- */
 async function regenKey(){
   if(!confirm(`Regenerate API Key untuk "${deviceId}"?\n\nKey lama tidak akan berfungsi lagi.`)) return;
   try{
@@ -386,4 +678,17 @@ async function confirmDelete(){
 
 /* ---------- Init ---------- */
 loadDetail();
+loadStatusHistory();
+loadHistoryChart();
+bindChartRange();
+
 setInterval(loadDetail, 10000);
+setInterval(() => {
+  if(!document.hidden) loadStatusHistory();
+}, 30000);
+
+document.getElementById('statusHistoryRefreshBtn')?.addEventListener('click', () => {
+  loadStatusHistory();
+  loadHistoryChart();
+  toast('Data di-refresh');
+});

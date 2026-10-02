@@ -31,11 +31,31 @@
         </div>
     </div>
 
+    <!-- Trend Chart Card -->
+    <div class="alert-trend-card" id="alertTrendCard">
+        <div class="alert-trend-header">
+            <div class="alert-trend-title">
+                <i class="fa-solid fa-chart-column"></i>
+                <span>Trend Alert</span>
+            </div>
+            <div class="alert-trend-range" id="alertTrendRange">
+                <button class="trend-range-btn active" data-hours="24">24 Jam</button>
+                <button class="trend-range-btn" data-hours="168">7 Hari</button>
+            </div>
+        </div>
+        <div class="alert-trend-body">
+            <canvas id="alertTrendCanvas"></canvas>
+            <div class="alert-trend-empty" id="alertTrendEmpty" style="display:none;">
+                <i class="fa-solid fa-chart-simple"></i>
+                <span>Belum ada data trend</span>
+            </div>
+        </div>
+    </div>
+
     <!-- Toolbar: dropdown filter + date inline + actions -->
     <div class="alert-toolbar">
         <div class="alert-filters">
 
-            <!-- Status dropdown -->
             <div class="ios-dropdown" id="alertStatusDropdown" data-value="all">
                 <button type="button" class="ios-dropdown-trigger">
                     <i class="fa-solid fa-filter"></i>
@@ -61,7 +81,6 @@
                 </div>
             </div>
 
-            <!-- Severity dropdown -->
             <div class="ios-dropdown" id="alertSeverityDropdown" data-value="">
                 <button type="button" class="ios-dropdown-trigger">
                     <i class="fa-solid fa-triangle-exclamation"></i>
@@ -92,7 +111,6 @@
                 </div>
             </div>
 
-            <!-- Date range inline (auto-apply on change) -->
             <div class="alert-date-inline">
                 <input type="date" id="alertStartDate" autocomplete="off" aria-label="Dari tanggal">
                 <input type="date" id="alertEndDate" autocomplete="off" aria-label="Sampai tanggal">
@@ -104,6 +122,12 @@
         </div>
 
         <div class="alert-actions">
+            <button class="btn btn-secondary" id="testNotifBtn" title="Kirim notifikasi tes ke Telegram">
+                <i class="fa-solid fa-paper-plane"></i> Test Notif
+            </button>
+            <button class="btn btn-secondary" id="historyAlertsBtn" title="Lihat riwayat lengkap alert">
+                <i class="fa-solid fa-clock-rotate-left"></i> Riwayat
+            </button>
             <button class="btn btn-secondary" id="markAllReadBtn" title="Tandai semua alert yang tampil sebagai selesai">
                 <i class="fa-solid fa-check-double"></i> Tandai Semua
             </button>
@@ -113,7 +137,6 @@
         </div>
     </div>
 
-    <!-- Bulk action bar -->
     <div id="bulkActionBar" class="bulk-action-bar" style="display:none;">
         <div class="bulk-left">
             <label class="bulk-checkbox">

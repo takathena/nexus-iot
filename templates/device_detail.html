@@ -13,7 +13,6 @@
 </head>
 <body>
 
-<!-- ============ HEADER ============ -->
 <header class="hdr">
   <button class="hdr-back" id="btnBack">
     <i class="fa-solid fa-chevron-left"></i>
@@ -23,16 +22,34 @@
     <button class="hdr-btn" onclick="toggleTheme()" aria-label="Toggle Theme">
       <i class="fa-solid fa-moon" id="themeIcon"></i>
     </button>
-    <button class="hdr-btn" id="btnExport" aria-label="Export Data">
-      <i class="fa-solid fa-download"></i>
-    </button>
+    <div class="hdr-export-wrap">
+      <button class="hdr-btn" id="btnExport" aria-label="Export Data" title="Export Data">
+        <i class="fa-solid fa-download"></i>
+      </button>
+      <div class="hdr-export-menu" id="exportMenu">
+        <button class="hdr-export-item" data-format="csv" data-hours="24">
+          <i class="fa-solid fa-file-csv" style="color:var(--accent-ok);"></i>
+          <span>CSV · 24 jam</span>
+        </button>
+        <button class="hdr-export-item" data-format="csv" data-hours="168">
+          <i class="fa-solid fa-file-csv" style="color:var(--accent-ok);"></i>
+          <span>CSV · 7 hari</span>
+        </button>
+        <button class="hdr-export-item" data-format="json" data-hours="24">
+          <i class="fa-solid fa-file-code" style="color:var(--accent-warn);"></i>
+          <span>JSON · 24 jam</span>
+        </button>
+        <button class="hdr-export-item" data-format="json" data-hours="168">
+          <i class="fa-solid fa-file-code" style="color:var(--accent-warn);"></i>
+          <span>JSON · 7 hari</span>
+        </button>
+      </div>
+    </div>
   </div>
 </header>
 
-<!-- ============ MAIN ============ -->
 <main>
 
-  <!-- Device hero -->
   <div class="device-hero">
     <div class="device-icon"><i class="fa-solid fa-microchip"></i></div>
     <div class="device-title">
@@ -41,7 +58,6 @@
     </div>
   </div>
 
-  <!-- Status bar -->
   <div class="status-bar" id="statusBar">
     <span class="status-pulse offline" id="statusPulse"></span>
     <div class="status-info">
@@ -51,7 +67,6 @@
     <span class="live-badge" id="liveBadge" style="display:none;">Live</span>
   </div>
 
-  <!-- Alert -->
   <div class="group" id="alertGroup">
     <div class="group-header">
       <div class="group-title"><i class="fa-solid fa-bell"></i> Alert Aktif</div>
@@ -62,7 +77,25 @@
     </div>
   </div>
 
-  <!-- Info -->
+  <div class="group" id="chartGroup">
+    <div class="group-header">
+      <div class="group-title"><i class="fa-solid fa-chart-line"></i> Grafik History</div>
+      <div class="chart-range-picker" id="chartRangePicker">
+        <button class="chart-range-btn" data-hours="1">1j</button>
+        <button class="chart-range-btn" data-hours="3">3j</button>
+        <button class="chart-range-btn" data-hours="6">6j</button>
+        <button class="chart-range-btn active" data-hours="24">24j</button>
+        <button class="chart-range-btn" data-hours="168">7h</button>
+      </div>
+    </div>
+    <div class="group-body" id="chartBody">
+      <div class="chart-canvas-wrap">
+        <canvas id="historyChartCanvas"></canvas>
+      </div>
+      <div class="chart-legend" id="chartLegend"></div>
+    </div>
+  </div>
+
   <div class="group">
     <div class="group-header">
       <div class="group-title"><i class="fa-solid fa-circle-info"></i> Informasi</div>
@@ -72,7 +105,6 @@
     </div>
   </div>
 
-  <!-- Sensor -->
   <div class="group">
     <div class="group-header">
       <div class="group-title"><i class="fa-solid fa-wave-square"></i> Data Sensor</div>
@@ -83,7 +115,21 @@
     </div>
   </div>
 
-  <!-- Actions -->
+  <div class="group" id="statusHistoryGroup">
+    <div class="group-header">
+      <div class="group-title"><i class="fa-solid fa-clock-rotate-left"></i> Riwayat Status</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="group-meta" id="statusHistoryMeta"></span>
+        <button class="group-action" id="statusHistoryRefreshBtn" title="Refresh" aria-label="Refresh">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+      </div>
+    </div>
+    <div class="group-body" id="statusHistoryBody">
+      <div class="loading"><div class="spinner"></div></div>
+    </div>
+  </div>
+
   <div class="group">
     <div class="group-header">
       <div class="group-title"><i class="fa-solid fa-sliders"></i> Pengaturan</div>
@@ -114,16 +160,13 @@
 
 </main>
 
-<!-- ============ MODAL: API Key ============ -->
 <div class="modal" id="m-key">
   <div class="modal-inner">
     <div class="modal-head">
       <h3><i class="fa-solid fa-key"></i> API Key Baru</h3>
       <button class="modal-close" onclick="closeModal('m-key')"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <p class="modal-desc">
-      Simpan key ini, hanya muncul sekali. Update firmware perangkat dengan key baru.
-    </p>
+    <p class="modal-desc">Simpan key ini, hanya muncul sekali. Update firmware perangkat dengan key baru.</p>
     <div class="api-key-box">
       <code id="keyValue"></code>
       <button class="btn-soft" onclick="copyKey()" style="flex-shrink:0;padding:9px 13px;" title="Copy">
@@ -136,29 +179,25 @@
   </div>
 </div>
 
-<!-- ============ MODAL: Delete ============ -->
 <div class="modal" id="m-del">
   <div class="modal-inner">
     <div class="modal-head">
-      <h3><i class="fa-solid fa-trash" style="color:var(--crit);"></i> Hapus Perangkat</h3>
+      <h3><i class="fa-solid fa-trash" style="color:var(--accent-crit);"></i> Hapus Perangkat</h3>
       <button class="modal-close" onclick="closeModal('m-del')"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    <p class="modal-desc" id="delDesc">
-      Perangkat ini akan dihapus permanen beserta semua data sensornya.
-    </p>
+    <p class="modal-desc" id="delDesc">Perangkat ini akan dihapus permanen beserta semua data sensornya.</p>
     <div class="modal-field">
       <label id="delLabel">Ketik untuk konfirmasi</label>
       <input type="text" id="delInput" placeholder="Ketik Device ID..." autocomplete="off" autocorrect="off" spellcheck="false">
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('m-del')">Batal</button>
-      <button class="btn btn-danger" id="delBtn" disabled onclick="confirmDelete()">
-        Hapus
-      </button>
+      <button class="btn btn-danger" id="delBtn" disabled onclick="confirmDelete()">Hapus</button>
     </div>
   </div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>const deviceId = '{{ device_id }}';</script>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 <script src="{{ url_for('static', filename='js/device-detail.js') }}"></script>

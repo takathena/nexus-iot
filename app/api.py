@@ -1,5 +1,6 @@
 """
 NEXUS IoT - API Routes (v1)
+Batch 1-7 integrated
 """
 from app.auth import login_required
 import json
@@ -7,6 +8,7 @@ import logging
 import csv
 import io
 import os
+import sqlite3
 from datetime import timedelta, datetime
 from flask import Blueprint, request, jsonify, Response
 from marshmallow import ValidationError
@@ -31,20 +33,14 @@ api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
 
 
 # ============================================================
-# Helper: strip microseconds dari timestamp string
-#   08:16:33.149472  →  08:16:33
+# Helper
 # ============================================================
 def _clean_timestamp(ts):
-    """Normalisasi timestamp: buang microsecond.
-
-    '2026-09-25 08:16:33.149472' → '2026-09-25 08:16:33'
-    '2026-09-25T08:16:33.149472' → '2026-09-25 08:16:33'
-    None / '' → None
-    """
     if not ts:
         return None
     s = str(ts).strip().replace('T', ' ')
     return s.split('.')[0]
+
 
 def validate_device_api_key(device_id, api_key):
     if not device_id or not api_key:
@@ -143,7 +139,6 @@ def receive_data():
             logger.warning(f"Invalid API key attempt: device={data['device_id']}")
             return jsonify({'success': False, 'error': 'Invalid device_id or api_key'}), 401
 
-        # ============ INSERT + AUTO-DETECT INTERVAL ============
         with get_db_context() as conn:
             conn.execute('''
                 INSERT INTO sensor_data
@@ -155,7 +150,6 @@ def receive_data():
                 data.get('uptime_seconds', 0), get_wib_time()
             ))
 
-            # 🔥 AUTO-DETECT INTERVAL: hitung median delta dari 5 data terakhir
             try:
                 recent = conn.execute('''
                     SELECT timestamp FROM sensor_data
@@ -323,14 +317,15 @@ def add_device():
         api_key = generate_api_key()
         api_key_hash = hash_api_key(api_key)
 
-        # expected_interval: NULL (auto-detect dari data yang masuk)
-        expected_interval = None
+        # expected_interval: pakai input user jika ada, else auto-detect (None)
+        expected_interval = data.get('expected_interval')
+        if expected_interval == 60:
+            expected_interval = None
 
+        firmware_version = (data.get('firmware_version') or '').strip()
         offline_timeout = data.get('offline_timeout')
         device_type = (data.get('device_type') or '').strip()
 
-        # Khusus RFID: default 24 jam (tidak aktif kirim data, cuma tap)
-        # Selain itu: NULL = auto 2x interval (computed by background task)
         if offline_timeout is None and 'rfid' in device_type.lower():
             offline_timeout = 86400
 
@@ -349,12 +344,14 @@ def add_device():
             conn.execute('''
                 INSERT INTO devices
                 (device_id, device_name, device_type, location, description,
+                 firmware_version,
                  api_key, api_key_hash, offline_timeout, expected_interval,
                  alert_rules, offline_alert_severity, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data['device_id'], data['device_name'], data['device_type'],
                 data['location'], data['description'],
+                firmware_version,
                 None, api_key_hash,
                 offline_timeout, expected_interval,
                 alert_rules_json, offline_severity, get_wib_time()
@@ -371,6 +368,7 @@ def add_device():
                 'api_key': api_key,
                 'offline_timeout': offline_timeout,
                 'expected_interval': expected_interval,
+                'firmware_version': firmware_version,
                 'offline_alert_severity': offline_severity,
                 'warning': 'Simpan API key ini! Tidak akan ditampilkan lagi.'
             }
@@ -474,7 +472,6 @@ def update_device(device_id):
         try:
             data = device_update_schema.load(payload)
         except ValidationError as err:
-            # Flatten marshmallow error
             err_msgs = err.messages
             if isinstance(err_msgs, dict):
                 parts = []
@@ -501,21 +498,12 @@ def update_device(device_id):
             if not device:
                 return jsonify({'success': False, 'error': 'Device not found'}), 404
 
-            # ==========================================
-            # HANDLE offline_timeout
-            # ==========================================
-            # Rule:
-            #   - Field TIDAK ada di payload → pakai nilai lama (jangan reset)
-            #   - Field = null → reset ke auto mode (NULL)
-            #   - Field = int → validasi & pakai
             if 'offline_timeout' in data:
                 raw_timeout = data['offline_timeout']
 
-                # Mode auto (null)
                 if raw_timeout is None or raw_timeout == '':
                     new_offline_timeout = None
                 else:
-                    # Convert ke int
                     try:
                         new_timeout = int(raw_timeout)
                     except (ValueError, TypeError):
@@ -524,7 +512,6 @@ def update_device(device_id):
                             'error': 'Offline Timeout harus berupa angka atau dikosongkan'
                         }), 400
 
-                    # Validasi min & max (schema tidak validasi karena fields.Raw)
                     if new_timeout < 10:
                         return jsonify({
                             'success': False,
@@ -537,7 +524,6 @@ def update_device(device_id):
                             'error': 'Offline Timeout maksimal 604800 detik (7 hari).'
                         }), 400
 
-                    # Validasi ≥ 1× expected_interval (batas bawah aman)
                     current_interval = device['expected_interval'] or 60
                     min_allowed = current_interval
 
@@ -554,10 +540,8 @@ def update_device(device_id):
 
                     new_offline_timeout = new_timeout
             else:
-                # Field tidak dikirim → jangan ubah
                 new_offline_timeout = device['offline_timeout']
 
-            # Alert rules
             if alert_rules is not None:
                 alert_rules_json = json.dumps(alert_rules) if alert_rules else None
             else:
@@ -568,6 +552,7 @@ def update_device(device_id):
                 'device_type': data.get('device_type', device['device_type']),
                 'location': data.get('location', device['location']),
                 'description': data.get('description', device['description']),
+                'firmware_version': data.get('firmware_version', device['firmware_version'] or ''),
                 'latitude': data.get('latitude', device['latitude']),
                 'longitude': data.get('longitude', device['longitude']),
                 'offline_timeout': new_offline_timeout,
@@ -579,13 +564,15 @@ def update_device(device_id):
             conn.execute('''
                 UPDATE devices SET
                     device_name = ?, device_type = ?, location = ?,
-                    description = ?, latitude = ?, longitude = ?,
+                    description = ?, firmware_version = ?,
+                    latitude = ?, longitude = ?,
                     offline_timeout = ?, expected_interval = ?,
                     offline_alert_severity = ?, alert_rules = ?
                 WHERE device_id = ?
             ''', (
                 updates['device_name'], updates['device_type'], updates['location'],
-                updates['description'], updates['latitude'], updates['longitude'],
+                updates['description'], updates['firmware_version'],
+                updates['latitude'], updates['longitude'],
                 updates['offline_timeout'], updates['expected_interval'],
                 updates['offline_alert_severity'], updates['alert_rules'], device_id
             ))
@@ -596,6 +583,7 @@ def update_device(device_id):
     except Exception as e:
         logger.error(f"Error updating device {device_id}: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
 
 @api_bp.route('/devices/<device_id>', methods=['DELETE'])
 @login_required
@@ -1214,7 +1202,6 @@ def get_attendance():
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def get_attendance_report():
-    """Laporan harian: check-in (tap pertama), check-out (tap terakhir) per UID."""
     start_date = request.args.get('start')
     end_date = request.args.get('end')
     uid = request.args.get('uid')
@@ -1252,7 +1239,6 @@ def get_attendance_report():
     for r in rows:
         d = dict(r)
 
-        # 🔥 Strip microseconds dari timestamp (08:16:33.149472 → 08:16:33)
         d['check_in'] = _clean_timestamp(d.get('check_in'))
         d['check_out'] = _clean_timestamp(d.get('check_out'))
 
@@ -1503,3 +1489,851 @@ def test_notification():
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def notification_config():
     return jsonify({'success': True, 'config': get_notification_status()}), 200
+
+
+# ==========================================
+# USER MANAGEMENT
+# ==========================================
+from werkzeug.security import generate_password_hash, check_password_hash
+
+
+def _current_user_id():
+    from flask import session
+    return session.get('user_id')
+
+
+def _is_current_user_admin():
+    uid = _current_user_id()
+    if not uid:
+        return False
+    with get_db_context() as conn:
+        row = conn.execute('SELECT is_admin FROM users WHERE id = ?', (uid,)).fetchone()
+    return bool(row and row['is_admin'])
+
+
+def _require_admin():
+    if not _is_current_user_admin():
+        return jsonify({'success': False, 'error': 'Hanya admin yang bisa mengakses fitur ini'}), 403
+    return None
+
+
+def _validate_username(username):
+    if not username or len(username) < 3:
+        return 'Username minimal 3 karakter'
+    if len(username) > 64:
+        return 'Username maksimal 64 karakter'
+    if not all(c.isalnum() or c in '._-' for c in username):
+        return 'Username hanya huruf, angka, titik, dash, underscore'
+    return None
+
+
+@api_bp.route('/users/me', methods=['GET'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def get_current_user():
+    uid = _current_user_id()
+    if not uid:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+    with get_db_context() as conn:
+        row = conn.execute(
+            'SELECT id, username, display_name, is_admin FROM users WHERE id = ?',
+            (uid,)
+        ).fetchone()
+    if not row:
+        return jsonify({'success': False, 'error': 'User tidak ditemukan'}), 404
+    return jsonify({
+        'success': True,
+        'user': {
+            'id': row['id'],
+            'username': row['username'],
+            'display_name': row['display_name'] or row['username'],
+            'is_admin': bool(row['is_admin']),
+        }
+    }), 200
+
+
+@api_bp.route('/users', methods=['GET'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def list_users():
+    err = _require_admin()
+    if err: return err
+
+    with get_db_context() as conn:
+        rows = conn.execute('''
+            SELECT id, username, display_name, is_admin, created_at
+            FROM users
+            ORDER BY is_admin DESC, username ASC
+        ''').fetchall()
+
+    users = []
+    for r in rows:
+        d = dict(r)
+        d['is_admin'] = bool(d['is_admin'])
+        d['created_at'] = _clean_timestamp(d.get('created_at'))
+        users.append(d)
+
+    return jsonify({'success': True, 'users': users}), 200
+
+
+@api_bp.route('/users', methods=['POST'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def create_user():
+    err = _require_admin()
+    if err: return err
+
+    payload = request.get_json(silent=True) or {}
+    username = (payload.get('username') or '').strip()
+    password = payload.get('password') or ''
+    display_name = (payload.get('display_name') or '').strip() or username
+    is_admin = bool(payload.get('is_admin'))
+
+    uerr = _validate_username(username)
+    if uerr:
+        return jsonify({'success': False, 'error': uerr}), 400
+    if not password or len(password) < 8:
+        return jsonify({'success': False, 'error': 'Password minimal 8 karakter'}), 400
+    if len(display_name) > 128:
+        return jsonify({'success': False, 'error': 'Display name maksimal 128 karakter'}), 400
+
+    with get_db_context() as conn:
+        existing = conn.execute(
+            'SELECT id FROM users WHERE username = ?', (username,)
+        ).fetchone()
+        if existing:
+            return jsonify({'success': False, 'error': 'Username sudah dipakai'}), 400
+
+        pw_hash = generate_password_hash(password)
+        cur = conn.execute('''
+            INSERT INTO users (username, password_hash, display_name, is_admin, created_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (username, pw_hash, display_name, 1 if is_admin else 0, get_wib_time()))
+        conn.commit()
+        new_id = cur.lastrowid
+
+    logger.info(f"User created: {username} (id={new_id}, admin={is_admin})")
+    return jsonify({
+        'success': True,
+        'user': {
+            'id': new_id,
+            'username': username,
+            'display_name': display_name,
+            'is_admin': is_admin,
+        }
+    }), 201
+
+
+@api_bp.route('/users/<int:user_id>', methods=['PUT'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def update_user(user_id):
+    err = _require_admin()
+    if err: return err
+
+    payload = request.get_json(silent=True) or {}
+
+    with get_db_context() as conn:
+        user = conn.execute(
+            'SELECT id, username, is_admin FROM users WHERE id = ?', (user_id,)
+        ).fetchone()
+        if not user:
+            return jsonify({'success': False, 'error': 'User tidak ditemukan'}), 404
+
+        fields = []
+        params = []
+
+        if 'display_name' in payload:
+            dn = (payload.get('display_name') or '').strip()
+            if not dn:
+                return jsonify({'success': False, 'error': 'Display name tidak boleh kosong'}), 400
+            if len(dn) > 128:
+                return jsonify({'success': False, 'error': 'Display name maksimal 128 karakter'}), 400
+            fields.append('display_name = ?')
+            params.append(dn)
+
+        if 'password' in payload:
+            pw = payload.get('password') or ''
+            if pw:
+                if len(pw) < 8:
+                    return jsonify({'success': False, 'error': 'Password minimal 8 karakter'}), 400
+                fields.append('password_hash = ?')
+                params.append(generate_password_hash(pw))
+
+        if 'is_admin' in payload:
+            new_admin = bool(payload.get('is_admin'))
+            if user['is_admin'] and not new_admin:
+                admin_count = conn.execute(
+                    'SELECT COUNT(*) FROM users WHERE is_admin = 1'
+                ).fetchone()[0]
+                if admin_count <= 1:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Tidak bisa demote admin terakhir'
+                    }), 400
+            fields.append('is_admin = ?')
+            params.append(1 if new_admin else 0)
+
+        if not fields:
+            return jsonify({'success': False, 'error': 'Tidak ada field yang diupdate'}), 400
+
+        params.append(user_id)
+        conn.execute(
+            f'UPDATE users SET {", ".join(fields)} WHERE id = ?', params
+        )
+        conn.commit()
+
+    logger.info(f"User updated: id={user_id}")
+    return jsonify({'success': True}), 200
+
+
+@api_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def delete_user(user_id):
+    err = _require_admin()
+    if err: return err
+
+    if user_id == _current_user_id():
+        return jsonify({'success': False, 'error': 'Tidak bisa hapus akun sendiri'}), 400
+
+    with get_db_context() as conn:
+        user = conn.execute(
+            'SELECT id, username, is_admin FROM users WHERE id = ?', (user_id,)
+        ).fetchone()
+        if not user:
+            return jsonify({'success': False, 'error': 'User tidak ditemukan'}), 404
+
+        if user['is_admin']:
+            admin_count = conn.execute(
+                'SELECT COUNT(*) FROM users WHERE is_admin = 1'
+            ).fetchone()[0]
+            if admin_count <= 1:
+                return jsonify({
+                    'success': False,
+                    'error': 'Tidak bisa hapus admin terakhir'
+                }), 400
+
+        dash_ids = [
+            r[0] for r in conn.execute(
+                'SELECT id FROM dashboards WHERE user_id = ?', (user_id,)
+            ).fetchall()
+        ]
+        for did in dash_ids:
+            conn.execute('DELETE FROM widgets WHERE dashboard_id = ?', (did,))
+            conn.execute('DELETE FROM analytics_tabs WHERE dashboard_id = ?', (did,))
+            conn.execute('DELETE FROM dashboards WHERE id = ?', (did,))
+
+        conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+        conn.commit()
+
+    logger.warning(f"User deleted: {user['username']} (id={user_id})")
+    return jsonify({'success': True}), 200
+
+
+# ==========================================
+# MANUAL BACKUP
+# ==========================================
+@api_bp.route('/system/backup', methods=['POST'])
+@login_required
+@limiter.limit("5 per minute")
+def trigger_backup():
+    err = _require_admin()
+    if err: return err
+
+    config = get_config()
+    try:
+        os.makedirs(config.BACKUP_DIR, exist_ok=True)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        backup_path = os.path.join(config.BACKUP_DIR, f'iot_{timestamp}.db')
+
+        source = sqlite3.connect(config.DB_PATH, timeout=30.0)
+        dest = sqlite3.connect(backup_path)
+        with dest:
+            source.backup(dest)
+        dest.close()
+        source.close()
+
+        size_mb = os.path.getsize(backup_path) / (1024 * 1024)
+        filename = os.path.basename(backup_path)
+
+        logger.info(f"Manual backup created: {backup_path} ({size_mb:.2f} MB)")
+        return jsonify({
+            'success': True,
+            'filename': filename,
+            'size_mb': round(size_mb, 2),
+            'message': f'Backup berhasil dibuat ({size_mb:.2f} MB)',
+        }), 200
+    except Exception as e:
+        logger.error(f"Manual backup failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/system/backups', methods=['GET'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def list_backups():
+    err = _require_admin()
+    if err: return err
+
+    config = get_config()
+    backups = []
+    try:
+        os.makedirs(config.BACKUP_DIR, exist_ok=True)
+        for filename in os.listdir(config.BACKUP_DIR):
+            if not filename.endswith('.db'):
+                continue
+            filepath = os.path.join(config.BACKUP_DIR, filename)
+            if not os.path.isfile(filepath):
+                continue
+            stat = os.stat(filepath)
+            backups.append({
+                'filename': filename,
+                'size_bytes': stat.st_size,
+                'size_mb': round(stat.st_size / (1024 * 1024), 2),
+                'created_at': datetime.fromtimestamp(stat.st_mtime).strftime('%Y-%m-%d %H:%M:%S'),
+                '_mtime': stat.st_mtime,
+            })
+        backups.sort(key=lambda x: x['_mtime'], reverse=True)
+    except Exception as e:
+        logger.error(f"List backups failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+    for b in backups:
+        b.pop('_mtime', None)
+
+    return jsonify({
+        'success': True,
+        'backups': backups,
+        'count': len(backups),
+        'retention_days': config.BACKUP_RETENTION_DAYS,
+        'backup_interval_hours': config.BACKUP_INTERVAL_HOURS,
+        'auto_backup_enabled': config.BACKUP_ENABLED,
+    }), 200
+
+
+@api_bp.route('/system/backups/<path:filename>', methods=['GET'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def download_backup(filename):
+    err = _require_admin()
+    if err: return err
+
+    from werkzeug.utils import secure_filename
+    from flask import send_file
+
+    safe_name = secure_filename(filename)
+    if not safe_name or safe_name != filename or not safe_name.endswith('.db'):
+        return jsonify({'success': False, 'error': 'Nama file tidak valid'}), 400
+
+    config = get_config()
+    filepath = os.path.join(config.BACKUP_DIR, safe_name)
+
+    real_dir = os.path.realpath(config.BACKUP_DIR)
+    real_path = os.path.realpath(filepath)
+    if not real_path.startswith(real_dir + os.sep):
+        logger.warning(f"Path traversal attempt: {filename} from {request.remote_addr}")
+        return jsonify({'success': False, 'error': 'Akses ditolak'}), 403
+
+    if not os.path.isfile(real_path):
+        return jsonify({'success': False, 'error': 'File tidak ditemukan'}), 404
+
+    logger.info(f"Backup downloaded: {safe_name} by user {_current_user_id()}")
+    return send_file(real_path, as_attachment=True, download_name=safe_name)
+
+
+# ==========================================
+# MANUAL CLEANUP
+# ==========================================
+@api_bp.route('/system/cleanup', methods=['POST'])
+@login_required
+@limiter.limit("5 per hour")
+def trigger_cleanup():
+    err = _require_admin()
+    if err: return err
+
+    config = get_config()
+    try:
+        now = get_wib_time()
+        cutoff_sensor = now - timedelta(days=config.DATA_RETENTION_DAYS)
+        cutoff_history = now - timedelta(days=config.ALERT_HISTORY_RETENTION_DAYS)
+        cutoff_log = now - timedelta(days=config.STATUS_LOG_RETENTION_DAYS)
+        cutoff_attendance = now - timedelta(days=config.ATTENDANCE_RETENTION_DAYS)
+
+        with get_db_context() as conn:
+            total_deleted = 0
+            results = {}
+
+            r = conn.execute('DELETE FROM sensor_data WHERE timestamp < ?', (cutoff_sensor,))
+            results['sensor_data'] = r.rowcount
+            total_deleted += r.rowcount
+
+            r = conn.execute('DELETE FROM alert_history WHERE created_at < ?', (cutoff_history,))
+            results['alert_history'] = r.rowcount
+            total_deleted += r.rowcount
+
+            r = conn.execute('DELETE FROM device_status_log WHERE created_at < ?', (cutoff_log,))
+            results['device_status_log'] = r.rowcount
+            total_deleted += r.rowcount
+
+            r = conn.execute('DELETE FROM attendance WHERE timestamp < ?', (cutoff_attendance,))
+            results['attendance'] = r.rowcount
+            total_deleted += r.rowcount
+
+            r = conn.execute(
+                '''DELETE FROM alerts
+                   WHERE is_active = 0
+                   AND updated_at IS NOT NULL
+                   AND updated_at < ?''',
+                (cutoff_history,)
+            )
+            results['alerts_inactive'] = r.rowcount
+            total_deleted += r.rowcount
+
+            conn.commit()
+
+            if total_deleted > 1000:
+                try:
+                    conn.execute('VACUUM')
+                    logger.info("VACUUM completed after manual cleanup")
+                except Exception as ve:
+                    logger.warning(f"VACUUM failed: {ve}")
+
+        logger.info(f"Manual cleanup by user {_current_user_id()}: {total_deleted} rows deleted")
+        return jsonify({
+            'success': True,
+            'total_deleted': total_deleted,
+            'details': {k: v for k, v in results.items() if v > 0},
+            'message': f'{total_deleted} baris dihapus',
+        }), 200
+    except Exception as e:
+        logger.error(f"Manual cleanup failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==========================================
+# CHANGE OWN PASSWORD
+# ==========================================
+@api_bp.route('/users/me/password', methods=['POST'])
+@login_required
+@limiter.limit("10 per minute")
+def change_own_password():
+    uid = _current_user_id()
+    if not uid:
+        return jsonify({'success': False, 'error': 'Session invalid'}), 401
+
+    payload = request.get_json(silent=True) or {}
+    old_password = payload.get('old_password') or ''
+    new_password = payload.get('new_password') or ''
+
+    if not old_password or not new_password:
+        return jsonify({'success': False, 'error': 'Password lama dan baru wajib diisi'}), 400
+    if len(new_password) < 8:
+        return jsonify({'success': False, 'error': 'Password baru minimal 8 karakter'}), 400
+    if old_password == new_password:
+        return jsonify({'success': False, 'error': 'Password baru harus berbeda dari yang lama'}), 400
+
+    with get_db_context() as conn:
+        user = conn.execute(
+            'SELECT id, username, password_hash FROM users WHERE id = ?', (uid,)
+        ).fetchone()
+        if not user:
+            return jsonify({'success': False, 'error': 'User tidak ditemukan'}), 404
+
+        try:
+            valid = check_password_hash(user['password_hash'], old_password)
+        except Exception:
+            valid = False
+
+        if not valid:
+            logger.warning(f"Change password failed (wrong old) for {user['username']}")
+            return jsonify({'success': False, 'error': 'Password lama salah'}), 400
+
+        new_hash = generate_password_hash(new_password)
+        conn.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_hash, uid))
+        conn.commit()
+
+    logger.info(f"Password changed for user: {user['username']}")
+    return jsonify({'success': True, 'message': 'Password berhasil diubah'}), 200
+
+    # ==========================================
+# BATCH 8: GLOBAL ALERT RULES EDITOR
+# ==========================================
+from app.config import Config as _ConfigClass
+
+
+@api_bp.route('/system/alert-rules', methods=['GET'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def get_global_alert_rules():
+    """Ambil global alert rules. Custom dari user_settings menang, fallback ke config."""
+    from app.config import get_config as _gc
+    config = _gc()
+
+    with get_db_context() as conn:
+        row = conn.execute(
+            "SELECT value FROM user_settings WHERE key = 'global_alert_rules'"
+        ).fetchone()
+
+    custom_rules = None
+    if row and row['value']:
+        try:
+            custom_rules = json.loads(row['value'])
+        except (json.JSONDecodeError, TypeError):
+            custom_rules = None
+
+    default_rules = {k: v for k, v in config.ALERT_RULES.items() if isinstance(v, dict)}
+
+    return jsonify({
+        'success': True,
+        'alert_rules': custom_rules or default_rules,
+        'is_custom': custom_rules is not None,
+        'default_rules': default_rules,
+    }), 200
+
+
+@api_bp.route('/system/alert-rules', methods=['PUT'])
+@login_required
+@limiter.limit("20 per minute")
+def update_global_alert_rules():
+    err = _require_admin()
+    if err: return err
+
+    payload = request.get_json(silent=True)
+    if payload is None or not isinstance(payload, dict):
+        return jsonify({'success': False, 'error': 'Format rules harus object'}), 400
+
+    is_valid, err_msg = validate_alert_rules(payload)
+    if not is_valid:
+        return jsonify({'success': False, 'error': err_msg}), 400
+
+    if not payload:
+        return jsonify({'success': False, 'error': 'Minimal 1 sensor rule'}), 400
+
+    try:
+        with get_db_context() as conn:
+            conn.execute('''
+                INSERT INTO user_settings (key, value, updated_at)
+                VALUES ('global_alert_rules', ?, ?)
+                ON CONFLICT(key) DO UPDATE SET
+                    value = excluded.value,
+                    updated_at = excluded.updated_at
+            ''', (json.dumps(payload), get_wib_time()))
+            conn.commit()
+
+        logger.info(f"Global alert rules updated by user {_current_user_id()}")
+        return jsonify({
+            'success': True,
+            'alert_rules': payload,
+            'message': 'Global alert rules tersimpan',
+        }), 200
+    except Exception as e:
+        logger.error(f"Update global rules failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@api_bp.route('/system/alert-rules', methods=['DELETE'])
+@login_required
+@limiter.limit("20 per minute")
+def reset_global_alert_rules():
+    err = _require_admin()
+    if err: return err
+
+    try:
+        with get_db_context() as conn:
+            conn.execute(
+                "DELETE FROM user_settings WHERE key = 'global_alert_rules'"
+            )
+            conn.commit()
+
+        logger.info(f"Global alert rules reset by user {_current_user_id()}")
+        return jsonify({
+            'success': True,
+            'message': 'Global alert rules direset ke default config',
+        }), 200
+    except Exception as e:
+        logger.error(f"Reset global rules failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==========================================
+# BATCH 8: RESTORE DATABASE FROM BACKUP
+# ==========================================
+@api_bp.route('/system/restore', methods=['POST'])
+@login_required
+@limiter.limit("2 per hour")
+def restore_database():
+    """Restore database dari file backup.
+    
+    PENTING:
+    - Backup current DB dulu ke 'pre-restore-*.db'
+    - Validate filename ketat (harus file .db di BACKUP_DIR)
+    - Wajib konfirmasi string 'RESTORE'
+    - Return instruksi restart manual (tidak auto-restart)
+    """
+    err = _require_admin()
+    if err: return err
+
+    payload = request.get_json(silent=True) or {}
+    filename = (payload.get('filename') or '').strip()
+    confirm = (payload.get('confirm') or '').strip()
+
+    if confirm != 'RESTORE':
+        return jsonify({
+            'success': False,
+            'error': 'Konfirmasi salah. Kirim field "confirm" dengan nilai "RESTORE".'
+        }), 400
+
+    if not filename:
+        return jsonify({'success': False, 'error': 'Filename wajib'}), 400
+
+    from werkzeug.utils import secure_filename
+    safe_name = secure_filename(filename)
+    if not safe_name or safe_name != filename or not safe_name.endswith('.db'):
+        return jsonify({'success': False, 'error': 'Nama file tidak valid'}), 400
+
+    config = get_config()
+    backup_file = os.path.join(config.BACKUP_DIR, safe_name)
+
+    real_dir = os.path.realpath(config.BACKUP_DIR)
+    real_path = os.path.realpath(backup_file)
+    if not real_path.startswith(real_dir + os.sep):
+        logger.warning(f"Restore path traversal attempt: {filename}")
+        return jsonify({'success': False, 'error': 'Akses ditolak'}), 403
+
+    if not os.path.isfile(real_path):
+        return jsonify({'success': False, 'error': 'File backup tidak ditemukan'}), 404
+
+    # Verify SQLite integrity
+    try:
+        test_conn = sqlite3.connect(real_path, timeout=5.0)
+        result = test_conn.execute('PRAGMA integrity_check').fetchone()
+        test_conn.close()
+        if not result or result[0] != 'ok':
+            return jsonify({
+                'success': False,
+                'error': f'File backup corrupt (integrity check: {result[0] if result else "unknown"})'
+            }), 400
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Gagal verifikasi file backup: {str(e)}'
+        }), 400
+
+    # Backup current DB sebelum restore
+    pre_restore_name = f"pre-restore-{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+    pre_restore_path = os.path.join(config.BACKUP_DIR, pre_restore_name)
+
+    try:
+        os.makedirs(config.BACKUP_DIR, exist_ok=True)
+        src = sqlite3.connect(config.DB_PATH, timeout=30.0)
+        dst = sqlite3.connect(pre_restore_path)
+        with dst:
+            src.backup(dst)
+        dst.close()
+        src.close()
+        logger.info(f"Pre-restore backup saved: {pre_restore_path}")
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Gagal backup DB current: {str(e)}'
+        }), 500
+
+    # Copy backup file → DB path
+    try:
+        import shutil
+        shutil.copy2(real_path, config.DB_PATH)
+        logger.warning(
+            f"DATABASE RESTORED by user {_current_user_id()}: "
+            f"from {safe_name} (pre-restore backup: {pre_restore_name})"
+        )
+    except Exception as e:
+        logger.error(f"Restore failed: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': f'Gagal restore: {str(e)}. Pre-restore backup di: {pre_restore_name}'
+        }), 500
+
+    return jsonify({
+        'success': True,
+        'message': (
+            'Database berhasil direstore. '
+            'PENTING: Restart container/aplikasi sekarang agar semua worker reload. '
+            f'Pre-restore backup: {pre_restore_name}'
+        ),
+        'pre_restore_backup': pre_restore_name,
+        'restored_from': safe_name,
+        'restart_required': True,
+    }), 200
+
+
+# ==========================================
+# BATCH 8: DEVICE BULK IMPORT
+# ==========================================
+@api_bp.route('/devices/bulk-import', methods=['POST'])
+@login_required
+@limiter.limit("10 per minute")
+def bulk_import_devices():
+    """Bulk import devices.
+    
+    Body: { devices: [ {device_id, device_name, ...}, ... ] }
+    Max 200 devices per call.
+    Return: { created: [...], skipped: [...], errors: [...] }
+    """
+    try:
+        payload = request.get_json(silent=True)
+        if not payload or not isinstance(payload.get('devices'), list):
+            return jsonify({
+                'success': False,
+                'error': 'Kirim {"devices": [...]} dengan array'
+            }), 400
+
+        items = payload['devices']
+        if len(items) == 0:
+            return jsonify({'success': False, 'error': 'Array kosong'}), 400
+        if len(items) > 200:
+            return jsonify({
+                'success': False,
+                'error': f'Maksimal 200 device per import. Dikirim: {len(items)}'
+            }), 400
+
+        created = []
+        skipped = []
+        errors = []
+
+        with get_db_context() as conn:
+            for idx, raw in enumerate(items):
+                if not isinstance(raw, dict):
+                    errors.append({'row': idx + 1, 'error': 'Bukan object'})
+                    continue
+
+                try:
+                    data = bulk_import_item_schema.load(raw)
+                except ValidationError as err:
+                    err_msgs = err.messages
+                    err_str = '; '.join(
+                        f"{k}: {', '.join(v) if isinstance(v, list) else v}"
+                        for k, v in err_msgs.items()
+                    )
+                    errors.append({
+                        'row': idx + 1,
+                        'device_id': raw.get('device_id', '?'),
+                        'error': err_str,
+                    })
+                    continue
+
+                device_id = data['device_id']
+
+                existing = conn.execute(
+                    'SELECT device_id FROM devices WHERE device_id = ?', (device_id,)
+                ).fetchone()
+                if existing:
+                    skipped.append({
+                        'row': idx + 1,
+                        'device_id': device_id,
+                        'reason': 'Sudah ada',
+                    })
+                    continue
+
+                try:
+                    api_key = generate_api_key()
+                    api_key_hash = hash_api_key(api_key)
+
+                    offline_timeout = data.get('offline_timeout')
+                    device_type = (data.get('device_type') or '').strip()
+                    if offline_timeout is None and 'rfid' in device_type.lower():
+                        offline_timeout = 86400
+
+                    conn.execute('''
+                        INSERT INTO devices
+                        (device_id, device_name, device_type, location, description,
+                         firmware_version,
+                         api_key, api_key_hash, offline_timeout, expected_interval,
+                         alert_rules, offline_alert_severity, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        device_id,
+                        data['device_name'],
+                        data['device_type'],
+                        data.get('location', ''),
+                        data.get('description', ''),
+                        data.get('firmware_version', ''),
+                        None, api_key_hash,
+                        offline_timeout,
+                        None,
+                        None,
+                        data.get('offline_alert_severity', 'danger'),
+                        get_wib_time(),
+                    ))
+
+                    created.append({
+                        'row': idx + 1,
+                        'device_id': device_id,
+                        'device_name': data['device_name'],
+                        'api_key': api_key,
+                    })
+                except Exception as e:
+                    errors.append({
+                        'row': idx + 1,
+                        'device_id': device_id,
+                        'error': str(e),
+                    })
+
+            conn.commit()
+
+        logger.info(
+            f"Bulk import by user {_current_user_id()}: "
+            f"{len(created)} created, {len(skipped)} skipped, {len(errors)} errors"
+        )
+
+        return jsonify({
+            'success': True,
+            'created': created,
+            'skipped': skipped,
+            'errors': errors,
+            'summary': {
+                'total': len(items),
+                'created': len(created),
+                'skipped': len(skipped),
+                'errors': len(errors),
+            },
+            'warning': 'Simpan semua API key! Tidak akan ditampilkan lagi.',
+        }), 200
+
+    except Exception as e:
+        logger.error(f"Bulk import failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+
+
+# ==========================================
+# BATCH 8: NOTIFICATION CONFIG (extended)
+# ==========================================
+@api_bp.route('/notifications/test-channel', methods=['POST'])
+@login_required
+@limiter.limit("10 per minute")
+def test_notification_channel():
+    """Test 1 channel spesifik. Body: {channel: 'telegram'}"""
+    payload = request.get_json(silent=True) or {}
+    channel = (payload.get('channel') or '').strip().lower()
+
+    if channel not in ('telegram',):
+        return jsonify({'success': False, 'error': f'Channel "{channel}" tidak dikenal'}), 400
+
+    try:
+        results = send_test_notification()
+        ch_result = results.get(channel)
+        if not ch_result:
+            return jsonify({
+                'success': False,
+                'error': f'Channel {channel} tidak terkonfigurasi',
+                'all_results': results,
+            }), 400
+
+        return jsonify({
+            'success': ch_result.get('success', False),
+            'channel': channel,
+            'result': ch_result,
+        }), 200 if ch_result.get('success') else 500
+    except Exception as e:
+        logger.error(f"Test channel failed: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500

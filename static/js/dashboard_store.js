@@ -1,6 +1,6 @@
 /* ==========================================
-   NEXUS IoT - Dashboard Store (Single Dashboard) v2 FIXED
-   Fix: race condition saveLayoutNow(), pending save queue
+   NEXUS IoT - Dashboard Store v3 (Multi-Dashboard)
+   + list, create, update, delete, set-default
    ========================================== */
 
 (function() {
@@ -32,6 +32,42 @@
             state.widgets = res.data.widgets || [];
         }
         return res;
+    }
+
+    async function loadDashboardBySlug(slug) {
+        const res = await window.API.call(`/api/v1/dashboards/slug/${encodeURIComponent(slug)}`);
+        if (res.success) {
+            state.currentDashboardId = res.data.dashboard.id;
+            state.currentDashboard = res.data.dashboard;
+            state.widgets = res.data.widgets || [];
+        }
+        return res;
+    }
+
+    async function createDashboard(payload) {
+        const res = await window.API.call('/api/v1/dashboards', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+        });
+        if (res.success) {
+            await loadDashboards();
+        }
+        return res;
+    }
+
+    async function updateDashboard(id, payload) {
+        return window.API.call(`/api/v1/dashboards/${id}`, {
+            method: 'PUT',
+            body: JSON.stringify(payload),
+        });
+    }
+
+    async function deleteDashboard(id) {
+        return window.API.call(`/api/v1/dashboards/${id}`, { method: 'DELETE' });
+    }
+
+    async function setDefaultDashboard(id) {
+        return window.API.call(`/api/v1/dashboards/${id}/set-default`, { method: 'POST' });
     }
 
     async function createWidget(dashboardId, payload) {
@@ -71,8 +107,6 @@
         state.saveTimer = setTimeout(saveLayoutNow, 600);
     }
 
-    // ✅ FIX #6: race condition — kalau sedang save, tandai pending dan
-    // jalankan ulang setelah selesai
     async function saveLayoutNow() {
         if (!state.currentDashboardId || state.widgets.length === 0) return;
 
@@ -92,7 +126,6 @@
             h: w.grid_h || 2,
         }));
 
-        // Snapshot dashboardId — kalau user pindah tab, jangan save ke dashboard salah
         const dashboardId = state.currentDashboardId;
 
         try {
@@ -105,7 +138,6 @@
         } finally {
             state.isSaving = false;
 
-            // Kalau ada perubahan lain yang masuk selama save, jalankan lagi
             if (state.pendingSave) {
                 state.pendingSave = false;
                 scheduleLayoutSave();
@@ -137,11 +169,22 @@
 
     window.DashboardStore = {
         state,
-        loadDashboards, loadDashboard,
-        createWidget, updateWidget, deleteWidget,
-        updateWidgetPositionLocal, scheduleLayoutSave, saveLayoutNow,
-        mapChartTypeToWidgetType, mapWidgetTypeToChartType,
+        loadDashboards,
+        loadDashboard,
+        loadDashboardBySlug,
+        createDashboard,
+        updateDashboard,
+        deleteDashboard,
+        setDefaultDashboard,
+        createWidget,
+        updateWidget,
+        deleteWidget,
+        updateWidgetPositionLocal,
+        scheduleLayoutSave,
+        saveLayoutNow,
+        mapChartTypeToWidgetType,
+        mapWidgetTypeToChartType,
     };
 
-    console.log('[DashboardStore] Initialized');
+    console.log('[DashboardStore] Initialized v3 (multi-dashboard)');
 })();

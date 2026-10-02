@@ -586,8 +586,15 @@ function renderTabs(){
   let html = tabs.map(t => `
     <button type="button" class="ios-dd-item ${t.id === currentTabId ? 'active' : ''}" data-tab-id="${t.id}">
       <i class="fa-solid ${esc(t.icon || 'fa-chart-line')}"></i>
-      <span>${esc(t.name)}</span>
-      <i class="fa-solid fa-check ios-dd-check"></i>
+      <span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;">${esc(t.name)}</span>
+      <span class="tab-actions" style="display:flex;gap:2px;flex-shrink:0;margin-left:6px;" onclick="event.stopPropagation();">
+        <button type="button" class="tab-action-btn" onclick="event.stopPropagation();editTabMobile(${t.id}, '${esc(t.name).replace(/'/g, "\\'")}')" title="Edit">
+          <i class="fa-solid fa-pen"></i>
+        </button>
+        <button type="button" class="tab-action-btn" onclick="event.stopPropagation();confirmDeleteTabMobile(${t.id})" title="Hapus">
+          <i class="fa-solid fa-trash"></i>
+        </button>
+      </span>
     </button>
   `).join('');
   html += `<div style="height:1px;background:var(--hairline);margin:4px 6px;"></div>`;
@@ -624,6 +631,25 @@ function renderTabs(){
     });
   }
 }
+window.editTabMobile = function(tabId, currentName) {
+  openTabModal('edit', tabId, currentName);
+};
+
+window.confirmDeleteTabMobile = async function(tabId) {
+  if (!confirm('Hapus tab ini beserta diagramnya?')) return;
+  const r = await api(`/api/v1/analytics-tabs/${tabId}`, { method: 'DELETE' });
+  const d = await r.json();
+  if (d.success) {
+    toast('Tab dihapus');
+    if (currentTabId === tabId) currentTabId = null;
+    await loadTabs();
+    if (tabs.length) switchTab(tabs[0].id);
+    else loadCharts();
+  } else {
+    alert(d.error || 'Gagal hapus');
+  }
+};
+
 function switchTab(id){
   currentTabId = id; renderTabs();
   const dd = document.getElementById('tabDD'); if (dd) dd.classList.remove('open');

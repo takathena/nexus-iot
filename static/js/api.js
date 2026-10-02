@@ -17,31 +17,19 @@
     // ==========================================
     // ERROR FLATTENER
     // ==========================================
-    /**
-     * Flatten error dari berbagai bentuk menjadi string readable.
-     * Handle:
-     *   - string       → return as-is
-     *   - array        → join dengan "; "
-     *   - object       → "field: msg" (Marshmallow style)
-     *   - nested       → recursive
-     *   - null/undef   → fallback
-     */
     function flattenError(error, fallback = 'Terjadi kesalahan') {
         if (error === null || error === undefined || error === '') {
             return fallback;
         }
 
-        // Already string
         if (typeof error === 'string') {
             return error.trim() || fallback;
         }
 
-        // Number/boolean
         if (typeof error === 'number' || typeof error === 'boolean') {
             return String(error);
         }
 
-        // Array → join
         if (Array.isArray(error)) {
             const parts = error
                 .map(e => flattenError(e, ''))
@@ -49,13 +37,11 @@
             return parts.length > 0 ? parts.join('; ') : fallback;
         }
 
-        // Object → "field: msg, field2: msg2"
         if (typeof error === 'object') {
             const parts = [];
             for (const [key, value] of Object.entries(error)) {
                 if (value === null || value === undefined) continue;
 
-                // Array of messages
                 if (Array.isArray(value)) {
                     value.forEach(msg => {
                         const flat = flattenError(msg, '');
@@ -64,14 +50,12 @@
                         }
                     });
                 }
-                // Nested object
                 else if (typeof value === 'object') {
                     const nested = flattenError(value, '');
                     if (nested && nested !== fallback) {
                         parts.push(`${key}: ${nested}`);
                     }
                 }
-                // Primitive
                 else {
                     const flat = String(value).trim();
                     if (flat) parts.push(`${key}: ${flat}`);
@@ -117,7 +101,6 @@
         try {
             const response = await apiFetch(url, options);
 
-            // 401 → redirect login
             if (response.status === 401) {
                 const path = window.location.pathname || '';
                 if (!path.startsWith('/login')) {
@@ -140,9 +123,6 @@
                 data = { success: response.ok, raw: await response.text() };
             }
 
-            // ==========================================
-            // FLATTEN ERROR (fix bug [object Object])
-            // ==========================================
             const rawError = data && data.error;
 
             if (!response.ok) {
@@ -154,7 +134,6 @@
                 };
             }
 
-            // Response OK tapi success=false (rare case)
             if (data && data.success === false && rawError) {
                 return {
                     success: false,
@@ -199,6 +178,11 @@
         },
         getDeviceAlertRules: (deviceId) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/alert-rules`),
         updateDeviceAlertRules: (deviceId, rules) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/alert-rules`, { method: 'PUT', body: JSON.stringify(rules) }),
+        resetDeviceAlertRules: (deviceId) => apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/alert-rules`, { method: 'DELETE' }),
+        getDeviceStatusHistory: (deviceId, params = {}) => {
+            const qs = new URLSearchParams(params).toString();
+            return apiCall(`/api/v1/devices/${encodeURIComponent(deviceId)}/status-history${qs ? '?' + qs : ''}`);
+        },
 
         // Dashboard
         getDashboard: () => apiCall('/api/v1/dashboard'),
@@ -211,8 +195,17 @@
             return apiCall(`/api/v1/alerts/all${qs ? '?' + qs : ''}`);
         },
         getAlertsStats: () => apiCall('/api/v1/alerts/stats'),
+        getAlertsHistory: (params = {}) => {
+            const qs = new URLSearchParams(params).toString();
+            return apiCall(`/api/v1/alerts/history${qs ? '?' + qs : ''}`);
+        },
+        getAlertTrend: (hours = 24) => apiCall(`/api/v1/alerts/trend?hours=${hours}`),
         acknowledgeAlert: (alertId) => apiCall(`/api/v1/alerts/${alertId}/acknowledge`, { method: 'POST' }),
         bulkAcknowledge: (ids) => apiCall('/api/v1/alerts/bulk-acknowledge', { method: 'POST', body: JSON.stringify({ ids }) }),
+
+        // Notifications
+        testNotification: () => apiCall('/api/v1/notifications/test', { method: 'POST' }),
+        getNotificationConfig: () => apiCall('/api/v1/notifications/config'),
 
         // System
         health: () => apiCall('/health'),
@@ -240,7 +233,7 @@
     window.API = API;
     window.apiFetch = apiFetch;
     window.apiCall = apiCall;
-    window.flattenError = flattenError;   // ← global helper
+    window.flattenError = flattenError;
 
     console.log('[API] Initialized v3 (with error flattener)');
 })();

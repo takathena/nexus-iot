@@ -1,9 +1,8 @@
 /* ==========================================
-   NEXUS IoT - Alert Center (v6)
-   - Status/Severity: iOS custom dropdown
-   - Search: dari topbar
-   - Date filter: Dari/Sampai/Terapkan/Reset
-   - Sound notification: DIHAPUS
+   NEXUS IoT - Alert Center (v8)
+   + Alert Trend Chart (stacked bar per jam)
+   + Alert History Viewer (modal audit trail)
+   + Test Notifikasi Telegram
    ========================================== */
 
 (function() {
@@ -21,6 +20,9 @@
         newlyAdded: new Set(),
         refreshInterval: null,
         isInitialized: false,
+        trendHours: 24,
+        trendChart: null,
+        historyOpen: false,
     };
 
     const STORAGE_KEYS = {
@@ -106,6 +108,15 @@
         }[sev] || String(sev).toUpperCase();
     }
 
+    function actionLabel(action) {
+        return {
+            'created': 'Dibuat',
+            'acknowledged': 'Ditandai',
+            'cleared': 'Selesai',
+            'severity_changed': 'Severity Berubah',
+        }[action] || action;
+    }
+
     function alertTypeLabel(type) {
         const map = {
             temperature: 'Suhu', humidity: 'Kelembaban', gas_level: 'Gas',
@@ -137,8 +148,13 @@
         return a ? a.id : null;
     }
 
+    function getCsrfToken() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        return meta ? meta.content : '';
+    }
+
     // ==========================================
-    // iOS CUSTOM DROPDOWN — reusable
+    // iOS CUSTOM DROPDOWN
     // ==========================================
     function bindIOSDropdown(id, onChange) {
         const dd = document.getElementById(id);
@@ -174,7 +190,7 @@
     }
 
     // ==========================================
-    // LOAD
+    // LOAD STATS
     // ==========================================
     async function loadStats() {
         try {
@@ -190,6 +206,197 @@
         } catch (e) { console.error(e); }
     }
 
+    // ==========================================
+    // ALERT TREND CHART
+    // ==========================================
+    async function loadTrend(hours) {
+        const h = hours || state.trendHours;
+        try {
+            const res = await fetch(`/api/v1/alerts/trend?hours=${h}`);
+            const data = await res.json();
+            if (!data.success) return;
+
+            const buckets = {};
+            (data.trend || []).forEach(r => {
+                if (!buckets[r.hour_bucket]) {
+                    buckets[r.hour_bucket] = { danger: 0, warning: 0, info: 0 };
+                }
+                if (buckets[r.hour_bucket][r.severity] !== undefined) {
+                    buckets[r.hour_bucket][r.severity] = r.count;
+                }
+            });
+
+            const labels = Object.keys(buckets).sort();
+            const empty = $('alertTrendEmpty');
+            const canvas = $('alertTrendCanvas');
+
+            if (labels.length === 0) {
+                if (empty) empty.style.display = 'flex';
+                if (canvas) canvas.style.display = 'none';
+                if (state.trendChart) { state.trendChart.destroy(); state.trendChart = null; }
+                return;
+            }
+            if (empty) empty.style.display = 'none';
+            if (canvas) canvas.style.display = '';
+
+            const dangerData = labels.map(l => buckets[l].danger || 0);
+            const warningData = labels.map(l => buckets[l].warning || 0);
+            const infoData = labels.map(l => buckets[l].info || 0);
+
+            const isLongRange = h > 48;
+            const displayLabels = labels.map(l => {
+                const parts = String(l).split(' ');
+                const date = parts[0] || '';
+                const time = parts[1] || '';
+                if (isLongRange) {
+                    const dateShort = date.slice(5);
+                    return `${dateShort} ${time.slice(0, 2)}h`;
+                }
+                return time.slice(0, 5);
+            });
+
+            if (state.trendChart) {
+                state.trendChart.destroy();
+                state.trendChart = null;
+            }
+
+            const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+            const gridColor = isLight ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.05)';
+            const labelColor = isLight ? '#737373' : '#a3a3a3';
+            const legendColor = isLight ? '#525252' : '#a3a3a3';
+            const tooltipBg = isLight ? '#0a0a0a' : '#fafafa';
+            const tooltipTitle = isLight ? '#fafafa' : '#0a0a0a';
+            const tooltipBody = isLight ? '#a3a3a3' : '#525252';
+            const font = "'Geist', -apple-system, sans-serif";
+
+            if (typeof Chart === 'undefined') {
+                console.warn('[Trend] Chart.js not loaded');
+                return;
+            }
+
+            state.trendChart = new Chart(canvas.getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: displayLabels,
+                    datasets: [
+                        {
+                            label: 'Bahaya',
+                            data: dangerData,
+                            backgroundColor: 'rgba(239, 68, 68, 0.75)',
+                            borderColor: '#ef4444',
+                            borderWidth: 0,
+                            borderRadius: 4,
+                            stack: 'stack1',
+                        },
+                        {
+                            label: 'Peringatan',
+                            data: warningData,
+                            backgroundColor: 'rgba(249, 115, 22, 0.75)',
+                            borderColor: '#f97316',
+                            borderWidth: 0,
+                            borderRadius: 4,
+                            stack: 'stack1',
+                        },
+                        {
+                            label: 'Info',
+                            data: infoData,
+                            backgroundColor: 'rgba(139, 92, 246, 0.75)',
+                            borderColor: '#8b5cf6',
+                            borderWidth: 0,
+                            borderRadius: 4,
+                            stack: 'stack1',
+                        },
+                    ],
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    animation: { duration: 250, easing: 'easeOutQuart' },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: legendColor,
+                                font: { size: 11, family: font, weight: '500' },
+                                usePointStyle: true,
+                                pointStyle: 'circle',
+                                boxWidth: 8,
+                                boxHeight: 8,
+                                padding: 14,
+                            },
+                        },
+                        tooltip: {
+                            backgroundColor: tooltipBg,
+                            titleColor: tooltipTitle,
+                            bodyColor: tooltipBody,
+                            borderColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)',
+                            borderWidth: 1,
+                            padding: 10,
+                            cornerRadius: 8,
+                            displayColors: true,
+                            boxPadding: 4,
+                            titleFont: { size: 11, family: font, weight: '600' },
+                            bodyFont: { size: 11, family: font, weight: '500' },
+                            callbacks: {
+                                title: (items) => {
+                                    if (!items.length) return '';
+                                    const idx = items[0].dataIndex;
+                                    return labels[idx] || '';
+                                },
+                            },
+                        },
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                            grid: { display: false },
+                            border: { display: false },
+                            ticks: {
+                                color: labelColor,
+                                font: { size: 10, family: font, weight: '500' },
+                                maxRotation: 0,
+                                autoSkip: true,
+                                maxTicksLimit: 12,
+                                padding: 4,
+                            },
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            grid: { color: gridColor, drawBorder: false, drawTicks: false },
+                            border: { display: false },
+                            ticks: {
+                                color: labelColor,
+                                font: { size: 10, family: font, weight: '500' },
+                                padding: 6,
+                                precision: 0,
+                            },
+                        },
+                    },
+                },
+            });
+        } catch (e) {
+            console.error('[Trend] Load failed:', e);
+        }
+    }
+
+    function bindTrendRange() {
+        const rangeEl = $('alertTrendRange');
+        if (!rangeEl) return;
+        rangeEl.querySelectorAll('.trend-range-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                rangeEl.querySelectorAll('.trend-range-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                state.trendHours = parseInt(btn.dataset.hours, 10) || 24;
+                loadTrend();
+            });
+        });
+    }
+
+    // ==========================================
+    // LOAD ALERTS
+    // ==========================================
     async function loadAlerts() {
         const params = new URLSearchParams();
         if (state.status !== 'all') params.set('status', state.status);
@@ -262,11 +469,8 @@
 
     function applyFilter() {
         let list = state.alerts;
-
-        // Filter tanggal
         list = list.filter(a => inDateRange(a.created_at));
 
-        // Filter pencarian
         if (state.search) {
             const term = state.search.toLowerCase();
             list = list.filter(a =>
@@ -459,7 +663,6 @@
         if (countEl) countEl.textContent = n;
         if (counterEl) counterEl.classList.toggle('has-selection', n > 0);
 
-        // Disable tombol kalau belum ada yang dipilih
         const bulkBtn = $('bulkAckBtn');
         if (bulkBtn) bulkBtn.disabled = n === 0;
 
@@ -532,17 +735,12 @@
         }
     }
 
-    function getCsrfToken() {
-        const meta = document.querySelector('meta[name="csrf-token"]');
-        return meta ? meta.content : '';
-    }
-
     function showError(msg) {
         const container = $('alertsList');
         if (!container) return;
         container.innerHTML = `
             <div class="empty-state" style="padding:60px 20px;">
-                <i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:var(--red);"></i>
+                <i class="fa-solid fa-triangle-exclamation" style="font-size:36px;color:var(--accent-crit);"></i>
                 <h3 style="margin-top:12px;">${escapeHtml(msg)}</h3>
             </div>`;
     }
@@ -567,28 +765,241 @@
         updateFilterInfo();
     }
 
+    // ==========================================
+    // TEST NOTIFIKASI
+    // ==========================================
+    function bindTestNotification() {
+        const btn = $('testNotifBtn');
+        if (!btn || btn.__bound) return;
+        btn.__bound = true;
+
+        btn.addEventListener('click', async () => {
+            const originalHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...';
+
+            try {
+                const res = await fetch('/api/v1/notifications/test', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    window.showToast('Notifikasi tes terkirim ke Telegram', 'success');
+                } else {
+                    let errMsg = data.error || 'Gagal mengirim';
+                    if (data.results) {
+                        const failures = Object.entries(data.results)
+                            .filter(([k, v]) => !k.startsWith('_') && v && v.success === false)
+                            .map(([k, v]) => `${k}: ${v.error || 'unknown'}`);
+                        if (failures.length) errMsg = failures.join(' | ');
+                    }
+                    window.showToast(errMsg, 'error', 6000);
+                }
+            } catch (e) {
+                window.showToast('Koneksi gagal: ' + e.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        });
+    }
+
+    // ==========================================
+    // ALERT HISTORY MODAL
+    // ==========================================
+    async function populateHistoryDeviceFilter() {
+        const sel = $('historyDeviceFilter');
+        if (!sel || sel.dataset.populated === '1') return;
+        try {
+            const res = await fetch('/api/v1/devices');
+            const data = await res.json();
+            if (!data.success) return;
+            const devices = data.devices || [];
+            devices.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d.device_id;
+                opt.textContent = `${d.device_name} (${d.device_id})`;
+                sel.appendChild(opt);
+            });
+            sel.dataset.populated = '1';
+        } catch (e) { console.warn('[History] device list failed', e); }
+    }
+
+    async function loadAlertHistory() {
+        const body = $('alertHistoryBody');
+        const countEl = $('alertHistoryCount');
+        if (!body) return;
+
+        body.innerHTML = `<div class="loading" style="padding:40px;text-align:center;">
+            <div class="spinner"></div>
+            <div style="margin-top:10px;font-size:12.5px;color:var(--text-3);">Memuat riwayat...</div>
+        </div>`;
+
+        const deviceId = ($('historyDeviceFilter') || {}).value || '';
+        const severity = ($('historySeverityFilter') || {}).value || '';
+        const params = new URLSearchParams();
+        if (deviceId) params.set('device_id', deviceId);
+        params.set('limit', '500');
+
+        try {
+            const res = await fetch(`/api/v1/alerts/history?${params}`);
+            const data = await res.json();
+            if (!data.success) {
+                body.innerHTML = `<div class="empty-state" style="padding:32px;">
+                    <i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-crit);"></i>
+                    <h3>Gagal memuat</h3>
+                    <p>${escapeHtml(data.error || 'Koneksi gagal')}</p>
+                </div>`;
+                return;
+            }
+
+            let history = Array.isArray(data.history) ? data.history : [];
+            if (severity) {
+                history = history.filter(h => h.severity === severity);
+            }
+
+            if (countEl) {
+                countEl.textContent = history.length > 0
+                    ? `${history.length} entri`
+                    : '';
+            }
+
+            if (history.length === 0) {
+                body.innerHTML = `<div class="empty-state" style="padding:40px;">
+                    <i class="fa-solid fa-inbox" style="opacity:0.4;"></i>
+                    <h3>Belum ada riwayat</h3>
+                    <p>Belum ada perubahan alert untuk filter ini</p>
+                </div>`;
+                return;
+            }
+
+            const rowsHtml = history.map(h => {
+                const sev = h.severity || 'info';
+                const action = h.action || '';
+                const actionCls = action === 'cleared' ? 'ok'
+                                 : action === 'acknowledged' ? 'ack'
+                                 : action === 'severity_changed' ? 'warn'
+                                 : '';
+                const valueDisplay = h.value !== null && h.value !== undefined
+                    ? `<span class="history-value">${escapeHtml(formatValue(h.alert_type, h.value) || h.value)}</span>`
+                    : '';
+                const deviceName = h.device_name || h.device_id || '—';
+
+                return `<div class="history-row">
+                    <div class="history-row-top">
+                        <span class="alert-sev ${sev}">${escapeHtml(severityLabel(sev))}</span>
+                        <span class="history-action history-action-${actionCls}">${escapeHtml(actionLabel(action))}</span>
+                        <span class="history-device" title="${escapeHtml(h.device_id)}">
+                            <i class="fa-solid fa-microchip"></i>
+                            ${escapeHtml(deviceName)}
+                        </span>
+                        ${valueDisplay}
+                        <span class="history-time" title="${escapeHtml(formatFullTime(h.created_at))}">${escapeHtml(formatTime(h.created_at))}</span>
+                    </div>
+                    <div class="history-row-bottom">
+                        <span class="history-type">${escapeHtml(alertTypeLabel(h.alert_type))}</span>
+                        <span class="history-sep">·</span>
+                        <span class="history-msg">${escapeHtml(h.message || '-')}</span>
+                    </div>
+                </div>`;
+            }).join('');
+
+            body.innerHTML = `<div class="history-list">${rowsHtml}</div>`;
+
+        } catch (e) {
+            body.innerHTML = `<div class="empty-state" style="padding:32px;">
+                <i class="fa-solid fa-triangle-exclamation" style="color:var(--accent-crit);"></i>
+                <h3>Koneksi gagal</h3>
+                <p>${escapeHtml(e.message || '')}</p>
+            </div>`;
+        }
+    }
+
+    function openHistoryModal() {
+        const modal = $('alertHistoryModal');
+        if (!modal) return;
+        modal.classList.add('active');
+        document.body.classList.add('modal-open');
+        state.historyOpen = true;
+        populateHistoryDeviceFilter();
+        loadAlertHistory();
+    }
+
+    function closeHistoryModal() {
+        const modal = $('alertHistoryModal');
+        if (!modal) return;
+        modal.classList.remove('active');
+        state.historyOpen = false;
+        const anyModal = document.querySelector('.modal.active');
+        if (!anyModal) document.body.classList.remove('modal-open');
+    }
+
+    function bindHistoryModal() {
+        const openBtn = $('historyAlertsBtn');
+        if (openBtn && !openBtn.__bound) {
+            openBtn.__bound = true;
+            openBtn.addEventListener('click', openHistoryModal);
+        }
+
+        const modal = $('alertHistoryModal');
+        if (modal && !modal.__bound) {
+            modal.__bound = true;
+            modal.querySelectorAll('.modal-close').forEach(btn => {
+                btn.addEventListener('click', closeHistoryModal);
+            });
+            modal.addEventListener('click', e => {
+                if (e.target === modal) closeHistoryModal();
+            });
+        }
+
+        const devFilter = $('historyDeviceFilter');
+        if (devFilter && !devFilter.__bound) {
+            devFilter.__bound = true;
+            devFilter.addEventListener('change', loadAlertHistory);
+        }
+
+        const sevFilter = $('historySeverityFilter');
+        if (sevFilter && !sevFilter.__bound) {
+            sevFilter.__bound = true;
+            sevFilter.addEventListener('change', loadAlertHistory);
+        }
+
+        const refreshBtn = $('historyRefreshBtn');
+        if (refreshBtn && !refreshBtn.__bound) {
+            refreshBtn.__bound = true;
+            refreshBtn.addEventListener('click', loadAlertHistory);
+        }
+    }
+
+    // ==========================================
+    // BIND EVENTS
+    // ==========================================
     function bindEvents() {
-        // Status dropdown (custom iOS)
         bindIOSDropdown('alertStatusDropdown', (value) => {
             state.status = value || 'all';
             loadAlerts();
         });
 
-        // Severity dropdown (custom iOS)
         bindIOSDropdown('alertSeverityDropdown', (value) => {
             state.severity = value || '';
             loadAlerts();
         });
 
-        // Refresh
         const refreshBtn = $('refreshAlertsBtn');
         if (refreshBtn) refreshBtn.addEventListener('click', loadAlerts);
 
-        // Mark all
+        bindTestNotification();
+        bindHistoryModal();
+        bindTrendRange();
+
         const markAllBtn = $('markAllReadBtn');
         if (markAllBtn) markAllBtn.addEventListener('click', markAllVisible);
 
-        // Select all
         const selectAll = $('selectAllCheckbox');
         if (selectAll) {
             selectAll.addEventListener('change', e => {
@@ -600,15 +1011,12 @@
             });
         }
 
-        // Bulk ack
         const bulkAckBtn = $('bulkAckBtn');
         if (bulkAckBtn) bulkAckBtn.addEventListener('click', bulkAcknowledge);
 
-        // Date filter: Reset
         const clearBtn = $('alertClearFilter');
         if (clearBtn) clearBtn.addEventListener('click', clearDateFilter);
 
-        // Date input: Enter / change = apply
         ['alertStartDate', 'alertEndDate'].forEach(id => {
             const el = $(id);
             if (el) {
@@ -622,7 +1030,6 @@
             }
         });
 
-        // Tutup custom dropdown saat klik di luar
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.ios-dropdown')) {
                 document.querySelectorAll('.ios-dropdown.open').forEach(el => {
@@ -631,16 +1038,15 @@
             }
         });
 
-        // Tutup saat Esc
         document.addEventListener('keydown', e => {
             if (e.key === 'Escape') {
                 document.querySelectorAll('.ios-dropdown.open').forEach(el => {
                     el.classList.remove('open');
                 });
+                if (state.historyOpen) closeHistoryModal();
             }
         });
 
-        // Ctrl+R refresh
         document.addEventListener('keydown', e => {
             if (e.key === 'r' && (e.ctrlKey || e.metaKey)) {
                 const alertsSection = $('alertsSection');
@@ -650,6 +1056,12 @@
                 }
             }
         });
+
+        window.addEventListener('themechange', () => {
+            if (state.trendChart) {
+                loadTrend();
+            }
+        });
     }
 
     function init() {
@@ -657,10 +1069,13 @@
         state.isInitialized = true;
         bindEvents();
         loadAlerts();
+        loadTrend();
+
         state.refreshInterval = setInterval(() => {
             const alertsSection = $('alertsSection');
             if (alertsSection && alertsSection.style.display !== 'none') {
                 loadAlerts();
+                if (!state.historyOpen) loadTrend();
             }
         }, 20000);
     }
@@ -670,17 +1085,23 @@
             clearInterval(state.refreshInterval);
             state.refreshInterval = null;
         }
+        if (state.trendChart) {
+            try { state.trendChart.destroy(); } catch (e) {}
+            state.trendChart = null;
+        }
     });
 
     window.NexusAlerts = {
         init,
         load: loadAlerts,
         loadStats,
+        loadTrend,
         setSearch(term) {
             state.search = (term || '').trim();
             applyFilter();
         },
         getSearch() { return state.search; },
+        openHistory: openHistoryModal,
     };
 
     if (document.readyState === 'loading') {
@@ -689,5 +1110,5 @@
         init();
     }
 
-    console.log('[Alerts] Initialized v6');
+    console.log('[Alerts] Initialized v8 (trend + history)');
 })();
