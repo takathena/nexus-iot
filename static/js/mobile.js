@@ -1,5 +1,5 @@
 /* ============================================================
-   NEXUS Mobile v6.0 — Logic (Sure Style + Drawer Nav)
+   NEXUS Mobile v8.0 — Batch 1-9 synced with desktop
    ============================================================ */
 const CSRF = (document.querySelector('meta[name="csrf-token"]')||{}).content||'';
 
@@ -30,7 +30,14 @@ let mapFilter = 'all', mapSearch = '';
 const MAP_DEFAULT_CENTER = [-2.5489, 118.0149];
 const MAP_DEFAULT_ZOOM = 5;
 
-/* Sensor data keys — Sure palette */
+// User / Dashboard / Admin state
+let currentUser = null;
+let dashboardsList = [], currentDashboardId = null, currentDashboardName = '', currentDashboardIcon = 'fa-layer-group';
+let userListCache = [];
+let bulkImportParsed = [];
+let trendHours = 24;
+let mobileTrendChart = null;
+
 const DATA_KEYS = {
   temperature:{label:'Suhu',unit:'°C',color:'#f97316'},
   humidity:{label:'Kelembaban',unit:'%',color:'#3b82f6'},
@@ -52,6 +59,16 @@ const PRESETS = {
   co2:{label:'CO2',defaults:{healthy:{min:300,max:1000},warning:{min:300,max:1500},danger:{min:300,max:5000}}},
   moisture:{label:'K. Tanah',defaults:{healthy:{min:40,max:70},warning:{min:30,max:80},danger:{min:20,max:90}}},
   lux:{label:'Cahaya',defaults:{healthy:{min:100,max:800},warning:{min:50,max:1000},danger:{min:0,max:2000}}},
+};
+
+const SENSOR_LABELS = {
+  temperature:'Suhu',humidity:'Kelembaban',gas_level:'Gas',moisture:'K. Tanah',
+  lux:'Cahaya',co2:'CO2',smoke:'Asap',voc:'VOC',air_quality:'Kualitas Udara',
+  motion:'Gerakan',rfid:'RFID',
+};
+const SENSOR_UNITS = {
+  temperature:'°C',humidity:'%',gas_level:'ppm',moisture:'%',
+  lux:'lux',co2:'ppm',smoke:'ppm',voc:'ppb',air_quality:'AQI',motion:'',rfid:'',
 };
 
 const COLORS = ['#f97316','#22c55e','#ef4444','#8b5cf6','#3b82f6','#14b8a6','#f59e0b','#ec4899'];
@@ -103,7 +120,6 @@ const alertTypeLabel = type => {
   const map = {temperature:'Suhu',humidity:'Kelembaban',gas_level:'Gas',offline:'Offline',smoke:'Asap',motion:'Gerakan',co2:'CO2',moisture:'K. Tanah',lux:'Cahaya',voc:'VOC',air_quality:'Kualitas Udara'};
   return map[type] || String(type||'').replace(/_/g,' ').replace(/\b\w/g,l=>l.toUpperCase());
 };
-const SENSOR_UNITS = {temperature:'°C',humidity:'%',gas_level:'ppm',smoke:'ppm',moisture:'%',lux:'lux',co2:'ppm',voc:'ppb',air_quality:'AQI',motion:'',rfid:''};
 const formatVal = (type, value) => {
   if(value === null || value === undefined) return null;
   const unit = SENSOR_UNITS[type] ?? '';
@@ -123,6 +139,20 @@ function toast(msg){
     t.style.transition = 'opacity .3s';
     setTimeout(() => t.remove(), 300);
   }, 1800);
+}
+
+function confirmModal(title, message, onConfirm){
+  const modal = document.getElementById('m-confirm');
+  document.getElementById('confirmTitle').textContent = title;
+  document.getElementById('confirmMessage').textContent = message;
+  const btn = document.getElementById('confirmActionBtn');
+  const newBtn = btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn, btn);
+  newBtn.addEventListener('click', () => {
+    closeModal('m-confirm');
+    onConfirm();
+  });
+  openModal('m-confirm');
 }
 
 /* ===== Drawer Nav ===== */
@@ -169,6 +199,8 @@ updateThemeIcon();
 window.ThemeManager.onChange(function(theme){
   updateThemeIcon();
   if(document.getElementById('s-analytics').classList.contains('active')) loadCharts();
+  if(mobileTrendChart) loadMobileTrend();
+  if(historyChartMobile) loadMobileHistoryChart();
 });
 function updateThemeIcon(){
   const i = document.getElementById('themeIcon');
@@ -182,7 +214,6 @@ function go(name, opts = {}){
   const el = document.getElementById('s-' + name);
   if(el) el.classList.add('active');
 
-  // Update drawer highlight
   document.querySelectorAll('.drawer-item[data-tab]').forEach(t => {
     t.classList.toggle('active', t.dataset.tab === name);
   });
@@ -199,10 +230,28 @@ function go(name, opts = {}){
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-function logout(){ if(confirm('Logout dari NEXUS?')) window.location.href = '/logout'; }
+function logout(){ confirmModal('Logout', 'Yakin ingin keluar dari NEXUS?', () => { window.location.href = '/logout'; }); }
 function openDevice(id){
   try{ sessionStorage.setItem('nexus_back_url', '/mobile'); }catch(e){}
   window.location.href = '/device/' + encodeURIComponent(id);
+}
+
+/* ===== User info + admin visibility ===== */
+async function loadCurrentUser(){
+  try{
+    const r = await api('/api/v1/users/me');
+    const d = await r.json();
+    if(d.success && d.user){
+      currentUser = d.user;
+      const isAdmin = d.user.is_admin === true;
+      const adminSection = document.getElementById('adminSection');
+      const adminItem = document.querySelector('.drawer-admin-item');
+      if(adminSection) adminSection.style.display = isAdmin ? '' : 'none';
+      if(adminItem) adminItem.style.display = isAdmin ? '' : 'none';
+      const bulkBtn = document.getElementById('bulkImportBtnM');
+      if(bulkBtn) bulkBtn.style.display = isAdmin ? '' : 'none';
+    }
+  }catch(e){ console.warn(e); }
 }
 
 /* ===== Dashboard ===== */
@@ -223,7 +272,6 @@ async function loadDashboard(){
     document.getElementById('sOffline').textContent = offline;
     document.getElementById('sAlert').textContent = alertCount;
 
-    // Update drawer badges
     const deviceBadge = document.getElementById('drawerDeviceBadge');
     if(deviceBadge){
       deviceBadge.textContent = total;
@@ -239,6 +287,7 @@ async function loadDashboard(){
     updateCounts();
     renderDevices();
     renderDevicesFull();
+    updateActiveDashboardBanner();
   }catch(e){ console.error(e); }
 }
 function updateRing(s){
@@ -566,15 +615,22 @@ async function loadTabs(){
     const r = await api('/api/v1/dashboards');
     const d = await r.json();
     if(!d.success || !d.dashboards.length){ tabs = []; return; }
-    const def = d.dashboards.find(x => x.is_default) || d.dashboards[0];
+    const def = d.dashboards.find(x => x.id === currentDashboardId)
+             || d.dashboards.find(x => x.is_default)
+             || d.dashboards[0];
     dashboardId = def.id;
+    currentDashboardId = def.id;
+    currentDashboardName = def.name;
+    currentDashboardIcon = def.icon || 'fa-layer-group';
     const tr = await api(`/api/v1/dashboards/${def.id}/analytics-tabs`);
     const td = await tr.json();
     tabs = td.success ? (td.tabs || []) : [];
     if(!currentTabId && tabs.length) currentTabId = tabs[0].id;
     renderTabs();
+    updateActiveDashboardBanner();
   }catch(e){ console.error(e); }
 }
+
 function renderTabs(){
   const label = document.getElementById('tabLabel');
   const menu = document.getElementById('tabMenu');
@@ -584,10 +640,10 @@ function renderTabs(){
   label.textContent = cur ? cur.name : 'Pilih Tab';
 
   let html = tabs.map(t => `
-    <button type="button" class="ios-dd-item ${t.id === currentTabId ? 'active' : ''}" data-tab-id="${t.id}">
+    <div class="ios-dd-item ${t.id === currentTabId ? 'active' : ''}" data-tab-id="${t.id}" style="cursor:pointer;">
       <i class="fa-solid ${esc(t.icon || 'fa-chart-line')}"></i>
       <span style="flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;">${esc(t.name)}</span>
-      <span class="tab-actions" style="display:flex;gap:2px;flex-shrink:0;margin-left:6px;" onclick="event.stopPropagation();">
+      <span class="tab-actions" style="display:flex;gap:2px;flex-shrink:0;" onclick="event.stopPropagation();">
         <button type="button" class="tab-action-btn" onclick="event.stopPropagation();editTabMobile(${t.id}, '${esc(t.name).replace(/'/g, "\\'")}')" title="Edit">
           <i class="fa-solid fa-pen"></i>
         </button>
@@ -595,18 +651,18 @@ function renderTabs(){
           <i class="fa-solid fa-trash"></i>
         </button>
       </span>
-    </button>
+    </div>
   `).join('');
   html += `<div style="height:1px;background:var(--hairline);margin:4px 6px;"></div>`;
   html += `<button type="button" class="ios-dd-item" data-action="new-tab">
     <i class="fa-solid fa-plus"></i>
     <span>Tambah Tab</span>
-    <i class="fa-solid fa-check ios-dd-check" style="opacity:0;"></i>
   </button>`;
   menu.innerHTML = html;
 
   menu.querySelectorAll('[data-tab-id]').forEach(item => {
     item.addEventListener('click', (e) => {
+      if (e.target.closest('.tab-actions')) return;
       e.stopPropagation();
       switchTab(parseInt(item.dataset.tabId));
       if (dd) dd.classList.remove('open');
@@ -631,23 +687,25 @@ function renderTabs(){
     });
   }
 }
+
 window.editTabMobile = function(tabId, currentName) {
   openTabModal('edit', tabId, currentName);
 };
 
-window.confirmDeleteTabMobile = async function(tabId) {
-  if (!confirm('Hapus tab ini beserta diagramnya?')) return;
-  const r = await api(`/api/v1/analytics-tabs/${tabId}`, { method: 'DELETE' });
-  const d = await r.json();
-  if (d.success) {
-    toast('Tab dihapus');
-    if (currentTabId === tabId) currentTabId = null;
-    await loadTabs();
-    if (tabs.length) switchTab(tabs[0].id);
-    else loadCharts();
-  } else {
-    alert(d.error || 'Gagal hapus');
-  }
+window.confirmDeleteTabMobile = function(tabId) {
+  confirmModal('Hapus Tab', 'Hapus tab ini beserta diagramnya?', async () => {
+    const r = await api(`/api/v1/analytics-tabs/${tabId}`, { method: 'DELETE' });
+    const d = await r.json();
+    if (d.success) {
+      toast('Tab dihapus');
+      if (currentTabId === tabId) currentTabId = null;
+      await loadTabs();
+      if (tabs.length) switchTab(tabs[0].id);
+      else loadCharts();
+    } else {
+      alert(d.error || 'Gagal hapus');
+    }
+  });
 };
 
 function switchTab(id){
@@ -767,7 +825,6 @@ function renderChart(ch, hist){
 
   const activeKeys = Object.entries(ch.showData).filter(([k,v]) => v).map(([k]) => k);
 
-  // Doughnut / Pie / Polar / Radar
   if(['doughnut','pie','polarArea','radar'].includes(ch.chartType)){
     const labels = [], vals = [];
     ch.deviceIds.forEach(did => {
@@ -797,14 +854,7 @@ function renderChart(ch, hist){
         plugins:{
           legend:{
             position:'bottom',
-            labels:{
-              color: legendC,
-              font:{size:10, weight:'500', family:CHART_FONT},
-              boxWidth:8, boxHeight:8,
-              padding:8,
-              usePointStyle:true,
-              pointStyle:'circle',
-            },
+            labels:{color:legendC,font:{size:10,weight:'500',family:CHART_FONT},boxWidth:8,boxHeight:8,padding:8,usePointStyle:true,pointStyle:'circle'},
           },
         },
       },
@@ -812,7 +862,6 @@ function renderChart(ch, hist){
     return;
   }
 
-  // Time-series
   const tsSet = new Set();
   ch.deviceIds.forEach(did => (hist[did] || []).forEach(it => tsSet.add(it.timestamp)));
   if(!tsSet.size) return;
@@ -877,25 +926,12 @@ function renderChart(ch, hist){
       animation:{duration:300, easing:'easeOutQuart'},
       plugins:{
         legend:{
-          labels:{
-            color: legendC,
-            font:{size:10, weight:'500', family:CHART_FONT},
-            boxWidth:8, boxHeight:8,
-            padding:8,
-            usePointStyle:true,
-            pointStyle:'circle',
-          },
+          labels:{color:legendC,font:{size:10,weight:'500',family:CHART_FONT},boxWidth:8,boxHeight:8,padding:8,usePointStyle:true,pointStyle:'circle'},
         },
         tooltip:{
-          backgroundColor: tooltipBg,
-          titleColor: tooltipTitleColor,
-          bodyColor: tooltipBodyColor,
+          backgroundColor: tooltipBg, titleColor: tooltipTitleColor, bodyColor: tooltipBodyColor,
           borderColor: isLight ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.1)',
-          borderWidth: 1,
-          padding: 10,
-          cornerRadius: 8,
-          displayColors: true,
-          boxPadding: 4,
+          borderWidth: 1, padding: 10, cornerRadius: 8, displayColors: true, boxPadding: 4,
           titleFont:{size:11, family:CHART_FONT, weight:'600'},
           bodyFont:{size:11, family:CHART_FONT, weight:'500'},
         },
@@ -904,24 +940,13 @@ function renderChart(ch, hist){
         x:{
           grid:{color: gridC, drawBorder:false, drawTicks:false},
           border:{display:false},
-          ticks:{
-            color: labelC,
-            font:{size:9.5, family:CHART_FONT, weight:'500'},
-            maxTicksLimit:6,
-            maxRotation:0,
-            autoSkip:true,
-            padding:4,
-          },
+          ticks:{color: labelC, font:{size:9.5, family:CHART_FONT, weight:'500'}, maxTicksLimit:6, maxRotation:0, autoSkip:true, padding:4},
           stacked: ch.chartType === 'stackedBar' || ch.chartType === 'stackedArea',
         },
         y:{
           grid:{color: gridC, drawBorder:false, drawTicks:false},
           border:{display:false},
-          ticks:{
-            color: labelC,
-            font:{size:9.5, family:CHART_FONT, weight:'500'},
-            padding:6,
-          },
+          ticks:{color: labelC, font:{size:9.5, family:CHART_FONT, weight:'500'}, padding:6},
           stacked: ch.chartType === 'stackedBar' || ch.chartType === 'stackedArea',
           beginAtZero:true,
         },
@@ -932,9 +957,10 @@ function renderChart(ch, hist){
 
 function resetChartsLayout(){
   if(!currentTabId){ toast('Tidak ada tab aktif'); return; }
-  if(!confirm('Reset layout diagram di tab ini?')) return;
-  loadCharts();
-  toast('Layout direset');
+  confirmModal('Reset Layout', 'Reset layout diagram di tab ini?', () => {
+    loadCharts();
+    toast('Layout direset');
+  });
 }
 
 /* ===== Chart Modal ===== */
@@ -990,11 +1016,12 @@ async function saveChart(){
   if(d.success){ closeModal('m-chart'); loadCharts(); toast(editId ? 'Diagram diupdate' : 'Diagram ditambahkan'); }
   else alert(d.error || 'Gagal');
 }
-async function removeChart(id){
+function removeChart(id){
   const ch = charts.find(c => c.id === id); if(!ch) return;
-  if(!confirm(`Hapus diagram "${ch.title}"?`)) return;
-  await api(`/api/v1/widgets/${ch.widgetId}`, {method:'DELETE'});
-  loadCharts();
+  confirmModal('Hapus Diagram', `Hapus diagram "${ch.title}"?`, async () => {
+    await api(`/api/v1/widgets/${ch.widgetId}`, {method:'DELETE'});
+    loadCharts();
+  });
 }
 
 /* ===== Attendance ===== */
@@ -1166,9 +1193,10 @@ async function openStatDetail(type){
   }catch(e){ body.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>'; }
 }
 async function deleteCardholder(uid){
-  if(!confirm('Hapus kartu ini?')) return;
-  await api(`/api/v1/cardholders/${encodeURIComponent(uid)}`, {method:'DELETE'});
-  openStatDetail('total');
+  confirmModal('Hapus Kartu', 'Hapus kartu ini?', async () => {
+    await api(`/api/v1/cardholders/${encodeURIComponent(uid)}`, {method:'DELETE'});
+    openStatDetail('total');
+  });
 }
 
 /* ===== Alerts ===== */
@@ -1411,37 +1439,37 @@ document.getElementById('alertSelectAll').addEventListener('change', e => {
 
 async function bulkAckAlerts(){
   if(alertSelectedIds.size === 0){ toast('Pilih minimal satu alert'); return; }
-  if(!confirm(`Tandai ${alertSelectedIds.size} alert sebagai selesai?`)) return;
-  const ids = Array.from(alertSelectedIds);
-  try{
-    const r = await api('/api/v1/alerts/bulk-acknowledge', {
-      method:'POST',
-      body:JSON.stringify({ids})
-    });
-    const d = await r.json();
-    if(d.success){
-      toast(`${d.acknowledged || ids.length} alert ditandai selesai`);
-      alertSelectedIds.clear();
-      loadAlerts();
-    } else alert(d.error || 'Gagal');
-  }catch(e){ alert('Koneksi gagal'); }
+  confirmModal('Tandai Selesai', `Tandai ${alertSelectedIds.size} alert sebagai selesai?`, async () => {
+    const ids = Array.from(alertSelectedIds);
+    try{
+      const r = await api('/api/v1/alerts/bulk-acknowledge', {
+        method:'POST', body:JSON.stringify({ids})
+      });
+      const d = await r.json();
+      if(d.success){
+        toast(`${d.acknowledged || ids.length} alert ditandai selesai`);
+        alertSelectedIds.clear();
+        loadAlerts();
+      } else alert(d.error || 'Gagal');
+    }catch(e){ alert('Koneksi gagal'); }
+  });
 }
 
 async function markAllVisibleAlerts(){
   const visible = getFilteredAlerts().filter(a =>
     a.is_still_active === 1 && a.severity !== 'healthy' && ackIdOf(a) != null);
   if(!visible.length){ toast('Tidak ada alert aktif di filter ini'); return; }
-  if(!confirm(`Tandai ${visible.length} alert sebagai selesai?`)) return;
-  const ids = visible.map(ackIdOf);
-  try{
-    const r = await api('/api/v1/alerts/bulk-acknowledge', {
-      method:'POST',
-      body:JSON.stringify({ids})
-    });
-    const d = await r.json();
-    if(d.success){ toast(`${d.acknowledged || ids.length} alert ditandai selesai`); loadAlerts(); }
-    else alert(d.error || 'Gagal');
-  }catch(e){ alert('Koneksi gagal'); }
+  confirmModal('Tandai Semua', `Tandai ${visible.length} alert sebagai selesai?`, async () => {
+    const ids = visible.map(ackIdOf);
+    try{
+      const r = await api('/api/v1/alerts/bulk-acknowledge', {
+        method:'POST', body:JSON.stringify({ids})
+      });
+      const d = await r.json();
+      if(d.success){ toast(`${d.acknowledged || ids.length} alert ditandai selesai`); loadAlerts(); }
+      else alert(d.error || 'Gagal');
+    }catch(e){ alert('Koneksi gagal'); }
+  });
 }
 
 async function ackAlert(id){
@@ -1452,13 +1480,186 @@ async function ackAlert(id){
   }catch(e){ return false; }
 }
 
+/* ===== Alert Trend ===== */
+function openAlertTrend(){
+  openModal('m-alert-trend');
+  setTimeout(() => loadMobileTrend(), 100);
+}
+
+function setTrendRange(hours, btn){
+  trendHours = hours;
+  document.querySelectorAll('#m-alert-trend .trend-range-btn').forEach(b => b.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  loadMobileTrend();
+}
+
+async function loadMobileTrend(){
+  const canvas = document.getElementById('mobileTrendCanvas');
+  const empty = document.getElementById('mobileTrendEmpty');
+  if(!canvas) return;
+
+  try{
+    const r = await api(`/api/v1/alerts/trend?hours=${trendHours}`);
+    const d = await r.json();
+    if(!d.success) return;
+
+    const buckets = {};
+    (d.trend || []).forEach(row => {
+      if(!buckets[row.hour_bucket]) buckets[row.hour_bucket] = {danger:0, warning:0, info:0};
+      if(buckets[row.hour_bucket][row.severity] !== undefined) buckets[row.hour_bucket][row.severity] = row.count;
+    });
+
+    const labels = Object.keys(buckets).sort();
+    if(labels.length === 0){
+      if(empty) empty.style.display = 'flex';
+      canvas.style.display = 'none';
+      if(mobileTrendChart){ mobileTrendChart.destroy(); mobileTrendChart = null; }
+      return;
+    }
+    if(empty) empty.style.display = 'none';
+    canvas.style.display = '';
+
+    const dangerData = labels.map(l => buckets[l].danger || 0);
+    const warningData = labels.map(l => buckets[l].warning || 0);
+    const infoData = labels.map(l => buckets[l].info || 0);
+
+    const isLongRange = trendHours > 48;
+    const displayLabels = labels.map(l => {
+      const parts = String(l).split(' ');
+      const date = parts[0] || '';
+      const time = parts[1] || '';
+      if(isLongRange) return `${date.slice(5)} ${time.slice(0,2)}h`;
+      return time.slice(0, 5);
+    });
+
+    if(mobileTrendChart){ mobileTrendChart.destroy(); mobileTrendChart = null; }
+
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const gridC = isLight ? 'rgba(0,0,0,.05)' : 'rgba(255,255,255,.05)';
+    const labelC = isLight ? '#737373' : '#a3a3a3';
+    const legendC = isLight ? '#525252' : '#a3a3a3';
+
+    mobileTrendChart = new Chart(canvas.getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: displayLabels,
+        datasets: [
+          {label:'Bahaya', data: dangerData, backgroundColor:'rgba(239,68,68,0.75)', borderRadius:4, stack:'s'},
+          {label:'Peringatan', data: warningData, backgroundColor:'rgba(249,115,22,0.75)', borderRadius:4, stack:'s'},
+          {label:'Info', data: infoData, backgroundColor:'rgba(139,92,246,0.75)', borderRadius:4, stack:'s'},
+        ],
+      },
+      options: {
+        responsive:true, maintainAspectRatio:false,
+        interaction:{mode:'index', intersect:false},
+        plugins:{
+          legend:{
+            position:'bottom',
+            labels:{color: legendC, font:{size:10, weight:'500', family:CHART_FONT}, boxWidth:8, boxHeight:8, padding:8, usePointStyle:true, pointStyle:'circle'},
+          },
+        },
+        scales:{
+          x:{stacked:true, grid:{display:false}, border:{display:false},
+             ticks:{color: labelC, font:{size:9, family:CHART_FONT}, maxRotation:0, autoSkip:true, maxTicksLimit:10, padding:4}},
+          y:{stacked:true, beginAtZero:true,
+             grid:{color: gridC, drawBorder:false, drawTicks:false}, border:{display:false},
+             ticks:{color: labelC, font:{size:9, family:CHART_FONT}, padding:4, precision:0}},
+        },
+      },
+    });
+  }catch(e){ console.error(e); }
+}
+
+/* ===== Alert History ===== */
+async function openAlertHistory(){
+  openModal('m-alert-history');
+  await populateAlertHistoryDevices();
+  await loadAlertHistory();
+}
+
+async function populateAlertHistoryDevices(){
+  const sel = document.getElementById('historyDeviceFilter');
+  if(!sel || sel.dataset.populated === '1') return;
+  try{
+    const r = await api('/api/v1/devices');
+    const d = await r.json();
+    if(!d.success) return;
+    (d.devices || []).forEach(dev => {
+      const opt = document.createElement('option');
+      opt.value = dev.device_id;
+      opt.textContent = `${dev.device_name} (${dev.device_id})`;
+      sel.appendChild(opt);
+    });
+    sel.dataset.populated = '1';
+  }catch(e){ console.warn(e); }
+}
+
+async function loadAlertHistory(){
+  const body = document.getElementById('alertHistoryBody');
+  if(!body) return;
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  const deviceId = (document.getElementById('historyDeviceFilter')||{}).value || '';
+  const severity = (document.getElementById('historySeverityFilter')||{}).value || '';
+  const params = new URLSearchParams();
+  if(deviceId) params.set('device_id', deviceId);
+  params.set('limit', '500');
+
+  try{
+    const r = await api(`/api/v1/alerts/history?${params}`);
+    const d = await r.json();
+    if(!d.success){
+      body.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>';
+      return;
+    }
+    let history = Array.isArray(d.history) ? d.history : [];
+    if(severity) history = history.filter(h => h.severity === severity);
+
+    if(history.length === 0){
+      body.innerHTML = '<div class="empty"><div class="empty-title">Belum ada riwayat</div></div>';
+      return;
+    }
+
+    const actionLabels = {created:'Dibuat', acknowledged:'Ditandai', cleared:'Selesai', severity_changed:'Severity Berubah'};
+    const severityLabels = {danger:'Bahaya', warning:'Peringatan', info:'Info', healthy:'Normal'};
+
+    body.innerHTML = history.map(h => {
+      const sev = h.severity || 'info';
+      const action = h.action || '';
+      const actionLabel = actionLabels[action] || action;
+      const sevLabel = severityLabels[sev] || sev;
+      const valDisplay = h.value != null ? formatVal(h.alert_type, h.value) : null;
+      const deviceName = h.device_name || h.device_id || '—';
+
+      return `<div class="history-item">
+        <div class="history-head">
+          <span class="alert-sev ${sev}">${esc(sevLabel)}</span>
+          <span class="history-action ${action}">${esc(actionLabel)}</span>
+          <span class="history-time">${fmtRelative(h.created_at)}</span>
+        </div>
+        <div class="history-title">
+          <strong>${esc(alertTypeLabel(h.alert_type))}</strong>
+          ${valDisplay ? `<span class="alert-val">${esc(valDisplay)}</span>` : ''}
+        </div>
+        <div class="history-msg">${esc(h.message || '-')}</div>
+        <div class="history-dev"><i class="fa-solid fa-microchip"></i> ${esc(deviceName)}</div>
+      </div>`;
+    }).join('');
+  }catch(e){
+    body.innerHTML = '<div class="empty"><div class="empty-title">Koneksi gagal</div></div>';
+  }
+}
+
 /* ===== Device CRUD ===== */
 function openAddDevice(){
   document.getElementById('addId').value = '';
   document.getElementById('addName').value = '';
   document.getElementById('addLocation').value = '';
-  document.getElementById('addInterval').value = '60';
+  document.getElementById('addFirmware').value = '';
+  document.getElementById('addDescription').value = '';
+  document.getElementById('addInterval').value = '';
   document.getElementById('addTimeout').value = '';
+  document.getElementById('addOfflineSeverity').value = 'danger';
   document.getElementById('addRules').innerHTML = '<div class="rule-empty">Belum ada custom rule</div>';
   openModal('m-add');
 }
@@ -1470,8 +1671,12 @@ async function submitAddDevice(){
     device_id: id, device_name: name,
     device_type: document.getElementById('addType').value,
     location: document.getElementById('addLocation').value,
-    expected_interval: parseInt(document.getElementById('addInterval').value) || 60,
+    description: document.getElementById('addDescription').value,
+    firmware_version: document.getElementById('addFirmware').value,
+    offline_alert_severity: document.getElementById('addOfflineSeverity').value || 'danger',
   };
+  const interval = document.getElementById('addInterval').value;
+  if(interval && parseInt(interval) >= 10) payload.expected_interval = parseInt(interval);
   const to = document.getElementById('addTimeout').value;
   if(to) payload.offline_timeout = parseInt(to);
   const rules = collectRules('add'); if(rules) payload.alert_rules = rules;
@@ -1520,15 +1725,16 @@ function sheetAction(action){
   }, 180);
 }
 async function regenKey(id){
-  if(!confirm(`Regenerate API Key untuk "${id}"?\n\nKey lama tidak akan berfungsi lagi.`)) return;
-  const r = await api(`/api/v1/devices/${encodeURIComponent(id)}/regenerate-key`, {method:'POST'});
-  const d = await r.json();
-  if(d.success){
-    document.getElementById('apiKeyValue').textContent = d.api_key;
-    pendingRedirect = null;
-    openModal('m-apikey');
-    loadDashboard();
-  } else alert(d.error || 'Gagal');
+  confirmModal('Regenerate API Key', `Buat key baru untuk "${id}"? Key lama tidak akan berfungsi lagi.`, async () => {
+    const r = await api(`/api/v1/devices/${encodeURIComponent(id)}/regenerate-key`, {method:'POST'});
+    const d = await r.json();
+    if(d.success){
+      document.getElementById('apiKeyValue').textContent = d.api_key;
+      pendingRedirect = null;
+      openModal('m-apikey');
+      loadDashboard();
+    } else alert(d.error || 'Gagal');
+  });
 }
 async function openEditConfig(id){
   try{
@@ -1537,24 +1743,53 @@ async function openEditConfig(id){
     if(!d.success){ alert('Gagal memuat'); return; }
     const dev = d.device;
     document.getElementById('editId').value = id;
-    document.getElementById('editInterval').value = dev.expected_interval || 60;
-    document.getElementById('editTimeout').value = dev.offline_timeout || 900;
+    document.getElementById('editName').value = dev.device_name || '';
+    document.getElementById('editLocation').value = dev.location || '';
+    document.getElementById('editDescription').value = dev.description || '';
+    document.getElementById('editFirmware').value = dev.firmware_version || '';
+    document.getElementById('editType').value = dev.device_type || 'ESP32';
+    document.getElementById('editInterval').value = dev.expected_interval || '';
+    document.getElementById('editIntervalDisplay').textContent = dev.expected_interval ? `${dev.expected_interval} detik` : 'Menunggu data...';
+    document.getElementById('editTimeout').value = dev.offline_timeout || '';
+    document.getElementById('editOfflineSeverity').value = dev.offline_alert_severity || 'danger';
     populateRules('edit', dev.alert_rules);
     openModal('m-edit');
   }catch(e){ alert('Error: ' + e.message); }
 }
 async function submitEditConfig(){
   const id = document.getElementById('editId').value; if(!id) return;
+  const name = document.getElementById('editName').value.trim();
+  if(!name){ alert('Nama perangkat wajib diisi'); return; }
   const rules = collectRules('edit');
   const payload = {
-    expected_interval: parseInt(document.getElementById('editInterval').value) || 60,
-    offline_timeout: parseInt(document.getElementById('editTimeout').value) || 900,
+    device_name: name,
+    device_type: document.getElementById('editType').value,
+    location: document.getElementById('editLocation').value,
+    description: document.getElementById('editDescription').value,
+    firmware_version: document.getElementById('editFirmware').value,
+    offline_alert_severity: document.getElementById('editOfflineSeverity').value || 'danger',
     alert_rules: rules,
   };
+  const interval = document.getElementById('editInterval').value;
+  if(interval && parseInt(interval) >= 10) payload.expected_interval = parseInt(interval);
+  const to = document.getElementById('editTimeout').value;
+  if(to) payload.offline_timeout = parseInt(to);
+  else payload.offline_timeout = null;
   const r = await api(`/api/v1/devices/${encodeURIComponent(id)}`, {method:'PUT', body:JSON.stringify(payload)});
   const d = await r.json();
   if(d.success){ closeModal('m-edit'); loadDashboard(); toast('Tersimpan'); }
   else alert(d.error || 'Gagal');
+}
+async function resetDeviceAlertRules(){
+  const id = document.getElementById('editId').value; if(!id) return;
+  confirmModal('Reset Alert Rules', 'Reset semua custom alert rules ke default global?', async () => {
+    const r = await api(`/api/v1/devices/${encodeURIComponent(id)}/alert-rules`, {method:'DELETE'});
+    const d = await r.json();
+    if(d.success){
+      document.getElementById('editRules').innerHTML = '<div class="rule-empty">Belum ada custom rule</div>';
+      toast('Rules direset ke global');
+    } else alert(d.error || 'Gagal');
+  });
 }
 
 /* ===== Delete ===== */
@@ -1662,8 +1897,970 @@ function populateRules(mode, rules){
   });
 }
 
+/* ==========================================
+   ADMIN PANEL (Batch 8)
+   ========================================== */
+function openAdminPanel(){
+  openModal('m-admin');
+}
+
+/* ===== Dashboard Switcher ===== */
+function updateActiveDashboardBanner(){
+  const nameEl = document.getElementById('activeDashboardName');
+  const slugEl = document.getElementById('activeDashboardSlug');
+  const iconEl = document.getElementById('activeDashboardIcon');
+  const subEl = document.getElementById('dashSwitcherSub');
+  if(nameEl) nameEl.textContent = currentDashboardName || 'Dashboard';
+  if(slugEl) slugEl.textContent = dashboardsList.find(d => d.id === currentDashboardId)?.slug || 'default';
+  if(iconEl) iconEl.className = 'fa-solid ' + (currentDashboardIcon || 'fa-layer-group');
+  if(subEl) subEl.textContent = currentDashboardName || '—';
+}
+
+async function openDashboardSwitcher(){
+  openModal('m-dash-switch');
+  await loadDashboardList();
+}
+
+async function loadDashboardList(){
+  const listEl = document.getElementById('dashSwitchList');
+  if(!listEl) return;
+  listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try{
+    const r = await api('/api/v1/dashboards');
+    const d = await r.json();
+    if(!d.success){ listEl.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>'; return; }
+    dashboardsList = d.dashboards || [];
+
+    if(!dashboardsList.length){
+      listEl.innerHTML = '<div class="empty"><div class="empty-title">Belum ada dashboard</div></div>';
+      return;
+    }
+
+    listEl.innerHTML = dashboardsList.map(db => {
+      const isActive = db.id === currentDashboardId;
+      const isDefault = db.is_default === 1;
+      return `<div class="dash-switch-item ${isActive?'active':''}" onclick="switchDashboard(${db.id})">
+        <span class="dash-switch-icon"><i class="fa-solid ${esc(db.icon || 'fa-chart-line')}"></i></span>
+        <div class="dash-switch-info">
+          <div class="dash-switch-name">${esc(db.name)} ${isDefault ? '<span style="color:var(--accent-warn);font-size:11px;">★</span>' : ''}</div>
+          <div class="dash-switch-slug">${esc(db.slug)}</div>
+        </div>
+        <div class="dash-switch-actions" onclick="event.stopPropagation();">
+          ${!isDefault ? `<button class="dash-act-btn" onclick="setDashDefault(${db.id})" title="Set Default"><i class="fa-solid fa-star"></i></button>` : ''}
+          <button class="dash-act-btn" onclick="openDashboardForm(${db.id})" title="Edit"><i class="fa-solid fa-pen"></i></button>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){ listEl.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>'; }
+}
+
+function switchDashboard(id){
+  const db = dashboardsList.find(d => d.id === id);
+  if(!db) return;
+  if(id === currentDashboardId){ closeModal('m-dash-switch'); return; }
+  closeModal('m-dash-switch');
+  const url = db.is_default === 1 ? '/mobile' : `/mobile`;
+  // Mobile tidak support /d/<slug>, jadi langsung ganti current + reload
+  currentDashboardId = id;
+  currentDashboardName = db.name;
+  currentDashboardIcon = db.icon || 'fa-layer-group';
+  // Save to localStorage for persistence
+  try { localStorage.setItem('nexus-mobile-dashboard', String(id)); } catch(e) {}
+  toast(`Dashboard: ${db.name}`);
+  setTimeout(() => window.location.reload(), 400);
+}
+
+async function setDashDefault(id){
+  try{
+    const r = await api(`/api/v1/dashboards/${id}/set-default`, {method:'POST'});
+    const d = await r.json();
+    if(d.success){ toast('Default diperbarui'); await loadDashboardList(); }
+    else alert(d.error || 'Gagal');
+  }catch(e){ alert('Koneksi gagal'); }
+}
+
+function openDashboardForm(id){
+  closeModal('m-dash-switch');
+  const title = document.getElementById('dashFormTitle');
+  const editId = document.getElementById('dashFormId');
+  const nameEl = document.getElementById('dashFormName');
+  const slugEl = document.getElementById('dashFormSlug');
+  const descEl = document.getElementById('dashFormDescription');
+  const iconEl = document.getElementById('dashFormIcon');
+  const defaultGroup = document.getElementById('dashFormDefaultGroup');
+  const delBtn = document.getElementById('dashFormDeleteBtn');
+
+  if(id){
+    const db = dashboardsList.find(d => d.id === id); if(!db) return;
+    title.textContent = 'Edit Dashboard';
+    editId.value = String(id);
+    nameEl.value = db.name || '';
+    slugEl.value = db.slug || '';
+    slugEl.setAttribute('readonly', 'readonly');
+    slugEl.style.opacity = '0.6';
+    descEl.value = db.description || '';
+    iconEl.value = db.icon || 'fa-chart-line';
+    defaultGroup.style.display = 'block';
+    document.getElementById('dashFormIsDefault').checked = db.is_default === 1;
+    delBtn.classList.toggle('hidden', db.is_default === 1);
+  } else {
+    title.textContent = 'Dashboard Baru';
+    editId.value = '';
+    nameEl.value = '';
+    slugEl.value = '';
+    slugEl.removeAttribute('readonly');
+    slugEl.style.opacity = '';
+    descEl.value = '';
+    iconEl.value = 'fa-chart-line';
+    defaultGroup.style.display = 'none';
+    document.getElementById('dashFormIsDefault').checked = false;
+    delBtn.classList.add('hidden');
+  }
+  openModal('m-dash-form');
+}
+
+async function saveDashboard(){
+  const id = document.getElementById('dashFormId').value;
+  const name = document.getElementById('dashFormName').value.trim();
+  const slug = document.getElementById('dashFormSlug').value.trim().toLowerCase();
+  const description = document.getElementById('dashFormDescription').value.trim();
+  const icon = document.getElementById('dashFormIcon').value;
+  const isDefault = document.getElementById('dashFormIsDefault').checked;
+
+  if(!name){ alert('Nama dashboard wajib diisi'); return; }
+
+  try{
+    if(id){
+      const r = await api(`/api/v1/dashboards/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name, description, icon }),
+      });
+      const d = await r.json();
+      if(!d.success){ alert(d.error || 'Gagal'); return; }
+      if(isDefault){
+        await api(`/api/v1/dashboards/${id}/set-default`, { method: 'POST' });
+      }
+      closeModal('m-dash-form');
+      toast('Dashboard diperbarui');
+      await loadDashboardList();
+    } else {
+      const payload = { name, description, icon };
+      if(slug) payload.slug = slug;
+      const r = await api('/api/v1/dashboards', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if(!d.success){ alert(d.error || 'Gagal'); return; }
+      if(isDefault){
+        await api(`/api/v1/dashboards/${d.id}/set-default`, { method: 'POST' });
+      }
+      closeModal('m-dash-form');
+      toast('Dashboard dibuat');
+      await loadDashboardList();
+    }
+  }catch(e){ alert('Error: ' + e.message); }
+}
+
+function deleteDashboard(){
+  const id = document.getElementById('dashFormId').value;
+  if(!id) return;
+  const db = dashboardsList.find(d => d.id === parseInt(id, 10));
+  if(!db) return;
+  confirmModal('Hapus Dashboard', `Hapus dashboard "${db.name}" beserta semua widget di dalamnya?`, async () => {
+    const r = await api(`/api/v1/dashboards/${id}`, { method: 'DELETE' });
+    const d = await r.json();
+    if(d.success){
+      closeModal('m-dash-form');
+      toast('Dashboard dihapus');
+      await loadDashboardList();
+    } else alert(d.error || 'Gagal');
+  });
+}
+
+/* ===== User Management ===== */
+async function openUserManagement(){
+  openModal('m-users');
+  switchUserView('list');
+  await loadUsers();
+}
+
+function switchUserView(view){
+  document.getElementById('userListView').style.display = view === 'form' ? 'none' : '';
+  document.getElementById('userFormView').style.display = view === 'form' ? '' : 'none';
+  const errEl = document.getElementById('userFormError');
+  if(errEl) errEl.style.display = 'none';
+}
+
+async function loadUsers(){
+  const listEl = document.getElementById('userList');
+  if(!listEl) return;
+  listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try{
+    const r = await api('/api/v1/users');
+    const d = await r.json();
+    if(!d.success){ listEl.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>'; return; }
+    userListCache = d.users || [];
+    if(!userListCache.length){
+      listEl.innerHTML = '<div class="empty"><div class="empty-title">Belum ada user</div></div>';
+      return;
+    }
+
+    listEl.innerHTML = userListCache.map(u => {
+      const isMe = currentUser && u.id === currentUser.id;
+      const adminBadge = u.is_admin ? '<span class="user-badge admin">Admin</span>' : '<span class="user-badge">User</span>';
+      const meBadge = isMe ? '<span class="user-badge me">Anda</span>' : '';
+      const delBtn = !isMe ? `<button class="user-act-btn danger" onclick="deleteUser(${u.id}, '${esc(u.username)}')"><i class="fa-solid fa-trash"></i></button>` : '';
+      return `<div class="user-card">
+        <div class="user-avatar ${u.is_admin ? 'admin' : ''}">
+          <i class="fa-solid ${u.is_admin ? 'fa-shield-halved' : 'fa-user'}"></i>
+        </div>
+        <div class="user-info">
+          <div class="user-name">${esc(u.display_name || u.username)} ${adminBadge} ${meBadge}</div>
+          <div class="user-username">@${esc(u.username)}</div>
+        </div>
+        <div class="user-actions">
+          <button class="user-act-btn" onclick="openUserForm(${u.id})"><i class="fa-solid fa-pen"></i></button>
+          ${delBtn}
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){ listEl.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>'; }
+}
+
+function openUserForm(id){
+  switchUserView('form');
+  const idEl = document.getElementById('userFormId');
+  const userEl = document.getElementById('userFormUsername');
+  const nameEl = document.getElementById('userFormDisplayName');
+  const passEl = document.getElementById('userFormPassword');
+  const adminEl = document.getElementById('userFormIsAdmin');
+  const saveLabel = document.getElementById('userSaveBtn');
+
+  if(id){
+    const u = userListCache.find(x => x.id === id); if(!u) return;
+    idEl.value = String(u.id);
+    userEl.value = u.username || '';
+    userEl.setAttribute('readonly', 'readonly');
+    nameEl.value = u.display_name || '';
+    passEl.value = '';
+    adminEl.checked = u.is_admin === true;
+    document.getElementById('userFormPasswordLabel').textContent = 'Password Baru (kosongkan jika tidak diubah)';
+    if(saveLabel) saveLabel.textContent = 'Update';
+  } else {
+    idEl.value = '';
+    userEl.value = '';
+    userEl.removeAttribute('readonly');
+    nameEl.value = '';
+    passEl.value = '';
+    adminEl.checked = false;
+    document.getElementById('userFormPasswordLabel').textContent = 'Password';
+    if(saveLabel) saveLabel.textContent = 'Simpan';
+  }
+}
+
+async function saveUserForm(){
+  const id = document.getElementById('userFormId').value;
+  const username = document.getElementById('userFormUsername').value.trim();
+  const displayName = document.getElementById('userFormDisplayName').value.trim();
+  const password = document.getElementById('userFormPassword').value;
+  const isAdmin = document.getElementById('userFormIsAdmin').checked;
+
+  const errEl = document.getElementById('userFormError');
+  errEl.style.display = 'none';
+
+  if(!id){
+    if(!username || username.length < 3){ errEl.textContent = 'Username minimal 3 karakter'; errEl.style.display = 'block'; return; }
+    if(!password || password.length < 8){ errEl.textContent = 'Password minimal 8 karakter'; errEl.style.display = 'block'; return; }
+  } else {
+    if(password && password.length < 8){ errEl.textContent = 'Password baru minimal 8 karakter'; errEl.style.display = 'block'; return; }
+  }
+
+  try{
+    if(!id){
+      const r = await api('/api/v1/users', {
+        method: 'POST',
+        body: JSON.stringify({ username, password, display_name: displayName || username, is_admin: isAdmin }),
+      });
+      const d = await r.json();
+      if(d.success){ toast('User dibuat'); switchUserView('list'); await loadUsers(); }
+      else { errEl.textContent = d.error || 'Gagal'; errEl.style.display = 'block'; }
+    } else {
+      const payload = { is_admin: isAdmin };
+      if(displayName) payload.display_name = displayName;
+      if(password) payload.password = password;
+      const r = await api(`/api/v1/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json();
+      if(d.success){ toast('User diperbarui'); switchUserView('list'); await loadUsers(); }
+      else { errEl.textContent = d.error || 'Gagal'; errEl.style.display = 'block'; }
+    }
+  }catch(e){ errEl.textContent = 'Koneksi gagal'; errEl.style.display = 'block'; }
+}
+
+function deleteUser(id, username){
+  confirmModal('Hapus User', `Hapus user @${username}? Semua dashboard miliknya akan ikut terhapus.`, async () => {
+    const r = await api(`/api/v1/users/${id}`, { method: 'DELETE' });
+    const d = await r.json();
+    if(d.success){ toast('User dihapus'); await loadUsers(); }
+    else alert(d.error || 'Gagal');
+  });
+}
+
+/* ===== Backup ===== */
+async function openBackupPanel(){
+  openModal('m-backup');
+  await loadBackupList();
+}
+
+async function loadBackupList(){
+  const listEl = document.getElementById('backupList');
+  const countEl = document.getElementById('backupListCount');
+  const autoEl = document.getElementById('backupAutoStatus');
+  const intEl = document.getElementById('backupInterval');
+  const retEl = document.getElementById('backupRetention');
+  if(!listEl) return;
+
+  listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try{
+    const r = await api('/api/v1/system/backups');
+    const d = await r.json();
+    if(!d.success){
+      listEl.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>';
+      return;
+    }
+    if(autoEl){ autoEl.textContent = d.auto_backup_enabled ? 'Aktif' : 'Nonaktif'; autoEl.style.color = d.auto_backup_enabled ? 'var(--accent-ok)' : 'var(--text-3)'; }
+    if(intEl) intEl.textContent = d.auto_backup_enabled ? `${d.backup_interval_hours} jam` : '—';
+    if(retEl) retEl.textContent = `${d.retention_days} hari`;
+
+    const backups = d.backups || [];
+    if(countEl) countEl.textContent = backups.length ? `${backups.length} file` : '';
+    if(!backups.length){
+      listEl.innerHTML = '<div class="empty"><div class="empty-title">Belum ada backup</div></div>';
+      return;
+    }
+
+    listEl.innerHTML = backups.map(b => `
+      <div class="backup-item-m">
+        <div class="backup-item-icon"><i class="fa-solid fa-database"></i></div>
+        <div class="backup-item-info">
+          <div class="backup-item-name">${esc(b.filename)}</div>
+          <div class="backup-item-meta">${(b.size_bytes/1024/1024).toFixed(2)} MB · ${esc(b.created_at)}</div>
+        </div>
+        <a class="backup-dl-btn" href="/api/v1/system/backups/${encodeURIComponent(b.filename)}" download>
+          <i class="fa-solid fa-download"></i>
+        </a>
+      </div>
+    `).join('');
+  }catch(e){ listEl.innerHTML = '<div class="empty"><div class="empty-title">Koneksi gagal</div></div>'; }
+}
+
+async function triggerBackup(){
+  const btn = document.getElementById('backupNowBtn');
+  if(!btn) return;
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Memproses...';
+  try{
+    const r = await api('/api/v1/system/backup', { method: 'POST' });
+    const d = await r.json();
+    if(d.success){ toast(d.message || 'Backup dibuat'); await loadBackupList(); }
+    else alert(d.error || 'Gagal');
+  }catch(e){ alert('Koneksi gagal'); }
+  finally{ btn.disabled = false; btn.innerHTML = orig; }
+}
+
+/* ===== Restore ===== */
+async function openRestore(){
+  document.getElementById('restoreConfirmInput').value = '';
+  document.getElementById('restoreConfirmBtn').disabled = true;
+  document.getElementById('restoreError').style.display = 'none';
+  openModal('m-restore');
+  await loadRestoreFileList();
+
+  const sel = document.getElementById('restoreFileSelect');
+  const inp = document.getElementById('restoreConfirmInput');
+  sel.onchange = updateRestoreBtn;
+  inp.oninput = updateRestoreBtn;
+}
+
+async function loadRestoreFileList(){
+  const sel = document.getElementById('restoreFileSelect');
+  if(!sel) return;
+  sel.innerHTML = '<option value="">— Memuat —</option>';
+  try{
+    const r = await api('/api/v1/system/backups');
+    const d = await r.json();
+    if(!d.success) return;
+    const backups = d.backups || [];
+    if(!backups.length){
+      sel.innerHTML = '<option value="">Tidak ada file</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— Pilih file —</option>' + backups.map(b =>
+      `<option value="${esc(b.filename)}">${esc(b.filename)} (${b.size_mb} MB)</option>`
+    ).join('');
+  }catch(e){}
+}
+
+function updateRestoreBtn(){
+  const sel = document.getElementById('restoreFileSelect');
+  const inp = document.getElementById('restoreConfirmInput');
+  const btn = document.getElementById('restoreConfirmBtn');
+  if(!btn) return;
+  btn.disabled = !(sel.value && inp.value.trim().toUpperCase() === 'RESTORE');
+}
+
+function submitRestore(){
+  const sel = document.getElementById('restoreFileSelect');
+  const inp = document.getElementById('restoreConfirmInput');
+  const errEl = document.getElementById('restoreError');
+  const btn = document.getElementById('restoreConfirmBtn');
+  if(!sel.value || inp.value.trim().toUpperCase() !== 'RESTORE'){
+    errEl.textContent = 'Pilih file + ketik RESTORE';
+    errEl.style.display = 'block';
+    return;
+  }
+  const filename = sel.value;
+  confirmModal('Restore Database', `YAKIN restore dari "${filename}"? Semua data akan digantikan!`, async () => {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Restore...';
+    try{
+      const r = await api('/api/v1/system/restore', {
+        method: 'POST',
+        body: JSON.stringify({ filename, confirm: 'RESTORE' }),
+      });
+      const d = await r.json();
+      if(d.success){
+        closeModal('m-restore');
+        toast('Restore berhasil! Reload halaman.', 'success');
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        errEl.textContent = d.error || 'Gagal';
+        errEl.style.display = 'block';
+      }
+    }catch(e){
+      errEl.textContent = 'Koneksi gagal';
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> Restore';
+    }
+  });
+}
+
+/* ===== Bulk Import ===== */
+function openBulkImport(){
+  switchBulkView('paste');
+  document.getElementById('bulkJson').value = '';
+  document.getElementById('bulkFileName').style.display = 'none';
+  document.getElementById('bulkPreview').style.display = 'none';
+  document.getElementById('bulkError').style.display = 'none';
+  bulkImportParsed = [];
+  openModal('m-bulk');
+
+  document.getElementById('bulkJson').oninput = debounce(parseBulkJson, 400);
+  document.getElementById('bulkFileInput').onchange = (e) => {
+    const f = e.target.files[0]; if(f) handleBulkCsvFile(f);
+  };
+}
+
+function debounce(fn, ms){
+  let t;
+  return function(...args){
+    clearTimeout(t);
+    t = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+function switchBulkView(mode){
+  document.querySelectorAll('#m-bulk .bulk-import-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.mode === mode);
+  });
+  document.getElementById('bulkPasteView').style.display = mode === 'paste' ? '' : 'none';
+  document.getElementById('bulkCsvView').style.display = mode === 'csv' ? '' : 'none';
+}
+
+function parseBulkJson(){
+  const txt = document.getElementById('bulkJson');
+  const err = document.getElementById('bulkError');
+  if(!txt) return;
+  err.style.display = 'none';
+  const raw = txt.value.trim();
+  if(!raw){ bulkImportParsed = []; renderBulkPreview(); return; }
+  try{
+    const parsed = JSON.parse(raw);
+    if(!Array.isArray(parsed)) throw new Error('Harus array');
+    bulkImportParsed = parsed;
+    renderBulkPreview();
+  }catch(e){
+    bulkImportParsed = [];
+    err.textContent = 'JSON tidak valid: ' + e.message;
+    err.style.display = 'block';
+    renderBulkPreview();
+  }
+}
+
+function handleBulkCsvFile(file){
+  const nameEl = document.getElementById('bulkFileName');
+  nameEl.textContent = file.name + ' (' + (file.size/1024).toFixed(1) + ' KB)';
+  nameEl.style.display = 'block';
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const lines = e.target.result.split(/\r?\n/).filter(l => l.trim());
+    if(lines.length < 2){ bulkImportParsed = []; renderBulkPreview(); return; }
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+    const rows = [];
+    for(let i = 1; i < lines.length; i++){
+      const cells = lines[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+      const obj = {};
+      headers.forEach((h, idx) => {
+        if(cells[idx] !== undefined && cells[idx] !== '') obj[h] = cells[idx];
+      });
+      rows.push(obj);
+    }
+    bulkImportParsed = rows;
+    renderBulkPreview();
+  };
+  reader.readAsText(file);
+}
+
+function renderBulkPreview(){
+  const wrap = document.getElementById('bulkPreview');
+  const listEl = document.getElementById('bulkPreviewList');
+  const countEl = document.getElementById('bulkPreviewCount');
+  if(!wrap || !listEl) return;
+  if(!bulkImportParsed.length){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  if(countEl) countEl.textContent = `${bulkImportParsed.length} device`;
+
+  listEl.innerHTML = bulkImportParsed.slice(0, 30).map((item, idx) => {
+    const err = !item.device_id || !item.device_name;
+    return `<div class="bulk-import-preview-item ${err ? 'error' : ''}">
+      <span class="bulk-import-preview-row">${idx + 1}</span>
+      <span class="bulk-import-preview-id">${esc(item.device_id || '?')}</span>
+      <span class="bulk-import-preview-name">${esc(item.device_name || '—')}</span>
+      ${err ? '<span class="bulk-import-preview-error">ID & Nama wajib</span>' : ''}
+    </div>`;
+  }).join('') + (bulkImportParsed.length > 30
+    ? `<div style="text-align:center;padding:8px;font-size:11px;color:var(--text-3);">...+${bulkImportParsed.length - 30} baris</div>` : '');
+}
+
+function fillBulkSample(){
+  document.getElementById('bulkJson').value = JSON.stringify([
+    { device_id: "ESP32-001", device_name: "Sensor Suhu Server", device_type: "ESP32", location: "Ruang Server" },
+    { device_id: "ESP32-002", device_name: "Sensor Gudang", device_type: "ESP32", location: "Gudang A" },
+    { device_id: "RFID-01", device_name: "Reader Pintu Depan", device_type: "RFID Reader", location: "Pintu Utama" }
+  ], null, 2);
+  parseBulkJson();
+}
+
+function downloadBulkTemplate(){
+  const csv = 'device_id,device_name,device_type,location,description,firmware_version\nESP32-001,Sensor Suhu Server,ESP32,Ruang Server,Monitoring suhu,\nESP32-002,Sensor Gudang,ESP32,Gudang A,,\n';
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'nexus-bulk-template.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function submitBulkImport(){
+  const errEl = document.getElementById('bulkError');
+  errEl.style.display = 'none';
+
+  const pasteV = document.getElementById('bulkPasteView');
+  if(pasteV && pasteV.style.display !== 'none') parseBulkJson();
+
+  if(!bulkImportParsed.length){
+    errEl.textContent = 'Tidak ada device';
+    errEl.style.display = 'block';
+    return;
+  }
+  if(bulkImportParsed.length > 200){
+    errEl.textContent = `Maks 200 device (dikirim ${bulkImportParsed.length})`;
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('bulkSubmitBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Import...';
+
+  try{
+    const r = await api('/api/v1/devices/bulk-import', {
+      method: 'POST',
+      body: JSON.stringify({ devices: bulkImportParsed }),
+    });
+    const d = await r.json();
+    if(d.success){
+      closeModal('m-bulk');
+      showBulkResult(d);
+      loadDashboard();
+    } else {
+      errEl.textContent = d.error || 'Gagal';
+      errEl.style.display = 'block';
+    }
+  }catch(e){ errEl.textContent = 'Koneksi gagal'; errEl.style.display = 'block'; }
+  finally { btn.disabled = false; btn.innerHTML = orig; }
+}
+
+function showBulkResult(d){
+  const s = d.summary || {};
+  document.getElementById('bulkResultSummary').innerHTML = `
+    <div class="bulk-result-stat ok"><div class="bulk-result-stat-value">${s.created||0}</div><div class="bulk-result-stat-label">Dibuat</div></div>
+    <div class="bulk-result-stat warn"><div class="bulk-result-stat-value">${s.skipped||0}</div><div class="bulk-result-stat-label">Skip</div></div>
+    <div class="bulk-result-stat crit"><div class="bulk-result-stat-value">${s.errors||0}</div><div class="bulk-result-stat-label">Error</div></div>
+  `;
+  const created = d.created || [];
+  if(created.length){
+    document.getElementById('bulkResultCreatedSection').style.display = 'block';
+    document.getElementById('bulkResultCreatedCount').textContent = created.length;
+    document.getElementById('bulkResultCreatedList').innerHTML = created.map(c => `
+      <div class="bulk-result-row-m">
+        <div><b>${esc(c.device_id)}</b> — ${esc(c.device_name)}</div>
+        <code>${esc(c.api_key || '')}</code>
+      </div>`).join('');
+  } else {
+    document.getElementById('bulkResultCreatedSection').style.display = 'none';
+  }
+
+  const skipped = d.skipped || [];
+  if(skipped.length){
+    document.getElementById('bulkResultSkippedSection').style.display = 'block';
+    document.getElementById('bulkResultSkippedCount').textContent = skipped.length;
+    document.getElementById('bulkResultSkippedList').innerHTML = skipped.map(s => `<div class="bulk-result-row-m">#${s.row} <b>${esc(s.device_id)}</b> — ${esc(s.reason||'')}</div>`).join('');
+  } else {
+    document.getElementById('bulkResultSkippedSection').style.display = 'none';
+  }
+
+  const errors = d.errors || [];
+  if(errors.length){
+    document.getElementById('bulkResultErrorSection').style.display = 'block';
+    document.getElementById('bulkResultErrorCount').textContent = errors.length;
+    document.getElementById('bulkResultErrorList').innerHTML = errors.map(e => `<div class="bulk-result-row-m">#${e.row||'?'} <b>${esc(e.device_id||'?')}</b> — ${esc(e.error||'')}</div>`).join('');
+  } else {
+    document.getElementById('bulkResultErrorSection').style.display = 'none';
+  }
+
+  window.__bulkCreated = created;
+  openModal('m-bulk-result');
+}
+
+function copyBulkKeys(){
+  const created = window.__bulkCreated || [];
+  if(!created.length) return;
+  const text = created.map(c => `${c.device_id} | ${c.api_key}`).join('\n');
+  if(navigator.clipboard) navigator.clipboard.writeText(text).then(() => toast(`${created.length} key disalin`));
+  else alert(text);
+}
+
+function downloadBulkCsv(){
+  const created = window.__bulkCreated || [];
+  if(!created.length) return;
+  const csv = 'device_id,device_name,api_key\n' + created.map(c => `"${c.device_id}","${c.device_name}","${c.api_key}"`).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `bulk-keys-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ===== Global Rules ===== */
+async function openGlobalRules(){
+  openModal('m-global-rules');
+  await loadGlobalRules();
+}
+
+async function loadGlobalRules(){
+  const listEl = document.getElementById('globalRulesList');
+  const statusEl = document.getElementById('globalRulesStatus');
+  const resetBtn = document.getElementById('globalRulesResetBtn');
+  if(!listEl) return;
+
+  listEl.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try{
+    const r = await api('/api/v1/system/alert-rules');
+    const d = await r.json();
+    if(!d.success){ listEl.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>'; return; }
+
+    const rules = d.alert_rules || {};
+    const isCustom = d.is_custom === true;
+
+    if(statusEl){
+      statusEl.style.display = 'block';
+      if(isCustom){
+        statusEl.style.background = 'var(--accent-info-bg)';
+        statusEl.style.color = 'var(--accent-info)';
+        statusEl.innerHTML = '<i class="fa-solid fa-pen"></i> Menggunakan rules custom';
+      } else {
+        statusEl.style.background = 'var(--surface-2)';
+        statusEl.style.color = 'var(--text-3)';
+        statusEl.innerHTML = '<i class="fa-solid fa-circle-check"></i> Default dari config';
+      }
+    }
+    if(resetBtn) resetBtn.classList.toggle('hidden', !isCustom);
+
+    const keys = Object.keys(rules);
+    if(!keys.length){ listEl.innerHTML = '<div class="empty"><div class="empty-title">Tidak ada rules</div></div>'; return; }
+
+    listEl.innerHTML = keys.map(key => {
+      const rule = rules[key] || {};
+      const label = SENSOR_LABELS[key] || key;
+      const unit = SENSOR_UNITS[key] ?? '';
+      const sevLabels = {healthy:'Normal', warning:'Warning', danger:'Bahaya'};
+      const rows = ['healthy','warning','danger'].map(sev => {
+        const r2 = rule[sev]; if(!r2) return '';
+        return `<div class="rule-sev ${sev}">
+          <div class="rule-sev-label"><span class="dot"></span>${sevLabels[sev]}</div>
+          <input type="number" step="0.1" class="grule-input" data-sensor="${esc(key)}" data-severity="${sev}" data-field="min" value="${r2.min ?? 0}">
+          <input type="number" step="0.1" class="grule-input" data-sensor="${esc(key)}" data-severity="${sev}" data-field="max" value="${r2.max ?? 0}">
+        </div>`;
+      }).join('');
+      return `<div class="rule" style="margin-bottom:10px;">
+        <div class="rule-head">
+          <div style="font-weight:600;font-size:13px;flex:1;">${esc(label)}${unit ? ` <span style="font-family:var(--mono);color:var(--text-3);font-size:11px;">(${esc(unit)})</span>` : ''}</div>
+        </div>
+        ${rows}
+      </div>`;
+    }).join('');
+  }catch(e){ listEl.innerHTML = '<div class="empty"><div class="empty-title">Koneksi gagal</div></div>'; }
+}
+
+async function saveGlobalRules(){
+  const listEl = document.getElementById('globalRulesList');
+  const rules = {};
+  const sevMap = {};
+  listEl.querySelectorAll('.grule-input').forEach(inp => {
+    const key = inp.dataset.sensor;
+    const sev = inp.dataset.severity;
+    const field = inp.dataset.field;
+    const val = parseFloat(inp.value);
+    if(isNaN(val)) return;
+    if(!sevMap[key]) sevMap[key] = {};
+    if(!sevMap[key][sev]) sevMap[key][sev] = {};
+    sevMap[key][sev][field] = val;
+  });
+  Object.keys(sevMap).forEach(key => {
+    const rule = {};
+    ['healthy','warning','danger'].forEach(sev => {
+      if(sevMap[key][sev] && sevMap[key][sev].min !== undefined && sevMap[key][sev].max !== undefined){
+        rule[sev] = sevMap[key][sev];
+      }
+    });
+    if(Object.keys(rule).length) rules[key] = rule;
+  });
+
+  if(!Object.keys(rules).length){ alert('Minimal 1 rule'); return; }
+
+  const btn = document.getElementById('globalRulesSaveBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Simpan...';
+
+  try{
+    const r = await api('/api/v1/system/alert-rules', { method: 'PUT', body: JSON.stringify(rules) });
+    const d = await r.json();
+    if(d.success){ toast('Global rules tersimpan'); closeModal('m-global-rules'); }
+    else alert(d.error || 'Gagal');
+  }catch(e){ alert('Koneksi gagal'); }
+  finally { btn.disabled = false; btn.innerHTML = orig; }
+}
+
+async function resetGlobalRules(){
+  confirmModal('Reset Global Rules', 'Reset ke default dari config.py?', async () => {
+    const r = await api('/api/v1/system/alert-rules', { method: 'DELETE' });
+    const d = await r.json();
+    if(d.success){ toast('Direset ke default'); await loadGlobalRules(); }
+    else alert(d.error || 'Gagal');
+  });
+}
+
+/* ===== Notification Config ===== */
+async function openNotifConfig(){
+  openModal('m-notif');
+  const body = document.getElementById('notifConfigBody');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try{
+    const r = await api('/api/v1/notifications/config');
+    const d = await r.json();
+    if(!d.success){ body.innerHTML = '<div class="empty"><div class="empty-title">Gagal memuat</div></div>'; return; }
+    const cfg = d.config || {};
+    const tg = cfg.telegram || {};
+    const vc = v => v ? 'ok' : 'crit';
+    const bs = v => v ? 'Ya' : 'Tidak';
+
+    body.innerHTML = `
+      <div class="notif-config-section">
+        <div class="notif-config-section-title">Umum</div>
+        <div class="notif-config-row"><span class="notif-config-label">Notifikasi</span><span class="notif-config-value ${vc(cfg.notify_enabled)}">${bs(cfg.notify_enabled)}</span></div>
+        <div class="notif-config-row"><span class="notif-config-label">Min Severity</span><span class="notif-config-value">${esc((cfg.min_severity||'warning').toUpperCase())}</span></div>
+        <div class="notif-config-row"><span class="notif-config-label">Notif saat pulih</span><span class="notif-config-value ${vc(cfg.notify_on_cleared)}">${bs(cfg.notify_on_cleared)}</span></div>
+      </div>
+      <div class="notif-config-section">
+        <div class="notif-config-section-title">Telegram</div>
+        <div class="notif-config-row"><span class="notif-config-label">Aktif</span><span class="notif-config-value ${vc(tg.enabled)}">${bs(tg.enabled)}</span></div>
+        <div class="notif-config-row"><span class="notif-config-label">Bot Token</span><span class="notif-config-value ${vc(tg.has_token)}">${tg.has_token ? '✓ Ada' : '✗ Kosong'}</span></div>
+        <div class="notif-config-row"><span class="notif-config-label">Chat ID</span><span class="notif-config-value ${vc(tg.has_chat_id)}">${tg.has_chat_id ? '✓ Ada' : '✗ Kosong'}</span></div>
+      </div>
+      <div style="margin-top:14px;">
+        <button class="btn btn-primary" onclick="testNotifTelegram()" style="width:100%;" ${!tg.enabled ? 'disabled' : ''}>
+          <i class="fa-solid fa-paper-plane"></i> Test Telegram
+        </button>
+      </div>
+      ${!cfg.notify_enabled ? `
+        <div style="margin-top:14px;padding:10px;background:var(--accent-warn-bg);border-radius:var(--radius-md);font-size:11.5px;color:var(--accent-warn);line-height:1.5;">
+          <i class="fa-solid fa-circle-info"></i> Aktifkan <code style="font-family:var(--mono);">NOTIFY_ENABLED=True</code> di .env
+        </div>` : ''}
+    `;
+  }catch(e){ body.innerHTML = '<div class="empty"><div class="empty-title">Koneksi gagal</div></div>'; }
+}
+
+async function testNotifTelegram(){
+  try{
+    const r = await api('/api/v1/notifications/test-channel', {
+      method: 'POST',
+      body: JSON.stringify({ channel: 'telegram' }),
+    });
+    const d = await r.json();
+    if(d.success) toast('Notifikasi terkirim');
+    else alert('Gagal: ' + (d.error || 'Unknown'));
+  }catch(e){ alert('Koneksi gagal'); }
+}
+
+/* ===== Cleanup ===== */
+function openCleanup(){
+  confirmModal('Cleanup Data', 'Jalankan cleanup data lama sekarang? Data lebih tua dari batas retensi akan dihapus.', async () => {
+    toast('Cleanup berjalan...');
+    try{
+      const r = await api('/api/v1/system/cleanup', { method: 'POST' });
+      const d = await r.json();
+      if(d.success){
+        toast(`Cleanup: ${d.total_deleted || 0} baris`);
+        loadDashboard();
+      } else alert(d.error || 'Gagal');
+    }catch(e){ alert('Koneksi gagal'); }
+  });
+}
+
+/* ===== System Info ===== */
+async function openSystemInfo(){
+  openModal('m-system');
+  const body = document.getElementById('systemInfoBody');
+  body.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+
+  try{
+    const r = await api('/api/v1/system/info');
+    const d = await r.json();
+    if(!d.success){ body.innerHTML = '<div class="empty"><div class="empty-title">Gagal</div></div>'; return; }
+    const i = d.info || {};
+    const rows = [
+      ['Versi', i.version || '—'],
+      ['Perangkat', i.device_count ?? 0],
+      ['Data Sensor', (i.sensor_data_count ?? 0).toLocaleString('id-ID')],
+      ['Alert Aktif', i.active_alerts ?? 0],
+      ['Riwayat Alert', (i.alert_history_count ?? 0).toLocaleString('id-ID')],
+      ['Absensi', (i.attendance_count ?? 0).toLocaleString('id-ID')],
+      ['Kartu', i.cardholder_count ?? 0],
+      ['Ukuran DB', `${i.database_size_mb ?? 0} MB`],
+      ['Retensi', `${i.data_retention_days ?? 30} hari`],
+    ];
+    body.innerHTML = `<div class="info-list">
+      ${rows.map(([l, v]) => `<div class="info-row"><span class="info-label">${esc(l)}</span><span class="info-value mono">${esc(String(v))}</span></div>`).join('')}
+    </div>`;
+  }catch(e){ body.innerHTML = '<div class="empty"><div class="empty-title">Gagal</div></div>'; }
+}
+
+/* ===== Change Password ===== */
+function openChangePassword(){
+  document.getElementById('cpOld').value = '';
+  document.getElementById('cpNew').value = '';
+  document.getElementById('cpConfirm').value = '';
+  document.getElementById('cpError').style.display = 'none';
+  openModal('m-chpw');
+}
+
+async function submitChangePassword(){
+  const oldPw = document.getElementById('cpOld').value;
+  const newPw = document.getElementById('cpNew').value;
+  const confirmPw = document.getElementById('cpConfirm').value;
+  const errEl = document.getElementById('cpError');
+  errEl.style.display = 'none';
+
+  if(!oldPw){ errEl.textContent = 'Password lama wajib'; errEl.style.display = 'block'; return; }
+  if(!newPw || newPw.length < 8){ errEl.textContent = 'Password baru min 8 karakter'; errEl.style.display = 'block'; return; }
+  if(newPw !== confirmPw){ errEl.textContent = 'Konfirmasi tidak cocok'; errEl.style.display = 'block'; return; }
+  if(oldPw === newPw){ errEl.textContent = 'Password baru harus berbeda'; errEl.style.display = 'block'; return; }
+
+  const btn = document.getElementById('cpSaveBtn');
+  const orig = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>...';
+
+  try{
+    const r = await api('/api/v1/users/me/password', {
+      method: 'POST',
+      body: JSON.stringify({ old_password: oldPw, new_password: newPw }),
+    });
+    const d = await r.json();
+    if(d.success){ closeModal('m-chpw'); toast('Password berhasil diubah'); }
+    else { errEl.textContent = d.error || 'Gagal'; errEl.style.display = 'block'; }
+  }catch(e){ errEl.textContent = 'Koneksi gagal'; errEl.style.display = 'block'; }
+  finally { btn.disabled = false; btn.innerHTML = orig; }
+}
+
+/* ===== Toast helper (fallback) ===== */
+if(!window.showToast){
+  window.showToast = function(msg, type){
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => {
+      t.style.opacity = '0';
+      t.style.transition = 'opacity .3s';
+      setTimeout(() => t.remove(), 300);
+    }, 1800);
+  };
+}
+
 /* ===== Init ===== */
-loadDashboard();
+(async function initMobile(){
+  await loadCurrentUser();
+  await loadDashboard();
+
+  // Load dashboards for switcher
+  try{
+    const r = await api('/api/v1/dashboards');
+    const d = await r.json();
+    if(d.success){
+      dashboardsList = d.dashboards || [];
+      const saved = localStorage.getItem('nexus-mobile-dashboard');
+      const target = saved ? dashboardsList.find(x => x.id === parseInt(saved, 10)) : null;
+      const def = target || dashboardsList.find(x => x.is_default) || dashboardsList[0];
+      if(def){
+        currentDashboardId = def.id;
+        currentDashboardName = def.name;
+        currentDashboardIcon = def.icon || 'fa-layer-group';
+      }
+      updateActiveDashboardBanner();
+    }
+  }catch(e){ console.warn(e); }
+})();
+
+// Periodic refresh
 setInterval(loadDashboard, 30000);
 setInterval(() => { if(document.getElementById('s-dashboard').classList.contains('active')) loadActivity(); }, 60000);
 setInterval(() => { if(document.getElementById('s-alerts').classList.contains('active')) loadAlerts(); }, 20000);
