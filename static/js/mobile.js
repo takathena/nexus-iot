@@ -244,6 +244,8 @@ async function loadCurrentUser(){
     if(d.success && d.user){
       currentUser = d.user;
       const isAdmin = d.user.is_admin === true;
+      // Backend tetap sumber kebenaran (403); ini hanya menyembunyikan kontrol.
+      document.body.classList.toggle('is-non-admin', !isAdmin);
       const adminSection = document.getElementById('adminSection');
       const adminItem = document.querySelector('.drawer-admin-item');
       if(adminSection) adminSection.style.display = isAdmin ? '' : 'none';

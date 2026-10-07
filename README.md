@@ -300,7 +300,7 @@ Semua variabel dibaca dari file `.env` di root proyek. Nilai default ada di `app
 | Variabel | Default | Deskripsi |
 |----------|---------|-----------|
 | `SECRET_KEY` | (wajib) | 64 karakter hex, untuk signing session dan CSRF |
-| `SESSION_COOKIE_SECURE` | `False` | Set `True` jika di belakang HTTPS |
+| `SESSION_COOKIE_SECURE` | ikut `ENABLE_HSTS` | `True` = cookie hanya via HTTPS. Tidak lagi dipaksa `True` di production; `False` memungkinkan login via `http://<IP-LAN>` (hanya jaringan tepercaya). Peringatan dicatat di log bila production memakai `False` |
 | `SESSION_LIFETIME_HOURS` | `24` | Umur absolut session |
 | `SESSION_IDLE_TIMEOUT_MINUTES` | `120` | Timeout idle (tidak termasuk polling API) |
 | `MAX_CONTENT_LENGTH` | `2097152` | Ukuran payload maksimum (byte) |
@@ -1205,7 +1205,7 @@ Aplikasi mengirim header berikut pada setiap response:
 - `Permissions-Policy: geolocation=(), microphone=(), camera=(), payment=(), usb=()`
 - `Content-Security-Policy` dengan default-src self
 
-`Strict-Transport-Security` dikirim hanya jika `SESSION_COOKIE_SECURE=True` atau `ENABLE_HSTS=True`.
+`Strict-Transport-Security` dikirim hanya jika `ENABLE_HSTS=True` (tidak lagi bergantung pada `SESSION_COOKIE_SECURE`).
 
 ### Input Validation
 
@@ -1376,3 +1376,35 @@ docker compose restart nexus-iot
 MIT License. Lihat file [LICENSE](LICENSE) untuk teks lengkap.
 
 Copyright (c) 2026 NEXUS IoT Platform
+
+
+---
+
+## Kebijakan peran admin (C2)
+
+Semua route yang **mengubah** data adalah admin-only dan dijaga di backend (JSON `403` untuk non-admin):
+tambah/ubah/hapus device, regenerate API key, ubah/reset alert rules per device, Bulk Import,
+tambah/hapus pemegang kartu (cardholder), tes notifikasi, serta manajemen user/backup/restore/cleanup/global rules.
+Request `GET` (baca) tetap terbuka untuk semua user yang login. Tombol terkait disembunyikan di UI untuk non-admin,
+tetapi backend adalah sumber kebenaran.
+
+## Alert rules: global + override per device (C3/C4)
+
+- **Global rules** (menu *Global Rules*, tersimpan di DB) menimpa default `config.ALERT_RULES` **per sensor** dan dibaca langsung oleh mesin alert.
+  Hasilnya di-cache ±45 detik; perubahan langsung berlaku di worker yang menerima request, worker lain menyusul paling lama sekitar 45 detik.
+  *Reset* global rules mengembalikan ke default config. Jika data tersimpan korup, default dipakai (peringatan dicatat di log).
+- **Rules per device** menimpa global **hanya untuk sensor yang didefinisikan**; sensor lain mengikuti global.
+
+## Cookie sesi dan HTTPS (H7)
+
+`SESSION_COOKIE_SECURE` tidak lagi dipaksa `True` di production. Jika env tidak di-set, nilainya mengikuti `ENABLE_HSTS`.
+Header HSTS hanya dikirim bila `ENABLE_HSTS=True`. Jika production berjalan dengan `SESSION_COOKIE_SECURE=False`,
+log start memuat peringatan (gunakan hanya di jaringan tepercaya tanpa HTTPS).
+
+## Menjalankan tes
+
+```bash
+pip install -r requirements.txt pytest ruff
+make test     # pytest -q
+make lint     # ruff check / pyflakes (cek undefined name)
+```

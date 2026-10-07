@@ -708,3 +708,20 @@ textarea:focus {
     width: 100%;
   }
 }
+
+/* ===== Non-admin: sembunyikan kontrol tulis (backend tetap menolak dengan 403) ===== */
+body.is-non-admin [data-action="add-device"],
+body.is-non-admin [data-action="regenerate-key"],
+body.is-non-admin [data-action="hapus-cardholder"],
+body.is-non-admin [data-action="open-cardholder-modal"],
+body.is-non-admin .action-btn.delete,
+body.is-non-admin .action-btn.config,
+body.is-non-admin #testNotifBtn,
+body.is-non-admin [onclick*="openAddDevice"],
+body.is-non-admin [onclick*="openCardholder("],
+body.is-non-admin [onclick*="sheetAction('config')"],
+body.is-non-admin [onclick*="sheetAction('key')"],
+body.is-non-admin [onclick*="sheetAction('delete')"],
+body.is-non-admin [onclick*="testNotifTelegram"] {
+  display: none !important;
+}

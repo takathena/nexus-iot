@@ -2380,6 +2380,8 @@
             if (res.success && res.data.user) {
                 userState.currentUserId = res.data.user.id;
                 userState.currentIsAdmin = res.data.user.is_admin === true;
+                // Backend tetap sumber kebenaran (403); ini hanya menyembunyikan kontrol.
+                document.body.classList.toggle('is-non-admin', !userState.currentIsAdmin);
 
                 const usersBtn = $('manageUsersBtn');
                 if (usersBtn) usersBtn.style.display = userState.currentIsAdmin ? '' : 'none';

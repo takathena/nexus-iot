@@ -2,7 +2,7 @@
 # NEXUS IoT - Makefile
 # ==========================================
 
-.PHONY: help dev install run run-prod backup test clean \
+.PHONY: help dev install run run-prod backup test lint health clean \
         docker-build docker-up docker-down docker-logs docker-restart docker-shell \
         docker-rebuild
 
@@ -26,7 +26,9 @@ help:
 	@echo "    make run            Jalankan dev server (python run.py)"
 	@echo "    make run-prod       Jalankan production server (Gunicorn)"
 	@echo "    make backup         Backup database manual"
-	@echo "    make test           Test health endpoint"
+	@echo "    make test           Jalankan pytest"
+	@echo "    make lint           Cek undefined name (ruff/pyflakes)"
+	@echo "    make health         Test health endpoint"
 	@echo "    make clean          Hapus venv, cache, log, backup lama"
 	@echo ""
 	@echo "  $(YELLOW)Docker:$(NC)"
@@ -82,6 +84,14 @@ backup:
 		print('Backup done')"
 
 test:
+	@echo "$(GREEN)Menjalankan pytest...$(NC)"
+	$(PYTHON) -m pytest -q
+
+lint:
+	@echo "$(GREEN)Lint (ruff / pyflakes)...$(NC)"
+	@$(PYTHON) -m ruff check app run.py 2>/dev/null || $(PYTHON) -m pyflakes app run.py
+
+health:
 	@echo "$(GREEN)Testing health endpoint...$(NC)"
 	@curl -s http://localhost:$(PORT)/health | python3 -m json.tool || echo "$(RED)Server tidak jalan$(NC)"
 

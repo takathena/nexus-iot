@@ -2,7 +2,7 @@
 NEXUS IoT - API Routes (v1)
 Batch 1-7 integrated
 """
-from app.auth import login_required
+from app.auth import login_required, admin_required
 import json
 import logging
 import csv
@@ -14,7 +14,10 @@ from flask import Blueprint, request, jsonify, Response
 from marshmallow import ValidationError
 
 from app.database import get_db_context, get_wib_time
-from app.validators import device_create_schema, device_update_schema, sensor_data_schema
+from app.validators import (
+    device_create_schema, device_update_schema, sensor_data_schema,
+    bulk_import_item_schema,
+)
 from app.utils import (
     generate_api_key, safe_json_loads, validate_alert_rules,
     hash_api_key, verify_api_key,
@@ -23,6 +26,7 @@ from app.alerts import (
     check_and_create_alerts, get_active_alerts, get_alert_history,
     acknowledge_alert, bulk_acknowledge_alerts,
     clear_offline_alert, get_device_alert_rules,
+    invalidate_global_rules_cache,
 )
 from app.extensions import limiter, csrf
 from app.config import get_config
@@ -296,6 +300,7 @@ def get_devices():
 
 @api_bp.route('/devices', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def add_device():
     try:
@@ -462,6 +467,7 @@ def get_device_history(device_id):
 
 @api_bp.route('/devices/<device_id>', methods=['PUT'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def update_device(device_id):
     try:
@@ -587,6 +593,7 @@ def update_device(device_id):
 
 @api_bp.route('/devices/<device_id>', methods=['DELETE'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def delete_device(device_id):
     with get_db_context() as conn:
@@ -611,6 +618,7 @@ def delete_device(device_id):
 
 @api_bp.route('/devices/<device_id>/regenerate-key', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_REGENERATE)
 def regenerate_api_key(device_id):
     with get_db_context() as conn:
@@ -660,6 +668,7 @@ def get_device_alert_rules_endpoint(device_id):
 
 @api_bp.route('/devices/<device_id>/alert-rules', methods=['PUT'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def update_device_alert_rules_endpoint(device_id):
     try:
@@ -692,6 +701,7 @@ def update_device_alert_rules_endpoint(device_id):
 
 @api_bp.route('/devices/<device_id>/alert-rules', methods=['DELETE'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def reset_device_alert_rules(device_id):
     with get_db_context() as conn:
@@ -1107,6 +1117,7 @@ def export_device_data(device_id):
 # ==========================================
 @api_bp.route('/cardholders', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def add_cardholder():
     try:
@@ -1160,6 +1171,7 @@ def get_cardholders():
 
 @api_bp.route('/cardholders/<uid>', methods=['DELETE'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def delete_cardholder(uid):
     with get_db_context() as conn:
@@ -1469,6 +1481,7 @@ def get_system_info():
 # ==========================================
 @api_bp.route('/notifications/test', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit("10 per minute")
 def test_notification():
     try:
@@ -1500,21 +1513,6 @@ from werkzeug.security import generate_password_hash, check_password_hash
 def _current_user_id():
     from flask import session
     return session.get('user_id')
-
-
-def _is_current_user_admin():
-    uid = _current_user_id()
-    if not uid:
-        return False
-    with get_db_context() as conn:
-        row = conn.execute('SELECT is_admin FROM users WHERE id = ?', (uid,)).fetchone()
-    return bool(row and row['is_admin'])
-
-
-def _require_admin():
-    if not _is_current_user_admin():
-        return jsonify({'success': False, 'error': 'Hanya admin yang bisa mengakses fitur ini'}), 403
-    return None
 
 
 def _validate_username(username):
@@ -1554,11 +1552,9 @@ def get_current_user():
 
 @api_bp.route('/users', methods=['GET'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def list_users():
-    err = _require_admin()
-    if err: return err
-
     with get_db_context() as conn:
         rows = conn.execute('''
             SELECT id, username, display_name, is_admin, created_at
@@ -1578,11 +1574,9 @@ def list_users():
 
 @api_bp.route('/users', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def create_user():
-    err = _require_admin()
-    if err: return err
-
     payload = request.get_json(silent=True) or {}
     username = (payload.get('username') or '').strip()
     password = payload.get('password') or ''
@@ -1626,11 +1620,9 @@ def create_user():
 
 @api_bp.route('/users/<int:user_id>', methods=['PUT'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def update_user(user_id):
-    err = _require_admin()
-    if err: return err
-
     payload = request.get_json(silent=True) or {}
 
     with get_db_context() as conn:
@@ -1689,11 +1681,9 @@ def update_user(user_id):
 
 @api_bp.route('/users/<int:user_id>', methods=['DELETE'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def delete_user(user_id):
-    err = _require_admin()
-    if err: return err
-
     if user_id == _current_user_id():
         return jsonify({'success': False, 'error': 'Tidak bisa hapus akun sendiri'}), 400
 
@@ -1736,11 +1726,9 @@ def delete_user(user_id):
 # ==========================================
 @api_bp.route('/system/backup', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit("5 per minute")
 def trigger_backup():
-    err = _require_admin()
-    if err: return err
-
     config = get_config()
     try:
         os.makedirs(config.BACKUP_DIR, exist_ok=True)
@@ -1771,11 +1759,9 @@ def trigger_backup():
 
 @api_bp.route('/system/backups', methods=['GET'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def list_backups():
-    err = _require_admin()
-    if err: return err
-
     config = get_config()
     backups = []
     try:
@@ -1814,11 +1800,9 @@ def list_backups():
 
 @api_bp.route('/system/backups/<path:filename>', methods=['GET'])
 @login_required
+@admin_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def download_backup(filename):
-    err = _require_admin()
-    if err: return err
-
     from werkzeug.utils import secure_filename
     from flask import send_file
 
@@ -1847,11 +1831,9 @@ def download_backup(filename):
 # ==========================================
 @api_bp.route('/system/cleanup', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit("5 per hour")
 def trigger_cleanup():
-    err = _require_admin()
-    if err: return err
-
     config = get_config()
     try:
         now = get_wib_time()
@@ -1994,11 +1976,9 @@ def get_global_alert_rules():
 
 @api_bp.route('/system/alert-rules', methods=['PUT'])
 @login_required
+@admin_required
 @limiter.limit("20 per minute")
 def update_global_alert_rules():
-    err = _require_admin()
-    if err: return err
-
     payload = request.get_json(silent=True)
     if payload is None or not isinstance(payload, dict):
         return jsonify({'success': False, 'error': 'Format rules harus object'}), 400
@@ -2021,6 +2001,7 @@ def update_global_alert_rules():
             ''', (json.dumps(payload), get_wib_time()))
             conn.commit()
 
+        invalidate_global_rules_cache()
         logger.info(f"Global alert rules updated by user {_current_user_id()}")
         return jsonify({
             'success': True,
@@ -2034,11 +2015,9 @@ def update_global_alert_rules():
 
 @api_bp.route('/system/alert-rules', methods=['DELETE'])
 @login_required
+@admin_required
 @limiter.limit("20 per minute")
 def reset_global_alert_rules():
-    err = _require_admin()
-    if err: return err
-
     try:
         with get_db_context() as conn:
             conn.execute(
@@ -2046,6 +2025,7 @@ def reset_global_alert_rules():
             )
             conn.commit()
 
+        invalidate_global_rules_cache()
         logger.info(f"Global alert rules reset by user {_current_user_id()}")
         return jsonify({
             'success': True,
@@ -2061,6 +2041,7 @@ def reset_global_alert_rules():
 # ==========================================
 @api_bp.route('/system/restore', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit("2 per hour")
 def restore_database():
     """Restore database dari file backup.
@@ -2071,9 +2052,6 @@ def restore_database():
     - Wajib konfirmasi string 'RESTORE'
     - Return instruksi restart manual (tidak auto-restart)
     """
-    err = _require_admin()
-    if err: return err
-
     payload = request.get_json(silent=True) or {}
     filename = (payload.get('filename') or '').strip()
     confirm = (payload.get('confirm') or '').strip()
@@ -2172,6 +2150,7 @@ def restore_database():
 # ==========================================
 @api_bp.route('/devices/bulk-import', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit("10 per minute")
 def bulk_import_devices():
     """Bulk import devices.
@@ -2310,6 +2289,7 @@ def bulk_import_devices():
 # ==========================================
 @api_bp.route('/notifications/test-channel', methods=['POST'])
 @login_required
+@admin_required
 @limiter.limit("10 per minute")
 def test_notification_channel():
     """Test 1 channel spesifik. Body: {channel: 'telegram'}"""

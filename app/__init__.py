@@ -23,12 +23,28 @@ except ValueError as e:
     sys.exit(1)
 
 
+def warn_if_insecure_cookie(app_config, env=None, log=None):
+    """Peringatkan bila production berjalan dengan cookie sesi non-Secure."""
+    env = (env if env is not None else os.getenv('FLASK_ENV', 'production')).lower()
+    log = log or logger
+    if env == 'production' and not app_config.get('SESSION_COOKIE_SECURE'):
+        log.warning(
+            "SESSION_COOKIE_SECURE=False di production: cookie sesi dikirim "
+            "tanpa flag Secure. Hanya untuk jaringan tepercaya tanpa HTTPS; "
+            "aktifkan HTTPS lalu set SESSION_COOKIE_SECURE=True / ENABLE_HSTS=True."
+        )
+        return True
+    return False
+
+
 def create_app(config_override=None):
     app = Flask(__name__, template_folder='../templates', static_folder='../static')
     app.config.from_object(config)
 
     if config_override:
         app.config.update(config_override)
+
+    warn_if_insecure_cookie(app.config)
 
     # ✅ FIX Tier 1 #5: ProxyFix — dapat IP device asli di belakang Nginx
     from werkzeug.middleware.proxy_fix import ProxyFix
@@ -96,7 +112,8 @@ def create_app(config_override=None):
             'geolocation=(), microphone=(), camera=(), payment=(), usb=()'
         )
 
-        if config.SESSION_COOKIE_SECURE or config.ENABLE_HSTS:
+        # HSTS hanya bila ENABLE_HSTS=True (bukan karena cookie Secure).
+        if app.config.get('ENABLE_HSTS'):
             response.headers['Strict-Transport-Security'] = (
                 'max-age=31536000; includeSubDomains'
             )

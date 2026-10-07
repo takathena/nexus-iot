@@ -10,8 +10,11 @@ Fix v5.0:
   - Message TIDAK lagi berisi nilai (value) karena sudah ditampilkan
     sebagai badge di frontend. Cegah duplikasi "32.1°C — 32.1°C di luar...".
 """
+import copy
 import json
 import logging
+import threading
+import time
 from datetime import timedelta
 from app.config import get_config
 from app.database import get_db_context, get_wib_time
@@ -45,9 +48,89 @@ def _get_sensor_label(key):
     return SENSOR_LABELS.get(key, (key.replace('_', ' ').title(), ''))
 
 
-def _get_global_rules():
+# Cache global rules (TTL pendek, thread-safe). Di-invalidate saat
+# PUT/DELETE /system/alert-rules pada worker yang menangani request;
+# worker lain menyusul paling lambat setelah TTL habis.
+GLOBAL_RULES_TTL_SECONDS = 45
+_global_rules_cache = {'rules': None, 'ts': 0.0}
+_global_rules_lock = threading.Lock()
+
+
+def invalidate_global_rules_cache():
+    with _global_rules_lock:
+        _global_rules_cache['rules'] = None
+        _global_rules_cache['ts'] = 0.0
+
+
+def _default_global_rules():
     config = get_config()
-    return {k: v for k, v in config.ALERT_RULES.items() if isinstance(v, dict)}
+    return {
+        k: copy.deepcopy(v)
+        for k, v in config.ALERT_RULES.items() if isinstance(v, dict)
+    }
+
+
+def _load_stored_global_rules(conn=None):
+    """Baca rules tersimpan (user_settings.global_alert_rules).
+
+    Return dict {sensor: rule} yang lolos _validate_rule, atau {} bila
+    tidak ada / korup. Tidak pernah raise.
+    """
+    try:
+        sql = "SELECT value FROM user_settings WHERE key = 'global_alert_rules'"
+        if conn is not None:
+            row = conn.execute(sql).fetchone()
+        else:
+            with get_db_context() as c:
+                row = c.execute(sql).fetchone()
+    except Exception as e:
+        logger.warning(f"Gagal membaca global alert rules dari DB: {e}")
+        return {}
+
+    if not row or not row['value']:
+        return {}
+
+    try:
+        parsed = json.loads(row['value'])
+    except (json.JSONDecodeError, TypeError) as e:
+        logger.warning(f"Global alert rules di user_settings korup, pakai default: {e}")
+        return {}
+
+    if not isinstance(parsed, dict):
+        logger.warning("Global alert rules di user_settings bukan object, pakai default")
+        return {}
+
+    valid = {}
+    for sensor, rule in parsed.items():
+        if _validate_rule(rule):
+            valid[sensor] = rule
+        else:
+            logger.warning(f"Global rule untuk '{sensor}' tidak valid, diabaikan")
+    return valid
+
+
+def _get_global_rules(conn=None):
+    """Rules default config, ditimpa per sensor oleh rules tersimpan di DB."""
+    now = time.monotonic()
+    with _global_rules_lock:
+        cached = _global_rules_cache['rules']
+        if cached is not None and (now - _global_rules_cache['ts']) < GLOBAL_RULES_TTL_SECONDS:
+            return copy.deepcopy(cached)
+
+    rules = _default_global_rules()
+    for sensor, rule in _load_stored_global_rules(conn).items():
+        merged = copy.deepcopy(rule)
+        # Kunci berawalan '_' (mis. _hysteresis) dari default tetap terbawa
+        # kalau rule tersimpan tidak mengisinya.
+        for k, v in rules.get(sensor, {}).items():
+            if k.startswith('_'):
+                merged.setdefault(k, v)
+        rules[sensor] = merged
+
+    with _global_rules_lock:
+        _global_rules_cache['rules'] = copy.deepcopy(rules)
+        _global_rules_cache['ts'] = now
+    return rules
 
 
 def _validate_rule(rule):
@@ -259,17 +342,24 @@ def get_device_alert_rules(conn, device_id):
         (device_id,)
     ).fetchone()
 
+    # Rules per-device menimpa global PER SENSOR (bukan mengganti total).
+    rules = _get_global_rules(conn)
+
     if row and row['alert_rules']:
         try:
             parsed = json.loads(row['alert_rules'])
-            if isinstance(parsed, dict) and parsed:
-                valid_rules = {k: v for k, v in parsed.items() if _validate_rule(v)}
-                if valid_rules:
-                    return valid_rules
+            if isinstance(parsed, dict):
+                for sensor, rule in parsed.items():
+                    if _validate_rule(rule):
+                        rules[sensor] = rule
+                    else:
+                        logger.warning(
+                            f"Custom rule '{sensor}' untuk {device_id} tidak valid, diabaikan"
+                        )
         except (json.JSONDecodeError, TypeError) as e:
             logger.warning(f"Invalid alert_rules JSON for {device_id}: {e}")
 
-    return _get_global_rules()
+    return rules
 
 
 def check_and_create_alerts(device_id, sensor_data):

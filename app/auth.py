@@ -81,6 +81,35 @@ def login_required(f):
     return decorated_function
 
 
+def is_current_user_admin():
+    """True jika user di session punya is_admin=1 di tabel users."""
+    uid = session.get('user_id')
+    if not uid:
+        return False
+    with get_db_context() as conn:
+        row = conn.execute(
+            'SELECT is_admin FROM users WHERE id = ?', (uid,)
+        ).fetchone()
+    return bool(row and row['is_admin'])
+
+
+def admin_required(f):
+    """Batasi route ke admin. Pasang SETELAH @login_required.
+
+    Satu sumber kebenaran untuk otorisasi admin: backend selalu menolak
+    non-admin dengan JSON 403, apa pun yang ditampilkan UI.
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not is_current_user_admin():
+            return jsonify({
+                'success': False,
+                'error': 'Hanya admin yang bisa mengakses fitur ini',
+            }), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 def _authenticate(username, password):
     config = get_config()
 

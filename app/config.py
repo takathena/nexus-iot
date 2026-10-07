@@ -8,6 +8,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def _env_bool(name, default):
+    """Baca boolean dari env. Kosong/tidak ada -> default."""
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == '':
+        return default
+    return raw.strip().lower() == 'true'
+
+
 class Config:
     HOST = os.getenv('HOST', '0.0.0.0')
     PORT = int(os.getenv('PORT', 5000))
@@ -15,7 +23,12 @@ class Config:
     TESTING = False
 
     SECRET_KEY = os.getenv('SECRET_KEY')
-    SESSION_COOKIE_SECURE = os.getenv('SESSION_COOKIE_SECURE', 'False').lower() == 'true'
+    # Aturan SESSION_COOKIE_SECURE (konsisten untuk semua environment):
+    #   - Jika env SESSION_COOKIE_SECURE di-set eksplisit -> pakai nilai itu.
+    #   - Jika tidak di-set -> ikut ENABLE_HSTS (HTTPS aktif => cookie Secure).
+    # ENABLE_HSTS = penanda bahwa aplikasi diakses lewat HTTPS.
+    ENABLE_HSTS = _env_bool('ENABLE_HSTS', False)
+    SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', ENABLE_HSTS)
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = 'Lax'
     PERMANENT_SESSION_LIFETIME = timedelta(hours=int(os.getenv('SESSION_LIFETIME_HOURS', 24)))
@@ -28,7 +41,6 @@ class Config:
     WTF_CSRF_TIME_LIMIT = None
 
     MAX_CONTENT_LENGTH = int(os.getenv('MAX_CONTENT_LENGTH', 2 * 1024 * 1024))
-    ENABLE_HSTS = os.getenv('ENABLE_HSTS', 'False').lower() == 'true'
     CSP_REPORT_ONLY = os.getenv('CSP_REPORT_ONLY', 'False').lower() == 'true'
 
     NOTIFY_ENABLED = os.getenv('NOTIFY_ENABLED', 'False').lower() == 'true'
@@ -231,7 +243,8 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG = False
-    SESSION_COOKIE_SECURE = True
+    # SESSION_COOKIE_SECURE sengaja TIDAK ditimpa di sini: nilai mengikuti env
+    # (lihat aturan di Config). Akses via http://<IP-LAN> tetap bisa login.
 
 
 class TestingConfig(Config):
