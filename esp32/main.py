@@ -14,11 +14,17 @@ import gc
 import ntptime
 
 # ============ KONFIGURASI ============
-WIFI_SSID = "peo"
-WIFI_PASSWORD = "12345678"
-API_URL = "http://192.168.1.6:5008/api/v1/data"
-DEVICE_ID = "1"
-API_KEY = "01394efb170d74fae7ea5d424aac98e5a6c67f20e9b265636b354c2acac4f660"
+# Kredensial & alamat server dibaca dari secrets.py (TIDAK di-commit).
+# Salin secrets.example.py -> secrets.py lalu isi nilainya, upload keduanya ke board.
+try:
+    from secrets import WIFI_SSID, WIFI_PASSWORD, API_URL, DEVICE_ID, API_KEY
+except ImportError:
+    raise RuntimeError(
+        "secrets.py tidak ditemukan/tidak lengkap. Salin secrets.example.py "
+        "menjadi secrets.py dan isi WIFI_SSID, WIFI_PASSWORD, API_URL, "
+        "DEVICE_ID, API_KEY."
+    )
+
 SENSOR_TYPE = "DHT22"
 DHT_PIN = 4
 SEND_INTERVAL = 5

@@ -272,7 +272,15 @@ def login_page():
     return render_template('login.html', error=None)
 
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
+    # POST + CSRF (CSRFProtect): tidak bisa dipicu dari halaman/gambar lain (M7).
     session.clear()
+    return redirect(url_for('auth.login_page'))
+
+
+@auth_bp.route('/logout', methods=['GET'])
+def logout_get_compat():
+    # Kompatibilitas bookmark/klien lama: hanya mengarahkan ke login,
+    # TANPA mengakhiri sesi.
     return redirect(url_for('auth.login_page'))

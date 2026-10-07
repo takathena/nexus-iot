@@ -4,10 +4,8 @@ Usage:
   Development: python run.py
   Production:  gunicorn -w 4 -b 0.0.0.0:5000 run:app
 """
-import os
 import signal
 import sys
-import logging
 
 from app import create_app, config, logger
 

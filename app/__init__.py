@@ -3,14 +3,14 @@ NEXUS IoT - Application Factory
 """
 import os
 import sys
-import signal
-import logging
 from flask import Flask, jsonify, request
 
 from app.config import get_config
 from app.logging_config import setup_logging
 from app.database import init_db, close_db, get_wib_time
 from app.extensions import cors, csrf, limiter
+
+__version__ = '6.0.0'
 
 config = get_config()
 logger = setup_logging(config)
@@ -100,6 +100,13 @@ def create_app(config_override=None):
     app.register_blueprint(dashboards_bp)
     from app.chat import chat_bp
     app.register_blueprint(chat_bp)
+
+    from app.chat import llm_configured
+
+    @app.context_processor
+    def inject_chat_enabled():
+        # N7: widget chat (tombol, FAB, panel) tidak dirender bila LLM belum dikonfigurasi.
+        return {'chat_enabled': llm_configured()}
 
 
     logger.info("CSRF: only /api/v1/data is exempt (device endpoint)")
@@ -211,11 +218,12 @@ def create_app(config_override=None):
                 'status': 'healthy',
                 'timestamp': get_wib_time().isoformat(),
                 'database': 'connected',
-                'version': '4.1',
+                'version': __version__,
             }), 200
         except Exception as e:
+            # Detail hanya ke log; klien cukup tahu statusnya.
             logger.error(f"Health check failed: {e}", exc_info=True)
-            return jsonify({'status': 'unhealthy', 'error': str(e)}), 503
+            return jsonify({'status': 'unhealthy', 'error': 'database tidak tersedia'}), 503
 
     @app.route('/ready')
     @limiter.exempt

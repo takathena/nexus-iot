@@ -420,7 +420,7 @@ Jika `NOTIFY_ENABLED=True` maka `TELEGRAM_ENABLED` harus `True` dan token serta 
 | Variabel | Default | Deskripsi |
 |----------|---------|-----------|
 | `LLM_BASE_URL` | `http://localhost:8000/v1` | Base URL endpoint OpenAI-compatible |
-| `LLM_API_KEY` | `sk-no-key` | API key untuk endpoint |
+| `LLM_API_KEY` | _(kosong)_ | API key endpoint. **Kosong = fitur chat nonaktif** (tombol/panel chat tidak ditampilkan). Untuk Ollama/vLLM lokal isi nilai apa saja, mis. `sk-no-key` |
 | `LLM_MODEL` | `nvidia/nemotron-3-super-120b-a12b:free` | Nama model |
 | `LLM_TIMEOUT` | `120` | Timeout request (detik) |
 
@@ -439,7 +439,7 @@ Pada deployment multi-container, `NEXUS_LOCK_DIR` harus menunjuk ke volume yang 
 1. Login ke dashboard, klik menu Perangkat, klik Tambah.
 2. Isi Device ID, Nama, Tipe, dan Lokasi.
 3. Catat API key yang muncul. API key hanya ditampilkan satu kali.
-4. Edit `esp32/main.py`:
+4. Salin `esp32/secrets.example.py` menjadi `esp32/secrets.py` lalu isi kredensial. File ini **tidak di-commit** (ada di `.gitignore`); `main.py` hanya membacanya:
 
 ```python
 WIFI_SSID = "NamaWiFi"
@@ -447,17 +447,16 @@ WIFI_PASSWORD = "PasswordWiFi"
 API_URL = "http://IP-SERVER:5008/api/v1/data"   # port Nginx (NGINX_PORT); 5000 hanya jika menjalankan Flask langsung
 DEVICE_ID = "ESP32-001"
 API_KEY = "api-key-dari-dashboard"
-SENSOR_TYPE = "DHT22"
-DHT_PIN = 4
-SEND_INTERVAL = 60
-TIMEZONE_OFFSET = 7 * 3600
 ```
 
-5. Upload ke ESP32 dengan ampy:
+   Pengaturan non-rahasia (`SENSOR_TYPE`, `DHT_PIN`, `SEND_INTERVAL`, `TIMEZONE_OFFSET`) tetap di `esp32/main.py`.
+
+5. Upload keduanya ke ESP32 dengan ampy:
 
 ```bash
 pip install adafruit-ampy
 ampy --port /dev/ttyUSB0 put esp32/main.py
+ampy --port /dev/ttyUSB0 put esp32/secrets.py
 ampy --port /dev/ttyUSB0 reset
 ```
 
@@ -645,7 +644,8 @@ Filter untuk `/api/v1/attendance/report` dan `/api/v1/attendance/export`:
 |--------|----------|------|------------|
 | GET | `/login` | Public | Halaman login |
 | POST | `/login` | Public | Proses login |
-| GET | `/logout` | Public | Logout dan clear session |
+| POST | `/logout` | Session + CSRF | Logout dan clear session |
+| GET | `/logout` | Public | Hanya redirect ke `/login` (kompatibilitas), **tidak** mengakhiri sesi |
 | GET | `/` | Session | Dashboard desktop |
 | GET | `/d/<slug>` | Session | Dashboard by slug |
 | GET | `/mobile` | Session | Dashboard mobile |
@@ -676,7 +676,8 @@ nexus-iot/
 │   ├── validators.py             # Marshmallow schema
 │   └── views.py                  # Web routes HTML
 ├── esp32/
-│   └── main.py                   # Firmware MicroPython
+│   ├── main.py                   # Firmware MicroPython
+│   └── secrets.example.py        # Template kredensial (salin ke secrets.py)
 ├── nginx/
 │   ├── nginx.conf                # Konfigurasi utama Nginx
 │   └── conf.d/
@@ -896,7 +897,16 @@ LLM_MODEL=Qwen/Qwen2.5-7B-Instruct
 LLM_TIMEOUT=120
 ```
 
-Jika `LLM_BASE_URL` tidak dapat dijangkau, panel chat akan menampilkan status offline namun aplikasi tetap berjalan normal.
+Jika `LLM_API_KEY` kosong, fitur chat dianggap belum dikonfigurasi: tombol/panel chat tidak dirender, tidak ada polling `/api/v1/chat/health`, dan `POST /api/v1/chat` menjawab 503. Jika `LLM_BASE_URL` tidak dapat dijangkau, panel chat menampilkan status offline namun aplikasi tetap berjalan normal.
+
+### Batas dan Keamanan Chat
+
+- Dari klien hanya pesan `role` `user`/`assistant` dengan `content` berupa string yang diteruskan; field lain dibuang. Maksimum 10 pesan terakhir, tiap pesan dipotong ke 4000 karakter.
+- Hasil tool dibatasi maksimum 100 baris per daftar dan 20 KB JSON; bila dipotong, hasil memuat `truncated: true`.
+- LLM boleh memanggil tool hingga 3 putaran (maksimum 5 panggilan per putaran), lalu wajib memberi jawaban teks.
+- System prompt menegaskan bahwa isi data (nama device, karyawan, pesan alert) adalah data, bukan instruksi.
+- Detail error internal hanya dicatat di log; klien menerima pesan generik.
+- Semua user yang login dapat memakai chat, termasuk tool absensi. Pembatasan tool absensi hanya untuk admin belum diterapkan (keputusan pemilik; lihat CHANGELOG).
 
 ---
 

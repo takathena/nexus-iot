@@ -23,3 +23,14 @@
 - **H5** Nginx: `proxy_read_timeout 180s` untuk `/api/v1/chat`; header `Connection` lewat `map` + `upstream` keepalive. Gunicorn: `--timeout 60 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100`, worker dari `WEB_CONCURRENCY`.
 - **M9** `gunicorn` 21.2.0 → 23.0.0 (CVE-2024-1135). Port publik disamakan ke 5008 (`.env.example`, `CORS_ORIGINS`, compose, README, firmware). Mount kode dipindah dari `docker-compose.yml` ke `docker-compose.override.yml` (dev); `make docker-up` = produksi, `make docker-dev-up` = dev.
 
+## Fase 4 — AI chat dan hal sedang
+- **M4** Chat dikeraskan: hanya role `user`/`assistant` dengan `content` string yang diteruskan ke LLM (field lain dibuang), pesan dipotong ke 4000 karakter, maksimum 10 pesan. Hasil tool dibatasi 100 baris / 20 KB (`truncated: true`). Hingga 3 putaran tool (maks 5 panggilan per putaran). Error tool/LLM tidak lagi membocorkan `str(e)` atau URL endpoint; status HTTP upstream kini tampil benar (sebelumnya selalu `?` karena `Response` bernilai False untuk 4xx/5xx). System prompt menandai isi data sebagai data, bukan instruksi. Tool absensi **tetap** terbuka untuk semua user login (keputusan terbuka, lihat di bawah).
+- **M7** Logout kini `POST` + CSRF (tombol desktop dan mobile memakai `fetch`); `GET /logout` hanya redirect ke login tanpa menghapus sesi. `/health` memakai konstanta `app.__version__` (6.0.0) dan tidak menampilkan `str(e)` saat gagal. Handler 500 di `api.py` (global alert rules PUT/DELETE, backup, daftar backup, cleanup, tes notifikasi, tes channel, restore) mengembalikan pesan generik; detail ke log.
+- **N7** Bila `LLM_API_KEY` kosong: `/api/v1/chat/health` menjawab 200 `{configured:false}`, `POST /api/v1/chat` menjawab 503, dan tombol topbar, FAB mobile, panel, serta `chat.js` tidak dirender (tidak ada polling 503).
+- **C1 (sisi kode)** Firmware membaca `WIFI_SSID`, `WIFI_PASSWORD`, `API_URL`, `DEVICE_ID`, `API_KEY` dari `esp32/secrets.py` (di-ignore git); `esp32/secrets.example.py` berisi placeholder. Rotasi key dan pembersihan riwayat git tetap dilakukan manusia.
+- Kebersihan: import tak terpakai dihapus (`signal`, `logging` di `app/__init__.py`; `timedelta` di `alerts.py`; `_ConfigClass` di `api.py`; `os`, `logging` di `run.py`).
+
+### Keputusan terbuka (fase 4)
+- Apakah tool absensi chat (`get_present_today`, `get_absent_today`, `get_attendance_range`, `get_cardholders`) dibatasi hanya untuk admin? Belum diubah.
+- Chat dianggap terkonfigurasi hanya bila `LLM_API_KEY` terisi (sesuai N7). Pengguna LLM lokal yang selama ini mengandalkan default `sk-no-key` perlu mengisi nilai apa saja.
+

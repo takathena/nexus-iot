@@ -15,7 +15,6 @@ import json
 import logging
 import threading
 import time
-from datetime import timedelta
 from app.config import get_config
 from app.database import get_db_context, get_wib_time
 from app.notifier import notify_alert_event

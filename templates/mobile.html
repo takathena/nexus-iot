@@ -1345,6 +1345,7 @@
   </div>
 </div>
 
+{% if chat_enabled %}
 <!-- FAB Chat Mobile -->
 <button class="chat-fab-mobile" onclick="NexusChat.toggle()" aria-label="Buka Chatbot" title="NEXUS AI">
   <i class="fa-solid fa-wand-magic-sparkles"></i>
@@ -1352,11 +1353,12 @@
 
 <!-- Chat Panel -->
 {% include 'partials/chat_panel.html' %}
+{% endif %}
 
 <script src="{{ url_for('static', filename='js/toast.js') }}"></script>
 <script src="{{ url_for('static', filename='js/error-handler.js') }}"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
-<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% if chat_enabled %}<script src="{{ url_for('static', filename='js/chat.js') }}"></script>{% endif %}
 <script src="{{ url_for('static', filename='js/mobile.js') }}"></script>
 </body>
 </html>

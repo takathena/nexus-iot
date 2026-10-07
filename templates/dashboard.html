@@ -209,6 +209,7 @@
                 <div class="date" id="currentDate"></div>
                 <div class="time" id="currentTime"></div>
             </div>
+{% if chat_enabled %}
             <button class="topbar-ai-btn" id="chatToggleBtn"
                     title="Toggle NEXUS AI" aria-label="Toggle AI Chat">
                 <svg class="icon-panel" width="22" height="22" viewBox="0 0 24 24"
@@ -218,6 +219,7 @@
                     <line x1="14.5" y1="4.5" x2="14.5" y2="19.5"/>
                 </svg>
             </button>
+            {% endif %}
         </div>
     </div>
 
@@ -232,7 +234,9 @@
 </div>
 
 {% include 'partials/modals.html' %}
+{% if chat_enabled %}
 {% include 'partials/chat_panel.html' %}
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -244,5 +248,7 @@
 <script src="{{ url_for('static', filename='js/alerts.js') }}"></script>
 <script src="{{ url_for('static', filename='js/attendance.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% if chat_enabled %}
 <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endif %}
 {% endblock %}

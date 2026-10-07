@@ -50,3 +50,6 @@ Thumbs.db
 # Runtime
 *.pid
 *.lock
+
+# Firmware (kredensial perangkat)
+esp32/secrets.py

@@ -1553,7 +1553,7 @@ def test_notification():
         return jsonify({'success': all_success, 'results': results}), 200 if all_success else 500
     except Exception as e:
         logger.error(f"Test notification failed: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan internal. Detail ada di log server.'}), 500
 
 
 @api_bp.route('/notifications/config', methods=['GET'])
@@ -1805,7 +1805,7 @@ def trigger_backup():
         }), 200
     except Exception as e:
         logger.error(f"Manual backup failed: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan internal. Detail ada di log server.'}), 500
 
 
 @api_bp.route('/system/backups', methods=['GET'])
@@ -1834,7 +1834,7 @@ def list_backups():
         backups.sort(key=lambda x: x['_mtime'], reverse=True)
     except Exception as e:
         logger.error(f"List backups failed: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan internal. Detail ada di log server.'}), 500
 
     for b in backups:
         b.pop('_mtime', None)
@@ -1941,7 +1941,7 @@ def trigger_cleanup():
         }), 200
     except Exception as e:
         logger.error(f"Manual cleanup failed: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan internal. Detail ada di log server.'}), 500
 
 
 # ==========================================
@@ -1992,7 +1992,6 @@ def change_own_password():
     # ==========================================
 # BATCH 8: GLOBAL ALERT RULES EDITOR
 # ==========================================
-from app.config import Config as _ConfigClass
 
 
 @api_bp.route('/system/alert-rules', methods=['GET'])
@@ -2061,7 +2060,7 @@ def update_global_alert_rules():
         }), 200
     except Exception as e:
         logger.error(f"Update global rules failed: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan internal. Detail ada di log server.'}), 500
 
 
 @api_bp.route('/system/alert-rules', methods=['DELETE'])
@@ -2084,7 +2083,7 @@ def reset_global_alert_rules():
         }), 200
     except Exception as e:
         logger.error(f"Reset global rules failed: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan internal. Detail ada di log server.'}), 500
 
 
 # ==========================================
@@ -2144,9 +2143,10 @@ def restore_database():
                 'error': f'File backup corrupt (integrity check: {result[0] if result else "unknown"})'
             }), 400
     except Exception as e:
+        logger.error(f"Restore: verifikasi file backup gagal: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': f'Gagal verifikasi file backup: {str(e)}'
+            'error': 'Gagal verifikasi file backup'
         }), 400
 
     # Backup current DB sebelum restore
@@ -2163,9 +2163,10 @@ def restore_database():
         src.close()
         logger.info(f"Pre-restore backup saved: {pre_restore_path}")
     except Exception as e:
+        logger.error(f"Restore: backup DB current gagal: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': f'Gagal backup DB current: {str(e)}'
+            'error': 'Gagal membuat backup DB saat ini'
         }), 500
 
     # Jangan menimpa DB hidup: siapkan file pending + penanda, diterapkan saat start.
@@ -2371,4 +2372,4 @@ def test_notification_channel():
         }), 200 if ch_result.get('success') else 500
     except Exception as e:
         logger.error(f"Test channel failed: {e}", exc_info=True)
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({'success': False, 'error': 'Terjadi kesalahan internal. Detail ada di log server.'}), 500

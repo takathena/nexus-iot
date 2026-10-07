@@ -230,7 +230,15 @@ function go(name, opts = {}){
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
-function logout(){ confirmModal('Logout', 'Yakin ingin keluar dari NEXUS?', () => { window.location.href = '/logout'; }); }
+async function doLogout(){
+  try{
+    await fetch('/logout', { method:'POST', credentials:'same-origin', headers:{ 'X-CSRFToken': CSRF } });
+    window.location.href = '/login';
+  }catch(e){
+    if(window.showToast) window.showToast('Gagal logout. Periksa koneksi lalu coba lagi.', 'error');
+  }
+}
+function logout(){ confirmModal('Logout', 'Yakin ingin keluar dari NEXUS?', () => { doLogout(); }); }
 function openDevice(id){
   try{ sessionStorage.setItem('nexus_back_url', '/mobile'); }catch(e){}
   window.location.href = '/device/' + encodeURIComponent(id);

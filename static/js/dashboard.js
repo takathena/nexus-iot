@@ -3918,9 +3918,25 @@
         });
     }
 
+    // Logout = POST + CSRF (M7). 400 (sesi/token sudah tidak valid) tetap berarti
+    // sesi sudah hilang, jadi diarahkan ke /login; hanya gagal jaringan yang diberi pesan.
+    async function doLogout() {
+        const meta = document.querySelector('meta[name="csrf-token"]');
+        try {
+            await fetch('/logout', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: { 'X-CSRFToken': meta ? meta.content : '' },
+            });
+            window.location.href = '/login';
+        } catch (e) {
+            showToast('Gagal logout. Periksa koneksi lalu coba lagi.', 'error');
+        }
+    }
+
     function bindLogout() {
         const logoutBtn = $('logoutBtn');
-        if (logoutBtn) logoutBtn.addEventListener('click', e => { e.preventDefault(); window.location.href = '/logout'; });
+        if (logoutBtn) logoutBtn.addEventListener('click', e => { e.preventDefault(); doLogout(); });
     }
 
     function bindModals() {

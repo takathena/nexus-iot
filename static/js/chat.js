@@ -123,7 +123,7 @@
 
         bindEvents();
         checkHealth();
-        setInterval(checkHealth, 30000);
+        state.healthTimer = setInterval(checkHealth, 30000);
 
         console.log('[NexusChat] Initialized v2');
     }
@@ -265,10 +265,22 @@
         return m ? m.content : '';
     }
 
+    function disableWidget() {
+        if (state.healthTimer) { clearInterval(state.healthTimer); state.healthTimer = null; }
+        if (state.isOpen) close();
+        [els.panel, els.tab, els.topbarBtn, document.getElementById('chatBackdrop'),
+         document.querySelector('.chat-fab-mobile')].forEach(el => { if (el) el.style.display = 'none'; });
+    }
+
     async function checkHealth() {
         try {
             const r = await fetch('/api/v1/chat/health', { credentials: 'same-origin' });
             const d = await r.json();
+            if (d.configured === false) {
+                // LLM belum dikonfigurasi di server: berhenti polling dan sembunyikan widget.
+                disableWidget();
+                return;
+            }
             if (d.success && d.upstream_ok) {
                 state.isOnline = true;
                 if (els.status) els.status.className = 'chat-status online';
