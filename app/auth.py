@@ -13,6 +13,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.config import get_config
 from app.extensions import limiter
 from app.database import get_db_context
+from app import login_throttle
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -217,9 +218,32 @@ def login_page():
         if not username or not password:
             return render_template('login.html', error='Username dan password wajib diisi!')
 
+        client_ip = request.remote_addr or 'unknown'
+
+        # Throttle kegagalan per username+IP dan per IP (dibagi antar worker lewat DB).
+        # Dicek SEBELUM verifikasi password supaya tebakan tidak diproses selama terkunci.
+        try:
+            locked_for = login_throttle.check_locked(username, client_ip)
+        except Exception as e:
+            current_app.logger.error(f"Throttle login gagal dicek: {e}")
+            locked_for = 0
+        if locked_for > 0:
+            minutes = max(1, (locked_for + 59) // 60)
+            current_app.logger.warning(
+                f"Login diblokir sementara untuk '{username}' dari {client_ip}"
+            )
+            return render_template(
+                'login.html',
+                error=f'Terlalu banyak percobaan gagal. Coba lagi dalam {minutes} menit.'
+            ), 429
+
         user_id = _authenticate(username, password)
 
         if user_id:
+            try:
+                login_throttle.clear_failures(username, client_ip)
+            except Exception as e:
+                current_app.logger.error(f"Reset throttle login gagal: {e}")
             session.clear()
             session['logged_in'] = True
             session['user_id'] = user_id
@@ -239,6 +263,10 @@ def login_page():
         current_app.logger.warning(
             f"Failed login attempt for user '{username}' from {request.remote_addr}"
         )
+        try:
+            login_throttle.record_failure(username, client_ip, config)
+        except Exception as e:
+            current_app.logger.error(f"Gagal mencatat kegagalan login: {e}")
         return render_template('login.html', error='Username atau password salah!')
 
     return render_template('login.html', error=None)

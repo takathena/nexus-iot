@@ -2,8 +2,10 @@
 # NEXUS IoT - Makefile
 # ==========================================
 
+COMPOSE_PROD := docker compose -f docker-compose.yml
+
 .PHONY: help dev install run run-prod backup test lint health clean \
-        docker-build docker-up docker-down docker-logs docker-restart docker-shell \
+        docker-build docker-up docker-dev-up docker-down docker-logs docker-restart docker-shell \
         docker-rebuild
 
 GREEN  := \033[0;32m
@@ -33,7 +35,8 @@ help:
 	@echo ""
 	@echo "  $(YELLOW)Docker:$(NC)"
 	@echo "    make docker-build   Build image"
-	@echo "    make docker-up      Start container (background)"
+	@echo "    make docker-up      Start container produksi (tanpa override dev)"
+	@echo "    make docker-dev-up  Start container development (mount kode)"
 	@echo "    make docker-down    Stop container"
 	@echo "    make docker-restart Restart container"
 	@echo "    make docker-rebuild Rebuild dari nol + restart"
@@ -107,17 +110,24 @@ clean:
 # Docker
 # ==========================================
 docker-build:
-	docker compose build
+	$(COMPOSE_PROD) build
 
 docker-up:
 	@mkdir -p database logs backup
 	@chown -R 1000:1000 database logs backup 2>/dev/null || true
-	docker compose up -d
+	$(COMPOSE_PROD) up -d --build
 	@echo "$(GREEN)Waiting for health check...$(NC)"
 	@sleep 15
-	@docker compose ps
+	@$(COMPOSE_PROD) ps
 	@echo ""
 	@echo "$(GREEN)Akses: http://localhost:$(NGINX_PORT)$(NC)"
+
+# Development: docker-compose.override.yml dimuat otomatis (mount app/templates/static)
+docker-dev-up:
+	@mkdir -p database logs backup
+	@chown -R 1000:1000 database logs backup 2>/dev/null || true
+	docker compose up -d --build
+	@echo "$(YELLOW)Mode DEVELOPMENT (kode di-mount). Untuk produksi: make docker-up$(NC)"
 
 docker-down:
 	docker compose down
@@ -126,14 +136,14 @@ docker-restart:
 	docker compose restart
 
 docker-rebuild:
-	docker compose down
-	docker compose build --no-cache
+	$(COMPOSE_PROD) down
+	$(COMPOSE_PROD) build --no-cache
 	@mkdir -p database logs backup
 	@chown -R 1000:1000 database logs backup 2>/dev/null || true
-	docker compose up -d
+	$(COMPOSE_PROD) up -d
 	@echo "$(GREEN)Waiting for health check...$(NC)"
 	@sleep 20
-	@docker compose ps
+	@$(COMPOSE_PROD) ps
 
 docker-logs:
 	docker compose logs -f

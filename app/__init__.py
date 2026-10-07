@@ -45,6 +45,8 @@ def create_app(config_override=None):
         app.config.update(config_override)
 
     warn_if_insecure_cookie(app.config)
+    from app.ratelimit import warn_if_memory_limiter_multiworker
+    warn_if_memory_limiter_multiworker(config.RATE_LIMIT_STORAGE)
 
     # ✅ FIX Tier 1 #5: ProxyFix — dapat IP device asli di belakang Nginx
     from werkzeug.middleware.proxy_fix import ProxyFix
@@ -224,6 +226,14 @@ def create_app(config_override=None):
         @app.before_request
         def log_request():
             logger.debug(f"{request.method} {request.path}")
+
+    # Restore yang tertunda diterapkan SEBELUM koneksi database mana pun dibuka.
+    from app.database import _get_db_path
+    from app.restore import apply_pending_restore
+    try:
+        apply_pending_restore(_get_db_path(), logger)
+    except Exception as e:
+        logger.error(f"Gagal menerapkan restore tertunda: {e}", exc_info=True)
 
     with app.app_context():
         init_db()

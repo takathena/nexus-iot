@@ -290,10 +290,11 @@ Semua variabel dibaca dari file `.env` di root proyek. Nilai default ada di `app
 | Variabel | Default | Deskripsi |
 |----------|---------|-----------|
 | `HOST` | `0.0.0.0` | Bind address Flask |
-| `PORT` | `5000` | Port Flask |
+| `PORT` | `5000` | Port Flask (internal; di Docker tetap 5000, Nginx meneruskan ke sini) |
 | `FLASK_ENV` | `production` | `production`, `development`, atau `testing` |
 | `DEBUG` | `False` | Mode debug Flask |
-| `NGINX_PORT` | `5008` | Port publik Nginx (hanya info) |
+| `NGINX_PORT` | `5008` | Port publik Nginx. Dashboard dan firmware ESP32 mengakses lewat port ini |
+| `WEB_CONCURRENCY` | `2` | Jumlah worker Gunicorn (Docker). Dibaca Gunicorn dan dipakai untuk peringatan rate limit |
 
 ### Keamanan
 
@@ -342,7 +343,8 @@ Semua opsional. Kalau tidak diisi, pakai default dari `app/config.py`.
 |----------|---------|-----------|
 | `BACKUP_ENABLED` | `True` | Aktifkan auto-backup |
 | `BACKUP_INTERVAL_HOURS` | `24` | Interval backup |
-| `BACKUP_RETENTION_DAYS` | `7` | Retensi file backup |
+| `BACKUP_RETENTION_DAYS` | `7` | Retensi file backup otomatis `iot_*.db` |
+| `BACKUP_MIN_KEEP` | `3` | Jumlah backup `iot_*.db` terbaru yang selalu disimpan walau lewat retensi |
 | `BACKUP_DIR` | `backup` | Direktori backup |
 
 ### Device Monitoring
@@ -359,19 +361,24 @@ Semua opsional. Kalau tidak diisi, pakai default dari `app/config.py`.
 
 | Variabel | Default | Deskripsi |
 |----------|---------|-----------|
-| `CORS_ORIGINS` | `http://localhost:5000` | Origin yang diizinkan, pisah dengan koma. `*` ditolak |
+| `CORS_ORIGINS` | `http://localhost:5000` (contoh `.env.example`: `http://localhost:5008`) | Origin yang diizinkan, pisah dengan koma. `*` ditolak |
 
 ### Rate Limiting
 
 | Variabel | Default | Deskripsi |
 |----------|---------|-----------|
 | `RATE_LIMIT_DEFAULT` | `200 per minute` | Limit umum untuk endpoint API |
-| `RATE_LIMIT_DATA` | `60 per minute` | Limit endpoint device |
+| `RATE_LIMIT_DATA` | `60 per minute` | Limit endpoint `/data`, dihitung **per `device_id`** (dari body JSON); jatuh ke IP bila body tidak valid |
+| `RATE_LIMIT_DATA_IP` | `600 per minute` | Plafon per IP untuk `/data` (mencegah rotasi `device_id` palsu) |
 | `RATE_LIMIT_LOGIN` | `5 per minute` | Limit endpoint login |
 | `RATE_LIMIT_REGENERATE` | `10 per minute` | Limit regenerate API key |
-| `RATE_LIMIT_STORAGE` | `memory://` | Storage backend Limiter |
+| `RATE_LIMIT_STORAGE` | `memory://` | Storage backend Limiter (dibaca dari config, mis. `redis://host:6379/0`) |
+| `LOGIN_MAX_FAILURES` | `5` | Kegagalan login per kombinasi username+IP sebelum dikunci |
+| `LOGIN_IP_MAX_FAILURES` | `20` | Kegagalan login per IP (semua username) sebelum IP dikunci |
+| `LOGIN_FAIL_WINDOW_SECONDS` | `900` | Jendela penghitungan kegagalan |
+| `LOGIN_LOCKOUT_SECONDS` | `900` | Lama penguncian |
 
-Catatan: `memory://` tidak shared antar worker Gunicorn. Untuk deployment multi-worker produksi, gunakan `redis://` atau `memcached://`.
+Catatan: `memory://` tidak shared antar worker Gunicorn; aplikasi mencatat peringatan saat start bila `memory://` dipakai dengan `WEB_CONCURRENCY` > 1. Untuk deployment multi-worker produksi, gunakan `redis://` atau `memcached://`. Penghitung login gagal disimpan di database (tabel `login_failures`), jadi tetap konsisten antar worker tanpa Redis.
 
 ### Logging
 
@@ -437,7 +444,7 @@ Pada deployment multi-container, `NEXUS_LOCK_DIR` harus menunjuk ke volume yang 
 ```python
 WIFI_SSID = "NamaWiFi"
 WIFI_PASSWORD = "PasswordWiFi"
-API_URL = "http://IP-SERVER:5000/api/v1/data"
+API_URL = "http://IP-SERVER:5008/api/v1/data"   # port Nginx (NGINX_PORT); 5000 hanya jika menjalankan Flask langsung
 DEVICE_ID = "ESP32-001"
 API_KEY = "api-key-dari-dashboard"
 SENSOR_TYPE = "DHT22"
@@ -494,7 +501,7 @@ screen /dev/ttyUSB0 115200
 ### Contoh dengan curl
 
 ```bash
-curl -X POST http://localhost:5000/api/v1/data \
+curl -X POST http://localhost:5008/api/v1/data   # via Nginx; dev langsung ke Flask: :5000 \
   -H "Content-Type: application/json" \
   -d '{
     "device_id": "ESP32-001",
@@ -626,7 +633,7 @@ Filter untuk `/api/v1/attendance/report` dan `/api/v1/attendance/export`:
 
 | Method | Endpoint | Auth | Keterangan |
 |--------|----------|------|------------|
-| GET | `/api/v1/system/info` | Session | Info sistem dan statistik database |
+| GET | `/api/v1/system/info` | Session | Info sistem, statistik database, dan status background task (`background`: `owner_pid`, `last_status_check`, `last_backup`, `last_cleanup`, `stale`) |
 | GET | `/api/v1/notifications/config` | Session | Konfigurasi notifikasi |
 | POST | `/api/v1/notifications/test` | Session | Kirim notifikasi test |
 | GET | `/health` | Public | Health check |
@@ -924,15 +931,26 @@ Jika total baris yang dihapus melebihi 1000, `VACUUM` dijalankan untuk mengembal
 
 ### Backup
 
-Interval: `BACKUP_INTERVAL_HOURS` jam. Delay inisial: 10 menit.
+Interval: `BACKUP_INTERVAL_HOURS` jam. Jeda boot: 30 detik, lalu backup langsung bila belum ada backup yang cukup baru (lebih muda dari interval, maksimal 24 jam); tidak menunggu tanpa syarat.
 
 - Backup database dengan SQLite Online Backup API.
-- Simpan ke `BACKUP_DIR/iot_<timestamp>.db`.
-- Hapus backup lebih lama dari `BACKUP_RETENTION_DAYS`.
+- Simpan ke `BACKUP_DIR/iot_<timestamp>.db` (timestamp WIB).
+- Hapus **hanya** file `iot_*.db` yang lebih tua dari `BACKUP_RETENTION_DAYS`, dan selalu sisakan minimal `BACKUP_MIN_KEEP` backup terbaru.
+- `pre-restore-*.db` dan file lain di folder backup **tidak pernah dihapus otomatis**; bersihkan manual bila perlu.
+
+### Restore Database
+
+`POST /api/v1/system/restore` (admin) **tidak menimpa database yang sedang berjalan**. Endpoint memverifikasi file backup, membuat `pre-restore-*.db`, lalu menyiapkan `<DB_PATH>.restore-pending` dan penanda `<DB_PATH>.restore-marker`. Restore diterapkan saat proses **start berikutnya**, sebelum koneksi database dibuka: `-wal`/`-shm` dihapus, database diganti, penanda dibuang. Hentikan semua worker lalu start ulang (`docker compose restart nexus-iot`). Jika database masih dipakai proses lain, penerapan ditunda sampai start berikutnya dan dicatat di log.
+
+### Status dan Heartbeat
+
+Setiap task mencatat heartbeat (tabel `user_settings`, kunci `bg_hb_*`) yang ditampilkan di `/api/v1/system/info` → `background`. Sebuah task ditandai `stale` bila heartbeat terakhirnya lebih tua dari 3× intervalnya.
 
 ### Lock File
 
 Lock file disimpan di `NEXUS_LOCK_DIR` (default `/tmp`). Nama file: `nexus-background.lock`. Untuk deployment multi-container, direktori ini harus di-share antar-container, atau cukup satu container yang menjalankan background task.
+
+Worker yang tidak mendapat lock **tidak berhenti**: ia mencoba lagi tiap 30 detik, sehingga bila pemegang lock mati atau di-recycle (`--max-requests`), worker lain mengambil alih.
 
 ---
 
@@ -1013,13 +1031,16 @@ docker compose ps
 
 Akses publik di port `NGINX_PORT` (default 5008). Port Flask tidak ter-expose ke host, hanya ke network internal Docker.
 
-Untuk update:
+**Kode ada di dalam image.** `docker-compose.yml` tidak lagi me-mount `./app`, `./templates`, `./static` ke container Flask (Nginx tetap menyajikan `./static`). Perubahan kode butuh build ulang:
 
 ```bash
 git pull
-docker compose build
-docker compose up -d
+docker compose -f docker-compose.yml up -d --build      # atau: make docker-up
 ```
+
+Untuk **development** (mount kode, tanpa build ulang), gunakan `docker-compose.override.yml`, yang dimuat otomatis oleh `docker compose up` biasa (atau `make docker-dev-up`). Jangan menjalankan `docker compose up` tanpa `-f docker-compose.yml` di server produksi.
+
+Gunicorn berjalan dengan `--timeout 60 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100` (worker di-recycle berkala). Jumlah worker dari `WEB_CONCURRENCY`. Nginx memakai `proxy_read_timeout 180s` khusus `/api/v1/chat`; jika `LLM_TIMEOUT` dinaikkan, naikkan nilai itu (≥ 1,5×).
 
 ### Systemd
 
@@ -1138,7 +1159,7 @@ pip install redis
 RATE_LIMIT_STORAGE=redis://localhost:6379/0
 ```
 
-Background task sudah aman untuk multi-worker karena dilindungi file lock. Hanya satu worker yang menjalankan task.
+Background task sudah aman untuk multi-worker karena dilindungi file lock. Hanya satu worker yang menjalankan task; worker lain mengambil alih otomatis bila pemiliknya mati (retry tiap 30 detik).
 
 ---
 
@@ -1162,7 +1183,8 @@ Background task sudah aman untuk multi-worker karena dilindungi file lock. Hanya
 | Target | Fungsi |
 |--------|--------|
 | `make docker-build` | Build image |
-| `make docker-up` | Start container di background |
+| `make docker-up` | Start container produksi di background (tanpa override dev) |
+| `make docker-dev-up` | Start container development (mount kode via `docker-compose.override.yml`) |
 | `make docker-down` | Stop container |
 | `make docker-restart` | Restart container |
 | `make docker-rebuild` | Rebuild dari nol dan restart |
@@ -1192,7 +1214,7 @@ API key device di-hash dengan SHA-256 sebelum disimpan. Verifikasi menggunakan `
 
 ### Rate Limiting
 
-Endpoint `POST /api/v1/data` dibatasi 60 request per menit per IP. Endpoint login dibatasi 5 percobaan per menit. Endpoint regenerate API key dibatasi 10 per menit. Endpoint API umum dibatasi 200 per menit.
+Endpoint `POST /api/v1/data` dibatasi 60 request per menit **per `device_id`** (plafon 600 per menit per IP). Endpoint login dibatasi 5 percobaan per menit per IP, ditambah penguncian kegagalan per username+IP (`LOGIN_MAX_FAILURES`) dan per IP (`LOGIN_IP_MAX_FAILURES`); penyerang dari IP lain tidak bisa mengunci admin yang sah. Endpoint regenerate API key dibatasi 10 per menit. Endpoint API umum dibatasi 200 per menit.
 
 ### Security Headers
 

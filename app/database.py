@@ -1,6 +1,6 @@
 """
 NEXUS IoT - Database Layer
-Schema version 15: multi-user + multi-dashboard + analytics tabs (FK repair v2) + devices.interval_manual.
+Schema version 16: multi-user + multi-dashboard + analytics tabs (FK repair v2) + devices.interval_manual + login_failures.
 """
 import os
 import sqlite3
@@ -70,7 +70,7 @@ def get_db_context():
         conn.close()
 
 
-SCHEMA_VERSION = 15
+SCHEMA_VERSION = 16
 WIB_DEFAULT = "(datetime('now', '+7 hours'))"
 
 
@@ -128,6 +128,7 @@ def _init_db_inner():
             (13, _migrate_v13),
             (14, _migrate_v14),
             (15, _migrate_v15),
+            (16, _migrate_v16),
         ]
 
         for version, migrate_fn in migrations:
@@ -883,3 +884,16 @@ def _migrate_v15(cursor):
     if 'interval_manual' not in cols:
         cursor.execute('ALTER TABLE devices ADD COLUMN interval_manual INTEGER DEFAULT 0')
         print("[DB] v15: added column devices.interval_manual")
+
+
+def _migrate_v16(cursor):
+    """login_failures: penghitung login gagal (per username+IP dan per IP) untuk throttle."""
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS login_failures (
+            key TEXT PRIMARY KEY,
+            fail_count INTEGER NOT NULL DEFAULT 0,
+            window_start REAL NOT NULL DEFAULT 0,
+            locked_until REAL NOT NULL DEFAULT 0
+        )
+    ''')
+    print("[DB] v16: created table login_failures")

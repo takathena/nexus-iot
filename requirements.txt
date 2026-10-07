@@ -18,7 +18,7 @@ WTForms==3.1.2
 marshmallow==3.22.0
 
 # Production Server
-gunicorn==21.2.0
+gunicorn==23.0.0
 
 # Utilities
 requests==2.32.3

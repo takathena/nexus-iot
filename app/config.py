@@ -91,6 +91,7 @@ class Config:
     BACKUP_ENABLED = os.getenv('BACKUP_ENABLED', 'True').lower() == 'true'
     BACKUP_INTERVAL_HOURS = int(os.getenv('BACKUP_INTERVAL_HOURS', 24))
     BACKUP_RETENTION_DAYS = int(os.getenv('BACKUP_RETENTION_DAYS', 7))
+    BACKUP_MIN_KEEP = int(os.getenv('BACKUP_MIN_KEEP', 3))
     BACKUP_DIR = os.getenv('BACKUP_DIR', os.path.join(BASE_DIR, 'backup'))
 
     OFFLINE_TIMEOUT = int(os.getenv('OFFLINE_TIMEOUT', 900))
@@ -104,6 +105,14 @@ class Config:
     RATE_LIMIT_LOGIN = os.getenv('RATE_LIMIT_LOGIN', '5 per minute')
     RATE_LIMIT_REGENERATE = os.getenv('RATE_LIMIT_REGENERATE', '10 per minute')
     RATE_LIMIT_STORAGE = os.getenv('RATE_LIMIT_STORAGE', 'memory://')
+    # Plafon per-IP untuk /data (limit utama per device_id; ini mencegah rotasi device_id palsu)
+    RATE_LIMIT_DATA_IP = os.getenv('RATE_LIMIT_DATA_IP', '600 per minute')
+
+    # Throttle login gagal (disimpan di DB agar dipakai bersama semua worker)
+    LOGIN_MAX_FAILURES = int(os.getenv('LOGIN_MAX_FAILURES', 5))            # per username+IP
+    LOGIN_IP_MAX_FAILURES = int(os.getenv('LOGIN_IP_MAX_FAILURES', 20))     # per IP (semua username)
+    LOGIN_FAIL_WINDOW_SECONDS = int(os.getenv('LOGIN_FAIL_WINDOW_SECONDS', 900))
+    LOGIN_LOCKOUT_SECONDS = int(os.getenv('LOGIN_LOCKOUT_SECONDS', 900))
 
     LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
     LOG_FILE = os.getenv('LOG_FILE', os.path.join(BASE_DIR, 'logs', 'nexus.log'))

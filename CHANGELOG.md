@@ -13,3 +13,13 @@
 - **N3** `hadir_hari_ini` hanya menghitung UID terdaftar (kartu asing tetap di `kartu_belum_terdaftar`).
 - **N4** UID RFID divalidasi (hex 4-32, boleh `0x`) di `/data` dan `POST /cardholders`; ekspor CSV memakai `csv_safe`.
 - **M1** Batas body `/data` (`DATA_MAX_BYTES`, 413), `data` harus dict datar dengan key/nilai tervalidasi, `sensor_type` berpola.
+
+## Fase 3 — keandalan operasional
+- **H6** Notifikasi Telegram memakai `parse_mode=HTML` dengan `html.escape` pada semua nilai dinamis; bila Telegram menjawab 400 "can't parse entities", dikirim ulang sebagai teks polos. Teks exception requests tidak lagi di-log (URL memuat token).
+- **H4** `Limiter` memakai `RATE_LIMIT_STORAGE` dari config; peringatan bila `memory://` dipakai dengan >1 worker (`WEB_CONCURRENCY`). Kuota `/data` per `device_id` (fallback IP, key function tidak pernah raise) + plafon per IP `RATE_LIMIT_DATA_IP`. Login: throttle kegagalan per username+IP dan per IP, disimpan di DB (migrasi v16, tabel `login_failures`); limit lama tidak dilemahkan.
+- **H2** Worker yang tidak mendapat lock background kini mencoba ulang tiap 30 detik dan mengambil alih bila pemilik mati. Heartbeat tiap task di `user_settings` (`bg_hb_*`), tampil di `/system/info` → `background` dengan penanda `stale` (>3× interval). File lock tidak lagi ter-truncate oleh worker yang gagal mengunci.
+- **M3** Retensi backup hanya menghapus `iot_*.db`, selalu menyisakan `BACKUP_MIN_KEEP` (default 3) terbaru, tidak pernah menghapus `pre-restore-*.db`. Backup pertama dibuat ~30 detik setelah start bila belum ada backup yang cukup baru. Nama backup memakai waktu WIB.
+- **H1** Restore tidak lagi menimpa DB hidup: endpoint menyiapkan `<DB>.restore-pending` + `<DB>.restore-marker`; diterapkan saat start (hapus `-wal`/`-shm`, ganti DB, hapus penanda), ditunda bila DB masih dipakai proses lain.
+- **H5** Nginx: `proxy_read_timeout 180s` untuk `/api/v1/chat`; header `Connection` lewat `map` + `upstream` keepalive. Gunicorn: `--timeout 60 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100`, worker dari `WEB_CONCURRENCY`.
+- **M9** `gunicorn` 21.2.0 → 23.0.0 (CVE-2024-1135). Port publik disamakan ke 5008 (`.env.example`, `CORS_ORIGINS`, compose, README, firmware). Mount kode dipindah dari `docker-compose.yml` ke `docker-compose.override.yml` (dev); `make docker-up` = produksi, `make docker-dev-up` = dev.
+

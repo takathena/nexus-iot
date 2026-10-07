@@ -34,7 +34,8 @@ ENV PATH=/home/nexus/.local/bin:$PATH \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     FLASK_ENV=production \
-    PORT=5000
+    PORT=5000 \
+    WEB_CONCURRENCY=2
 
 # Buat folder yang dibutuhkan
 RUN mkdir -p /app/database /app/logs /app/backup \
@@ -52,4 +53,11 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 
 # ✅ Command default: Gunicorn via run:app
-CMD ["gunicorn", "-w", "2", "-k", "gthread", "--threads", "4", "-b", "0.0.0.0:5000", "--access-logfile", "-", "--error-logfile", "-", "run:app"]
+# Jumlah worker dibaca dari WEB_CONCURRENCY (default 2). --max-requests me-recycle worker
+# secara berkala; pemilik background tasks yang di-recycle digantikan worker lain (H2).
+# --timeout 60 hanya mematikan worker yang macet total; request lama (chat LLM) di worker
+# gthread tidak ikut terhitung karena heartbeat dikirim thread utama.
+CMD ["gunicorn", "-k", "gthread", "--threads", "4", \
+     "--timeout", "60", "--graceful-timeout", "30", "--keep-alive", "5", \
+     "--max-requests", "1000", "--max-requests-jitter", "100", \
+     "-b", "0.0.0.0:5000", "--access-logfile", "-", "--error-logfile", "-", "run:app"]

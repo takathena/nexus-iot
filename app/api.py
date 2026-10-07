@@ -29,8 +29,10 @@ from app.alerts import (
     invalidate_global_rules_cache,
 )
 from app.extensions import limiter, csrf
+from app.ratelimit import data_rate_limit_key
 from app.config import get_config
 from app.notifier import send_test_notification, get_notification_status
+from app.background import get_background_status
 
 logger = logging.getLogger('nexus')
 api_bp = Blueprint('api', __name__, url_prefix='/api/v1')
@@ -150,7 +152,8 @@ def _detect_interval(conn, device_id):
 # ==========================================
 @api_bp.route('/data', methods=['POST'])
 @csrf.exempt
-@limiter.limit(lambda: get_config().RATE_LIMIT_DATA)
+@limiter.limit(lambda: get_config().RATE_LIMIT_DATA, key_func=data_rate_limit_key)
+@limiter.limit(lambda: get_config().RATE_LIMIT_DATA_IP)
 def receive_data():
     from werkzeug.exceptions import RequestEntityTooLarge
 
@@ -1527,6 +1530,7 @@ def get_system_info():
             'database_size_bytes': db_size,
             'database_size_mb': round(db_size / (1024 * 1024), 2),
             'data_retention_days': config.DATA_RETENTION_DAYS,
+            'background': get_background_status(config),
         }
     }), 200
 
@@ -1786,16 +1790,8 @@ def delete_user(user_id):
 def trigger_backup():
     config = get_config()
     try:
-        os.makedirs(config.BACKUP_DIR, exist_ok=True)
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-        backup_path = os.path.join(config.BACKUP_DIR, f'iot_{timestamp}.db')
-
-        source = sqlite3.connect(config.DB_PATH, timeout=30.0)
-        dest = sqlite3.connect(backup_path)
-        with dest:
-            source.backup(dest)
-        dest.close()
-        source.close()
+        from app.background import create_backup_file
+        backup_path = create_backup_file(config.BACKUP_DIR, config.DB_PATH)
 
         size_mb = os.path.getsize(backup_path) / (1024 * 1024)
         filename = os.path.basename(backup_path)
@@ -2154,7 +2150,7 @@ def restore_database():
         }), 400
 
     # Backup current DB sebelum restore
-    pre_restore_name = f"pre-restore-{datetime.now().strftime('%Y%m%d_%H%M%S')}.db"
+    pre_restore_name = f"pre-restore-{get_wib_time().strftime('%Y%m%d_%H%M%S')}.db"
     pre_restore_path = os.path.join(config.BACKUP_DIR, pre_restore_name)
 
     try:
@@ -2172,26 +2168,30 @@ def restore_database():
             'error': f'Gagal backup DB current: {str(e)}'
         }), 500
 
-    # Copy backup file → DB path
+    # Jangan menimpa DB hidup: siapkan file pending + penanda, diterapkan saat start.
     try:
-        import shutil
-        shutil.copy2(real_path, config.DB_PATH)
+        from app.restore import schedule_restore
+        schedule_restore(real_path, config.DB_PATH, {
+            'pre_restore_backup': pre_restore_name,
+            'requested_by': _current_user_id(),
+        })
         logger.warning(
-            f"DATABASE RESTORED by user {_current_user_id()}: "
-            f"from {safe_name} (pre-restore backup: {pre_restore_name})"
+            f"DATABASE RESTORE DIJADWALKAN by user {_current_user_id()}: "
+            f"from {safe_name} (pre-restore backup: {pre_restore_name}); "
+            f"diterapkan saat restart"
         )
     except Exception as e:
         logger.error(f"Restore failed: {e}", exc_info=True)
         return jsonify({
             'success': False,
-            'error': f'Gagal restore: {str(e)}. Pre-restore backup di: {pre_restore_name}'
+            'error': f'Gagal menyiapkan restore. Pre-restore backup di: {pre_restore_name}'
         }), 500
 
     return jsonify({
         'success': True,
         'message': (
-            'Database berhasil direstore. '
-            'PENTING: Restart container/aplikasi sekarang agar semua worker reload. '
+            'Restore disiapkan dan akan diterapkan saat aplikasi di-restart. '
+            'PENTING: Restart container/aplikasi sekarang (hentikan semua worker, lalu start). '
             f'Pre-restore backup: {pre_restore_name}'
         ),
         'pre_restore_backup': pre_restore_name,

@@ -1,6 +1,7 @@
 """
 NEXUS IoT - Telegram Notification Dispatcher
 """
+import html
 import time
 import logging
 import threading
@@ -25,34 +26,75 @@ SEVERITY_LABEL = {'info': 'INFO', 'warning': 'PERINGATAN', 'danger': 'BAHAYA', '
 ACTION_LABEL = {'created': 'ALERT BARU', 'severity_changed': 'PERUBAHAN SEVERITY', 'cleared': 'ALERT SELESAI'}
 
 
-def _format_message(event):
+def _esc(value):
+    """Escape nilai dinamis untuk parse_mode HTML Telegram (&, <, >)."""
+    return html.escape(str(value), quote=False)
+
+
+def _format_message(event, html_mode=True):
+    """Susun teks notifikasi.
+
+    html_mode=True  -> HTML Telegram: semua nilai dinamis di-escape, <b>/<code> dipakai.
+    html_mode=False -> teks polos tanpa tag (fallback bila Telegram menolak entitas).
+    """
     severity = event.get('severity', 'info')
     action = event.get('event', 'created')
     emoji = SEVERITY_EMOJI.get(severity, '🔔')
-    sev_label = SEVERITY_LABEL.get(severity, severity.upper())
-    action_label = ACTION_LABEL.get(action, action.upper())
+    sev_label = SEVERITY_LABEL.get(severity, str(severity).upper())
+    action_label = ACTION_LABEL.get(action, str(action).upper())
+
+    if html_mode:
+        def bold(v):
+            return f"<b>{_esc(v)}</b>"
+
+        def code(v):
+            return f"<code>{_esc(v)}</code>"
+
+        def text(v):
+            return _esc(v)
+    else:
+        def bold(v):
+            return str(v)
+
+        def code(v):
+            return str(v)
+
+        def text(v):
+            return str(v)
 
     if action == 'cleared':
-        title = f"{emoji} *{action_label}*"
+        title = f"{emoji} {bold(action_label)}"
     elif action == 'severity_changed':
-        old_sev = SEVERITY_LABEL.get(event.get('old_severity', ''), event.get('old_severity', '?'))
-        title = f"{emoji} *{action_label}* — {sev_label} (dari {old_sev})"
+        old_raw = event.get('old_severity', '')
+        old_sev = SEVERITY_LABEL.get(old_raw, old_raw or '?')
+        title = f"{emoji} {bold(action_label)} — {text(sev_label)} (dari {text(old_sev)})"
     else:
-        title = f"{emoji} *{action_label}* — {sev_label}"
+        title = f"{emoji} {bold(action_label)} — {text(sev_label)}"
 
     lines = [
         title, "",
-        f"📟 *Device:* `{event.get('device_id', '-')}`",
-        f"🏷️ *Nama:* {event.get('device_name', '-')}",
+        f"📟 {bold('Device:')} {code(event.get('device_id', '-'))}",
+        f"🏷️ {bold('Nama:')} {text(event.get('device_name', '-'))}",
     ]
     if event.get('location'):
-        lines.append(f"📍 *Lokasi:* {event['location']}")
-    lines.append(f"🔧 *Sensor:* `{event.get('alert_type', '-')}`")
-    lines.append(f"💬 *Pesan:* {event.get('message', '-')}")
+        lines.append(f"📍 {bold('Lokasi:')} {text(event['location'])}")
+    lines.append(f"🔧 {bold('Sensor:')} {code(event.get('alert_type', '-'))}")
+    lines.append(f"💬 {bold('Pesan:')} {text(event.get('message', '-'))}")
     if event.get('value') is not None:
-        lines.append(f"📊 *Nilai:* `{event['value']}`")
-    lines.append(f"🕐 *Waktu:* {event.get('timestamp', '-')}")
+        lines.append(f"📊 {bold('Nilai:')} {code(event['value'])}")
+    lines.append(f"🕐 {bold('Waktu:')} {text(event.get('timestamp', '-'))}")
     return "\n".join(lines)
+
+
+def _is_parse_error(resp):
+    """True bila Telegram menolak teks karena entitas/markup tidak bisa di-parse."""
+    if resp.status_code != 400:
+        return False
+    try:
+        desc = (resp.json() or {}).get('description', '')
+    except ValueError:
+        return False
+    return "can't parse entities" in str(desc).lower()
 
 
 def _send_telegram(event):
@@ -65,15 +107,19 @@ def _send_telegram(event):
     if not token or not chat_id:
         return False, 'telegram_not_configured'
 
+    # URL berisi token: jangan pernah di-log, dan jangan log teks exception requests
+    # (str(e) dari requests sering memuat URL lengkap).
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         'chat_id': chat_id,
         'text': _format_message(event),
-        'parse_mode': 'Markdown',
+        'parse_mode': 'HTML',
         'disable_web_page_preview': True,
     }
+    fell_back = False
 
-    for attempt in range(3):
+    attempt = 0
+    while attempt < 3:
         try:
             resp = requests.post(url, json=payload, timeout=10)
             if resp.status_code == 200:
@@ -81,18 +127,30 @@ def _send_telegram(event):
                 if data.get('ok'):
                     return True, None
                 return False, f"telegram_api_error: {data.get('description')}"
+            if not fell_back and _is_parse_error(resp):
+                # Fallback: kirim ulang sebagai teks polos (tanpa parse_mode).
+                logger.warning("Telegram menolak format HTML, kirim ulang sebagai teks polos")
+                payload = {
+                    'chat_id': chat_id,
+                    'text': _format_message(event, html_mode=False),
+                    'disable_web_page_preview': True,
+                }
+                fell_back = True
+                continue  # tidak menghabiskan jatah retry
             if resp.status_code == 429:
                 retry_after = resp.json().get('parameters', {}).get('retry_after', 5)
                 time.sleep(retry_after)
+                attempt += 1
                 continue
             if 500 <= resp.status_code < 600:
                 time.sleep(2 ** attempt)
+                attempt += 1
                 continue
             return False, f"telegram_http_{resp.status_code}"
-        except requests.exceptions.Timeout:
+        except requests.exceptions.RequestException as e:
+            logger.warning(f"Telegram request error: {type(e).__name__}")
             time.sleep(2 ** attempt)
-        except requests.exceptions.RequestException:
-            time.sleep(2 ** attempt)
+            attempt += 1
 
     return False, 'telegram_max_retries_exceeded'
 

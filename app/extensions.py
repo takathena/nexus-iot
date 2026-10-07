@@ -13,7 +13,7 @@ cors = CORS()
 csrf = CSRFProtect()
 limiter = Limiter(
     key_func=get_remote_address,
-    storage_uri="memory://",
+    storage_uri=_config.RATE_LIMIT_STORAGE,
     strategy="fixed-window",
     default_limits=[_config.RATE_LIMIT_DEFAULT],
 )

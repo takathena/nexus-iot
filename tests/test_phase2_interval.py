@@ -97,12 +97,12 @@ def test_put_same_value_keeps_auto_mode_and_null_resets(admin_client, make_devic
 
 
 def test_migration_v15_adds_column_and_is_idempotent(app):
-    assert SCHEMA_VERSION == 15
+    assert SCHEMA_VERSION >= 15
     if sqlite3.sqlite_version_info < (3, 35, 0):
         pytest.skip('DROP COLUMN butuh SQLite >= 3.35')
     with get_db_context() as conn:
         conn.execute('ALTER TABLE devices DROP COLUMN interval_manual')
-        conn.execute('DELETE FROM schema_version WHERE version = 15')
+        conn.execute('DELETE FROM schema_version WHERE version >= 15')
         conn.commit()
     init_db()
     init_db()      # panggilan kedua tidak boleh error
@@ -110,4 +110,4 @@ def test_migration_v15_adds_column_and_is_idempotent(app):
         cols = [r[1] for r in conn.execute('PRAGMA table_info(devices)').fetchall()]
         ver = conn.execute('SELECT MAX(version) FROM schema_version').fetchone()[0]
     assert 'interval_manual' in cols
-    assert ver == 15
+    assert ver == SCHEMA_VERSION
