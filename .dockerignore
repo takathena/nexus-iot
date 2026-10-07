@@ -1,5 +1,6 @@
 .git
 .gitignore
+.github/
 .env
 .env.*
 !.env.example
@@ -32,3 +33,8 @@ docker-compose.yml
 .ruff_cache/
 htmlcov/
 .coverage
+
+# Dev/CI saja (tidak masuk image produksi)
+requirements-dev.txt
+ruff.toml
+tests/

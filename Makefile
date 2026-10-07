@@ -4,7 +4,7 @@
 
 COMPOSE_PROD := docker compose -f docker-compose.yml
 
-.PHONY: help dev install run run-prod backup test lint health clean \
+.PHONY: help dev install install-dev run run-prod backup test lint health clean \
         docker-build docker-up docker-dev-up docker-down docker-logs docker-restart docker-shell \
         docker-rebuild
 
@@ -24,12 +24,13 @@ help:
 	@echo ""
 	@echo "  $(YELLOW)Development:$(NC)"
 	@echo "    make dev            Setup virtualenv & install dependencies"
-	@echo "    make install        Install dependencies saja"
+	@echo "    make install        Install dependencies produksi saja"
+	@echo "    make install-dev    Install dependencies produksi + dev (pytest, ruff)"
 	@echo "    make run            Jalankan dev server (python run.py)"
 	@echo "    make run-prod       Jalankan production server (Gunicorn)"
 	@echo "    make backup         Backup database manual"
 	@echo "    make test           Jalankan pytest"
-	@echo "    make lint           Cek undefined name (ruff/pyflakes)"
+	@echo "    make lint           Lint dengan ruff (undefined name, import tak terpakai)"
 	@echo "    make health         Test health endpoint"
 	@echo "    make clean          Hapus venv, cache, log, backup lama"
 	@echo ""
@@ -55,7 +56,7 @@ $(VENV)/bin/activate:
 	@echo "$(GREEN)Creating virtualenv...$(NC)"
 	python3 -m venv $(VENV)
 	$(PIP) install --upgrade pip
-	$(PIP) install -r requirements.txt
+	$(PIP) install -r requirements-dev.txt
 	@if [ ! -f .env ]; then \
 		echo "$(YELLOW)Creating .env from .env.example...$(NC)"; \
 		cp .env.example .env; \
@@ -66,6 +67,9 @@ $(VENV)/bin/activate:
 
 install:
 	$(PIP) install -r requirements.txt
+
+install-dev:
+	$(PIP) install -r requirements-dev.txt
 
 run:
 	@if [ ! -f .env ]; then echo "$(RED).env tidak ada! Jalankan: make dev$(NC)"; exit 1; fi
@@ -91,8 +95,8 @@ test:
 	$(PYTHON) -m pytest -q
 
 lint:
-	@echo "$(GREEN)Lint (ruff / pyflakes)...$(NC)"
-	@$(PYTHON) -m ruff check app run.py 2>/dev/null || $(PYTHON) -m pyflakes app run.py
+	@echo "$(GREEN)Lint (ruff)...$(NC)"
+	$(PYTHON) -m ruff check app run.py
 
 health:
 	@echo "$(GREEN)Testing health endpoint...$(NC)"

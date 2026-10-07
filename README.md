@@ -2,11 +2,11 @@
 
 Platform monitoring IoT real-time untuk perangkat ESP32, ESP8266, Arduino, dan Raspberry Pi. Menyediakan dashboard web, peta interaktif, analitik multi-chart yang bisa di-drag, sistem alert berjenjang dengan notifikasi Telegram, absensi berbasis RFID, dan asisten AI yang terhubung langsung ke database.
 
-![Version](https://img.shields.io/badge/version-6.0.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/version-6.5.0-blue?style=flat-square)
 ![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Flask-3.1.3-000000?style=flat-square&logo=flask&logoColor=white)
 ![SQLite](https://img.shields.io/badge/SQLite-WAL-003B57?style=flat-square&logo=sqlite&logoColor=white)
-![Gunicorn](https://img.shields.io/badge/Gunicorn-21.2.0-499848?style=flat-square&logo=gunicorn&logoColor=white)
+![Gunicorn](https://img.shields.io/badge/Gunicorn-23.0.0-499848?style=flat-square&logo=gunicorn&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-compose-2496ED?style=flat-square&logo=docker&logoColor=white)
 ![Nginx](https://img.shields.io/badge/Nginx-alpine-009639?style=flat-square&logo=nginx&logoColor=white)
 ![Chart.js](https://img.shields.io/badge/Chart.js-4.4.0-FF6384?style=flat-square&logo=chartdotjs&logoColor=white)
@@ -36,7 +36,9 @@ Platform monitoring IoT real-time untuk perangkat ESP32, ESP8266, Arduino, dan R
 17. [Makefile Reference](#makefile-reference)
 18. [Keamanan](#keamanan)
 19. [Troubleshooting](#troubleshooting)
-20. [Lisensi](#lisensi)
+20. [Kebijakan dan Perilaku Penting](#kebijakan-dan-perilaku-penting)
+21. [Pengembangan dan Tes](#pengembangan-dan-tes)
+22. [Lisensi](#lisensi)
 
 ---
 
@@ -114,7 +116,7 @@ Dirancang untuk berjalan di lingkungan produksi: Gunicorn multi-worker, Nginx se
 |-------|-----------|-------|
 | Bahasa | Python | 3.11 |
 | Web Framework | Flask | 3.1.3 |
-| WSGI Server | Gunicorn | 21.2.0 |
+| WSGI Server | Gunicorn | 23.0.0 |
 | Database | SQLite (WAL mode) | Bawaan Python 3.11 |
 | Templating | Jinja2 | 3.1.6 |
 | Form / CSRF | Flask-WTF / WTForms | 1.2.2 / 3.1.2 |
@@ -667,7 +669,7 @@ nexus-iot/
 │   ├── chat.py                   # NEXUS AI chat + tool calling
 │   ├── config.py                 # Konfigurasi + validasi env
 │   ├── dashboards.py             # Dashboard, tab, widget
-│   ├── database.py               # Layer SQLite + 14 migrations
+│   ├── database.py               # Layer SQLite + 16 migrations
 │   ├── decorators.py             # Helper decorator
 │   ├── extensions.py             # CORS, CSRF, Limiter
 │   ├── logging_config.py         # Setup log rotating
@@ -675,6 +677,9 @@ nexus-iot/
 │   ├── utils.py                  # Helper: hash, lock, validator
 │   ├── validators.py             # Marshmallow schema
 │   └── views.py                  # Web routes HTML
+├── .github/
+│   └── workflows/
+│       └── ci.yml                # Lint + pytest di GitHub Actions
 ├── esp32/
 │   ├── main.py                   # Firmware MicroPython
 │   └── secrets.example.py        # Template kredensial (salin ke secrets.py)
@@ -705,6 +710,7 @@ nexus-iot/
 │       ├── sidebar.js
 │       ├── theme.js
 │       └── toast.js
+├── tests/                        # Tes pytest (conftest.py + test_phase*.py)
 ├── templates/
 │   ├── alerts.html               # Redirect ke /#alerts
 │   ├── base.html                 # Base template
@@ -725,12 +731,16 @@ nexus-iot/
 ├── .env.example
 ├── .gitignore
 ├── docker-compose.yml
+├── docker-compose.override.yml   # Hanya development (mount kode)
 ├── docker-entrypoint.sh
 ├── Dockerfile
 ├── LICENSE
 ├── Makefile
+├── CHANGELOG.md
 ├── README.md
-├── requirements.txt
+├── requirements.txt          # Dependensi produksi
+├── requirements-dev.txt      # + pytest, ruff (dev dan CI)
+├── ruff.toml                 # Aturan lint
 ├── run.py                        # Entry point
 └── run.sh                        # Script start
 ```
@@ -966,7 +976,7 @@ Worker yang tidak mendapat lock **tidak berhenti**: ia mencoba lagi tiap 30 deti
 
 ## Database dan Migrations
 
-Database: SQLite dengan mode WAL. Schema saat ini versi 14.
+Database: SQLite dengan mode WAL. Schema saat ini versi 16.
 
 ### Tabel
 
@@ -984,7 +994,8 @@ Database: SQLite dengan mode WAL. Schema saat ini versi 14.
 | `dashboards` | Dashboard per pengguna |
 | `analytics_tabs` | Tab analitik per dashboard |
 | `widgets` | Widget chart per tab |
-| `user_settings` | Key-value settings per user |
+| `user_settings` | Key-value settings per user (juga menyimpan global alert rules dan heartbeat background task) |
+| `login_failures` | Penghitung login gagal untuk throttle (per username+IP dan per IP) |
 
 ### Migration
 
@@ -1008,6 +1019,8 @@ Daftar migrasi:
 | 12 | Multi-user: tabel `users`, kolom `user_id` pada dashboards |
 | 13 | Perbaikan referensi FK yang stale |
 | 14 | Verifikasi dan perbaikan integritas FK |
+| 15 | Kolom `devices.interval_manual` (interval manual tidak ditimpa auto-detect) |
+| 16 | Tabel `login_failures` untuk throttle login |
 
 ### Retention
 
@@ -1180,12 +1193,15 @@ Background task sudah aman untuk multi-worker karena dilindungi file lock. Hanya
 | Target | Fungsi |
 |--------|--------|
 | `make help` | Tampilkan daftar target |
-| `make dev` | Setup virtualenv, install dependency, buat `.env` |
-| `make install` | Install dependency saja |
+| `make dev` | Setup virtualenv, install dependency (termasuk dev), buat `.env` |
+| `make install` | Install dependency produksi saja |
+| `make install-dev` | Install dependency produksi + dev (pytest, ruff) |
 | `make run` | Jalankan dev server |
 | `make run-prod` | Jalankan Gunicorn di foreground |
 | `make backup` | Backup database manual |
-| `make test` | Test endpoint `/health` |
+| `make test` | Jalankan `pytest -q` |
+| `make lint` | `ruff check app run.py` (undefined name, import tak terpakai) |
+| `make health` | Cek endpoint `/health` pada server yang sedang jalan |
 | `make clean` | Hapus venv, cache, dan file sementara |
 
 ### Docker
@@ -1403,16 +1419,11 @@ docker compose restart nexus-iot
 
 ---
 
-## Lisensi
+## Kebijakan dan Perilaku Penting
 
-MIT License. Lihat file [LICENSE](LICENSE) untuk teks lengkap.
+Ringkasan perilaku yang sengaja diubah pada perbaikan V6.5 dan perlu diketahui operator.
 
-Copyright (c) 2026 NEXUS IoT Platform
-
-
----
-
-## Kebijakan peran admin (C2)
+### Kebijakan peran admin (C2)
 
 Semua route yang **mengubah** data adalah admin-only dan dijaga di backend (JSON `403` untuk non-admin):
 tambah/ubah/hapus device, regenerate API key, ubah/reset alert rules per device, Bulk Import,
@@ -1420,42 +1431,74 @@ tambah/hapus pemegang kartu (cardholder), tes notifikasi, serta manajemen user/b
 Request `GET` (baca) tetap terbuka untuk semua user yang login. Tombol terkait disembunyikan di UI untuk non-admin,
 tetapi backend adalah sumber kebenaran.
 
-## Alert rules: global + override per device (C3/C4)
+### Password admin (H3)
+
+`IOT_USERNAME` / `IOT_PASSWORD` di `.env` hanya dipakai **sekali** untuk membuat admin pertama (saat tabel `users` masih kosong; instalasi lama sudah punya admin dari migrasi v12).
+Setelah itu login hanya memakai hash di database. Untuk mengganti password admin gunakan UI (**Ganti Password**); mengubah `IOT_PASSWORD` di `.env` tidak berpengaruh pada admin yang sudah ada.
+
+### Cookie sesi dan HTTPS (H7)
+
+`SESSION_COOKIE_SECURE` tidak lagi dipaksa `True` di production. Jika env tidak di-set, nilainya mengikuti `ENABLE_HSTS`.
+Header HSTS hanya dikirim bila `ENABLE_HSTS=True`. Jika production berjalan dengan `SESSION_COOKIE_SECURE=False`,
+log start memuat peringatan (gunakan hanya di jaringan tepercaya tanpa HTTPS).
+
+### Alert rules: global + override per device (C3/C4)
 
 - **Global rules** (menu *Global Rules*, tersimpan di DB) menimpa default `config.ALERT_RULES` **per sensor** dan dibaca langsung oleh mesin alert.
   Hasilnya di-cache ±45 detik; perubahan langsung berlaku di worker yang menerima request, worker lain menyusul paling lama sekitar 45 detik.
   *Reset* global rules mengembalikan ke default config. Jika data tersimpan korup, default dipakai (peringatan dicatat di log).
 - **Rules per device** menimpa global **hanya untuk sensor yang didefinisikan**; sensor lain mengikuti global.
 
-## Cookie sesi dan HTTPS (H7)
-
-`SESSION_COOKIE_SECURE` tidak lagi dipaksa `True` di production. Jika env tidak di-set, nilainya mengikuti `ENABLE_HSTS`.
-Header HSTS hanya dikirim bila `ENABLE_HSTS=True`. Jika production berjalan dengan `SESSION_COOKIE_SECURE=False`,
-log start memuat peringatan (gunakan hanya di jaringan tepercaya tanpa HTTPS).
-
-## Menjalankan tes
-
-```bash
-pip install -r requirements.txt pytest ruff
-make test     # pytest -q
-make lint     # ruff check / pyflakes (cek undefined name)
-```
-
-## Password admin (H3)
-
-`IOT_USERNAME` / `IOT_PASSWORD` di `.env` hanya dipakai **sekali** untuk membuat admin pertama (saat tabel `users` masih kosong; instalasi lama sudah punya admin dari migrasi v12).
-Setelah itu login hanya memakai hash di database. Untuk mengganti password admin gunakan UI (**Ganti Password**); mengubah `IOT_PASSWORD` di `.env` tidak berpengaruh pada admin yang sudah ada.
-
-## Interval device: manual vs otomatis (N2)
+### Interval device: manual vs otomatis (N2)
 
 - Mengisi **Expected Interval** (saat tambah/edit device) menandai interval sebagai **manual**; auto-detect tidak akan menimpanya.
 - Mengosongkan field di form edit mengembalikan device ke mode **otomatis**.
 - Auto-detect hanya untuk device non-manual: butuh minimal 5 data terakhir, selisih < 2 detik diabaikan, hasil tidak di bawah 10 detik, dan hanya menulis bila berubah > 20%.
 - Menyimpan form edit dengan nilai yang sama dengan hasil auto-detect tidak mengubah mode.
 
-## Payload `/api/v1/data` (M1) dan UID kartu (N4)
+### Payload `/api/v1/data` (M1) dan UID kartu (N4)
 
 - Body maksimal `DATA_MAX_BYTES` (default 8192 byte), lebih dari itu HTTP 413.
 - `data` harus object datar, maks 32 key (`[a-zA-Z0-9_]{1,32}`); nilai berupa angka finite, boolean, atau string maks 64 karakter. `sensor_type` memakai `[A-Za-z0-9_-]{1,32}`.
 - UID RFID wajib string heksadesimal 4-32 karakter (boleh awalan `0x`, pemisah `:` atau `-`), mis. `0x010dd605`. Huruf besar/kecil dipertahankan apa adanya.
 - Ekspor CSV menetralkan sel berawalan `= + - @` (diberi awalan `'`).
+
+---
+
+## Pengembangan dan Tes
+
+### Menjalankan tes dan lint
+
+```bash
+make dev            # virtualenv + dependensi produksi dan dev (requirements-dev.txt)
+make test           # python -m pytest -q
+make lint           # ruff check app run.py
+```
+
+Tanpa Makefile:
+
+```bash
+pip install -r requirements-dev.txt
+python -m pytest -q
+ruff check app run.py
+```
+
+Tes memakai database sementara dan konfigurasi `testing`; tidak menyentuh `database/iot.db`. Nama berkas tes (`test_phaseN_*.py`) mengikuti urutan fase perbaikan; setiap temuan di [CHANGELOG](CHANGELOG.md) punya minimal satu tes.
+
+### CI
+
+`.github/workflows/ci.yml` menjalankan lint dan tes pada setiap push ke `main` dan setiap pull request (Python 3.11, dependensi dari `requirements-dev.txt`).
+Dependensi dev tidak dipasang di image Docker (`Dockerfile` hanya memasang `requirements.txt`; `requirements-dev.txt`, `tests/`, dan `.github/` dikecualikan lewat `.dockerignore`).
+
+### Versi
+
+Versi aplikasi didefinisikan satu kali di `app/__init__.py` (`__version__`) dan dipakai oleh `/health`, `/system/info` (kartu **Versi Aplikasi** di UI), serta dicek oleh tes terhadap badge README dan judul CHANGELOG.
+Saat menaikkan versi: ubah `__version__`, badge di README, dan tambahkan judul `## V<versi>` di CHANGELOG, lalu jalankan `make test`.
+
+---
+
+## Lisensi
+
+MIT License. Lihat file [LICENSE](LICENSE) untuk teks lengkap.
+
+Copyright (c) 2026 NEXUS IoT Platform

@@ -10,7 +10,7 @@ from app.logging_config import setup_logging
 from app.database import init_db, close_db, get_wib_time
 from app.extensions import cors, csrf, limiter
 
-__version__ = '6.0.0'
+__version__ = '6.5.0'
 
 config = get_config()
 logger = setup_logging(config)

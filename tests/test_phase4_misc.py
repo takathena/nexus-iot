@@ -64,7 +64,7 @@ def test_frontend_no_longer_navigates_to_logout_via_get(path):
 
 def test_health_reports_single_version_constant(anon_client):
     body = anon_client.get('/health').get_json()
-    assert body['version'] == app_pkg.__version__ == '6.0.0'
+    assert body['version'] == app_pkg.__version__
 
 
 def test_health_failure_does_not_leak_error(anon_client, monkeypatch):

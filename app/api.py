@@ -1497,6 +1497,7 @@ def export_attendance():
 @login_required
 @limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
 def get_system_info():
+    from app import __version__
     config = get_config()
 
     with get_db_context() as conn:
@@ -1520,7 +1521,7 @@ def get_system_info():
     return jsonify({
         'success': True,
         'info': {
-            'version': '4.3',
+            'version': __version__,
             'device_count': device_count,
             'sensor_data_count': sensor_count,
             'active_alerts': alert_count,

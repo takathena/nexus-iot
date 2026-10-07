@@ -1,5 +1,74 @@
 # Changelog
 
+## V6.5.0
+
+Rilis yang menggabungkan perbaikan fase 1–5 (sebelumnya 6.0.0). Rincian teknis per fase ada di bagian bawah.
+
+### Ringkasan per ID temuan
+
+| ID | Perbaikan | Fase |
+|----|-----------|------|
+| N1 | Bulk Import tidak lagi selalu 500 (impor schema hilang) | 1 |
+| C2 | Semua route tulis admin-only (`admin_required`) | 1 |
+| C3 | Global Alert Rules dibaca mesin alert | 1 |
+| C4 | Rules per device menimpa sebagian, bukan total | 1 |
+| H7 | `SESSION_COOKIE_SECURE` dan HSTS mengikuti env | 1 |
+| H3 | Password `.env` hanya seed admin pertama | 2 |
+| N2 | Interval manual tidak ditimpa auto-detect (migrasi v15) | 2 |
+| N3 | Statistik hadir hanya menghitung kartu terdaftar | 2 |
+| N4 | Validasi UID RFID, ekspor CSV anti formula-injection | 2 |
+| M1 | Validasi dan batas ukuran payload `/data` | 2 |
+| H6 | Notifikasi Telegram aman (HTML escape + fallback) | 3 |
+| H4 | Rate limit: storage dari config, kuota per device, throttle login (migrasi v16) | 3 |
+| H2 | Background task: ambil alih lock + heartbeat | 3 |
+| M3 | Retensi backup aman | 3 |
+| H1 | Restore database diterapkan saat start | 3 |
+| H5 | Timeout Nginx chat, keepalive upstream, flag Gunicorn | 3 |
+| M9 | Gunicorn 23.0.0, port 5008 konsisten, compose produksi tanpa mount kode | 3 |
+| M4 | Hardening AI chat | 4 |
+| M7 | Logout `POST`, `/health` dan handler 500 tanpa bocor error | 4 |
+| N7 | Chat disembunyikan bila LLM belum dikonfigurasi | 4 |
+| C1 | Firmware membaca kredensial dari `esp32/secrets.py` (sisi kode) | 4 |
+| — | Versi V6.5, tes/CI/dokumentasi (lihat Fase 5) | 5 |
+
+### Terlihat oleh pengguna
+
+- Versi aplikasi menjadi **6.5.0** di `/health`, `/system/info`, dan kartu **Versi Aplikasi** di UI. Sebelumnya `/system/info` menulis `4.3` secara hardcode sehingga UI menampilkan angka yang berbeda dari `/health`.
+- User non-admin tidak bisa lagi mengubah/menghapus device, kartu, atau mengirim tes notifikasi (HTTP 403).
+- Logout memakai `POST`; port publik default 5008; password admin hanya lewat UI setelah akun pertama dibuat.
+
+### Fase 5 — tes, CI, dokumentasi
+
+- **Versi** `app.__version__` = `6.5.0` sebagai satu-satunya sumber; `/system/info` kini memakainya (sebelumnya `'4.3'`). Tes `test_phase4_misc.py` tidak lagi meng-hardcode angka versi.
+- **Dependensi dev** dipisah ke `requirements-dev.txt` (`-r requirements.txt`, `pytest`, `ruff`). Image Docker tetap hanya memasang `requirements.txt`; `requirements-dev.txt`, `ruff.toml`, `tests/`, `.github/` masuk `.dockerignore`.
+- **Makefile** `make test` = `pytest -q`; `make lint` = `ruff check app run.py` dan tidak lagi menelan kegagalan (`2>/dev/null ||` dihapus); `make dev` memasang dependensi dev; target baru `make install-dev`.
+- **CI** `.github/workflows/ci.yml`: Python 3.11, `ruff check app run.py` lalu `python -m pytest -q` pada push ke `main` dan pull request.
+- **ruff.toml** hanya memilih `E9` dan `F` (kesalahan nyata: undefined name, import tak terpakai); `esp32/` dikecualikan (MicroPython).
+- **README** badge versi dan Gunicorn dikoreksi (23.0.0), dokumentasi migrasi sampai v16 (`interval_manual`, `login_failures`), struktur proyek dan referensi Makefile diperbarui, catatan perilaku fase 1–4 dipindah ke bagian bernomor dalam Daftar Isi (**Kebijakan dan Perilaku Penting**), ditambah **Pengembangan dan Tes** (tes, CI, aturan versi).
+- **Tes** `tests/test_phase5_release.py`: versi konsisten di kode, `/health`, `/system/info`, README, CHANGELOG; versi Gunicorn README = `requirements.txt`; pemisahan dependensi dev; isi workflow CI; target Makefile.
+
+### Tindakan manusia (di luar kode)
+
+1. Regenerate API key device yang pernah bocor (C1) dari dashboard dan ganti password WiFi; anggap key lama sudah bocor.
+2. Bersihkan riwayat git dari kredensial lama (`git filter-repo`) dan periksa apakah repo GitHub publik.
+3. Ganti `IOT_PASSWORD` dan `SECRET_KEY` di server produksi setelah fase 2 diterapkan.
+4. Aktifkan HTTPS/TLS di depan Nginx bila diakses lewat jaringan yang tidak sepenuhnya tepercaya, lalu set `ENABLE_HSTS=True`.
+5. Periksa `offline_timeout` di database lama (migrasi v5 memberi default 900).
+
+### Keputusan terbuka
+
+- Tool absensi chat (`get_present_today`, `get_absent_today`, `get_attendance_range`, `get_cardholders`) masih terbuka untuk semua user login; apakah dibatasi hanya admin?
+- Chat dianggap terkonfigurasi hanya bila `LLM_API_KEY` terisi. Pengguna LLM lokal yang mengandalkan default `sk-no-key` perlu mengisi nilai apa saja.
+
+### Temuan tambahan (belum diperbaiki)
+
+- `make run-prod` dan contoh systemd di README menjalankan Gunicorn tanpa `--timeout`, `--graceful-timeout`, `--max-requests` seperti pada `CMD` Dockerfile.
+- Lint hanya mencakup `app` dan `run.py`; folder `tests/` belum dilint.
+
+---
+
+## Rincian per fase
+
 ## Fase 1 — perbaikan cepat
 - **N1** Bulk Import tidak lagi selalu 500: `bulk_import_item_schema` kini diimpor. Target `make lint` ditambahkan agar `undefined name` tertangkap.
 - **C2** Semua route tulis (device, regenerate-key, alert-rules per device, bulk-import, cardholders, tes notifikasi) admin-only lewat decorator `admin_required`; pola `_require_admin()` dihapus. Kontrol terkait disembunyikan untuk non-admin di UI desktop dan mobile.
