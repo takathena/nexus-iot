@@ -1,6 +1,6 @@
 """
 NEXUS IoT - Database Layer
-Schema version 14: multi-user + multi-dashboard + analytics tabs (FK repair v2).
+Schema version 15: multi-user + multi-dashboard + analytics tabs (FK repair v2) + devices.interval_manual.
 """
 import os
 import sqlite3
@@ -70,7 +70,7 @@ def get_db_context():
         conn.close()
 
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 WIB_DEFAULT = "(datetime('now', '+7 hours'))"
 
 
@@ -127,6 +127,7 @@ def _init_db_inner():
             (12, _migrate_v12),
             (13, _migrate_v13),
             (14, _migrate_v14),
+            (15, _migrate_v15),
         ]
 
         for version, migrate_fn in migrations:
@@ -874,3 +875,11 @@ def _migrate_v14(cursor):
     finally:
         if fk_was_on:
             cursor.execute('PRAGMA foreign_keys=ON')
+
+
+def _migrate_v15(cursor):
+    """devices.interval_manual: 1 = interval diisi manual, auto-detect dimatikan."""
+    cols = [r[1] for r in cursor.execute('PRAGMA table_info(devices)').fetchall()]
+    if 'interval_manual' not in cols:
+        cursor.execute('ALTER TABLE devices ADD COLUMN interval_manual INTEGER DEFAULT 0')
+        print("[DB] v15: added column devices.interval_manual")

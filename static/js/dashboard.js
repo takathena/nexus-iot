@@ -914,6 +914,8 @@
         const intervalVal = ($('editDeviceInterval') || {}).value;
         if (intervalVal && parseInt(intervalVal) >= 10) {
             payload.expected_interval = parseInt(intervalVal);
+        } else if ($('editDeviceInterval') && intervalVal === '') {
+            payload.expected_interval = null; // kosong = kembali ke mode otomatis
         }
 
         const offlineTimeout = ($('editDeviceOfflineTimeout') || {}).value;

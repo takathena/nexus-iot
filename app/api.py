@@ -10,17 +10,17 @@ import io
 import os
 import sqlite3
 from datetime import timedelta, datetime
-from flask import Blueprint, request, jsonify, Response
+from flask import Blueprint, request, jsonify, Response, current_app
 from marshmallow import ValidationError
 
 from app.database import get_db_context, get_wib_time
 from app.validators import (
     device_create_schema, device_update_schema, sensor_data_schema,
-    bulk_import_item_schema,
+    bulk_import_item_schema, normalize_uid,
 )
 from app.utils import (
     generate_api_key, safe_json_loads, validate_alert_rules,
-    hash_api_key, verify_api_key,
+    hash_api_key, verify_api_key, csv_safe,
 )
 from app.alerts import (
     check_and_create_alerts, get_active_alerts, get_alert_history,
@@ -112,6 +112,39 @@ def _alert_label(alert_type, severity):
     return f"{base} — {sev_labels.get(severity, severity)}"
 
 
+AUTO_INTERVAL_MIN_SAMPLES = 5      # minimal jumlah data terakhir
+AUTO_INTERVAL_MIN_DELTAS = 3       # minimal selisih valid
+AUTO_INTERVAL_IGNORE_BELOW = 2     # detik: selisih lebih kecil diabaikan
+AUTO_INTERVAL_FLOOR = 10           # detik: interval otomatis tidak di bawah ini
+
+
+def _detect_interval(conn, device_id):
+    """Perkirakan interval kirim (detik) dari median selisih data terakhir.
+
+    Return None bila sampel belum cukup. Tidak menulis apa pun ke DB.
+    """
+    from app.utils import parse_datetime
+    rows = conn.execute(
+        'SELECT timestamp FROM sensor_data WHERE device_id = ? '
+        'ORDER BY timestamp DESC LIMIT 10', (device_id,)
+    ).fetchall()
+    if len(rows) < AUTO_INTERVAL_MIN_SAMPLES:
+        return None
+
+    stamps = [t for t in (parse_datetime(r['timestamp']) for r in rows) if t]
+    deltas = []
+    for i in range(len(stamps) - 1):
+        d = (stamps[i] - stamps[i + 1]).total_seconds()
+        if AUTO_INTERVAL_IGNORE_BELOW <= d < 86400:
+            deltas.append(d)
+    if len(deltas) < AUTO_INTERVAL_MIN_DELTAS:
+        return None
+
+    deltas.sort()
+    median = deltas[len(deltas) // 2]
+    return max(AUTO_INTERVAL_FLOOR, min(86400, int(round(median))))
+
+
 # ==========================================
 # DEVICE-FACING ENDPOINT
 # ==========================================
@@ -121,14 +154,24 @@ def _alert_label(alert_type, severity):
 def receive_data():
     from werkzeug.exceptions import RequestEntityTooLarge
 
+    # Batas ukuran khusus endpoint device (default 8 KB, DATA_MAX_BYTES).
+    max_bytes = int(current_app.config.get('DATA_MAX_BYTES') or get_config().DATA_MAX_BYTES)
+    too_large = (jsonify({
+        'success': False,
+        'error': f'Payload terlalu besar. Maksimal {max_bytes} byte.',
+        'max_bytes': max_bytes,
+    }), 413)
+
+    if request.content_length is not None and request.content_length > max_bytes:
+        return too_large
+
     try:
+        raw_body = request.get_data(cache=True)
+        if len(raw_body) > max_bytes:
+            return too_large
         payload = request.get_json(silent=True)
     except RequestEntityTooLarge:
-        max_mb = get_config().MAX_CONTENT_LENGTH / (1024 * 1024)
-        return jsonify({
-            'success': False,
-            'error': f'Payload terlalu besar. Maksimal {max_mb:.1f} MB.',
-        }), 413
+        return too_large
 
     try:
         if not payload:
@@ -143,6 +186,16 @@ def receive_data():
             logger.warning(f"Invalid API key attempt: device={data['device_id']}")
             return jsonify({'success': False, 'error': 'Invalid device_id or api_key'}), 401
 
+        # Data RFID: UID wajib string heksadesimal yang valid (ditolak sebelum disimpan).
+        rfid_uid = None
+        if data['sensor_type'] == 'RFID' and 'uid' in data['data']:
+            rfid_uid = normalize_uid(data['data'].get('uid'))
+            if rfid_uid is None:
+                return jsonify({
+                    'success': False,
+                    'error': 'Format UID tidak valid (hex 4-32 karakter, boleh awalan 0x)',
+                }), 400
+
         with get_db_context() as conn:
             conn.execute('''
                 INSERT INTO sensor_data
@@ -155,44 +208,22 @@ def receive_data():
             ))
 
             try:
-                recent = conn.execute('''
-                    SELECT timestamp FROM sensor_data
-                    WHERE device_id = ?
-                    ORDER BY timestamp DESC LIMIT 5
-                ''', (data['device_id'],)).fetchall()
-
-                if len(recent) >= 2:
-                    from app.utils import parse_datetime
-                    timestamps = []
-                    for r in recent:
-                        dt = parse_datetime(r['timestamp'])
-                        if dt:
-                            timestamps.append(dt)
-
-                    if len(timestamps) >= 2:
-                        deltas = []
-                        for i in range(len(timestamps) - 1):
-                            d = (timestamps[i] - timestamps[i+1]).total_seconds()
-                            if 1 < d < 86400:
-                                deltas.append(d)
-
-                        if deltas:
-                            deltas.sort()
-                            median = deltas[len(deltas) // 2]
-                            auto_int = max(10, min(86400, int(round(median))))
-
-                            cur = conn.execute(
-                                'SELECT expected_interval FROM devices WHERE device_id = ?',
-                                (data['device_id'],)
-                            ).fetchone()
-                            cur_int = cur['expected_interval'] if cur else None
-
-                            if cur_int != auto_int:
-                                conn.execute(
-                                    'UPDATE devices SET expected_interval = ? WHERE device_id = ?',
-                                    (auto_int, data['device_id'])
-                                )
-                                logger.info(f"Auto-detected interval for {data['device_id']}: {auto_int}s")
+                dev = conn.execute(
+                    'SELECT expected_interval, interval_manual FROM devices WHERE device_id = ?',
+                    (data['device_id'],)
+                ).fetchone()
+                # Auto-detect hanya untuk device yang intervalnya TIDAK diisi manual.
+                if dev and not dev['interval_manual']:
+                    auto_int = _detect_interval(conn, data['device_id'])
+                    cur_int = dev['expected_interval']
+                    if auto_int is not None and (
+                        not cur_int or abs(auto_int - cur_int) > 0.2 * cur_int
+                    ):
+                        conn.execute(
+                            'UPDATE devices SET expected_interval = ? WHERE device_id = ?',
+                            (auto_int, data['device_id'])
+                        )
+                        logger.info(f"Auto-detected interval for {data['device_id']}: {auto_int}s")
             except Exception as e:
                 logger.debug(f"Auto-detect interval failed for {data['device_id']}: {e}")
 
@@ -201,7 +232,7 @@ def receive_data():
         update_device_status(data['device_id'], 'online', request.remote_addr)
 
         if data['sensor_type'] == 'RFID':
-            uid = data['data'].get('uid')
+            uid = rfid_uid
             if uid:
                 with get_db_context() as conn:
                     cutoff = get_wib_time() - timedelta(seconds=30)
@@ -322,10 +353,11 @@ def add_device():
         api_key = generate_api_key()
         api_key_hash = hash_api_key(api_key)
 
-        # expected_interval: pakai input user jika ada, else auto-detect (None)
-        expected_interval = data.get('expected_interval')
-        if expected_interval == 60:
-            expected_interval = None
+        # expected_interval: diisi eksplisit oleh user => manual (auto-detect mati).
+        # Tidak diisi => None dan auto-detect aktif.
+        explicit_interval = payload.get('expected_interval') is not None
+        expected_interval = data.get('expected_interval') if explicit_interval else None
+        interval_manual = 1 if explicit_interval else 0
 
         firmware_version = (data.get('firmware_version') or '').strip()
         offline_timeout = data.get('offline_timeout')
@@ -351,15 +383,15 @@ def add_device():
                 (device_id, device_name, device_type, location, description,
                  firmware_version,
                  api_key, api_key_hash, offline_timeout, expected_interval,
-                 alert_rules, offline_alert_severity, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 alert_rules, offline_alert_severity, created_at, interval_manual)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 data['device_id'], data['device_name'], data['device_type'],
                 data['location'], data['description'],
                 firmware_version,
                 None, api_key_hash,
                 offline_timeout, expected_interval,
-                alert_rules_json, offline_severity, get_wib_time()
+                alert_rules_json, offline_severity, get_wib_time(), interval_manual
             ))
             conn.commit()
 
@@ -553,6 +585,18 @@ def update_device(device_id):
             else:
                 alert_rules_json = device['alert_rules']
 
+            # Interval: nilai baru yang BERBEDA dari yang tersimpan = pilihan manual.
+            # Nilai sama (mis. form edit yang terisi hasil auto-detect) tidak mengubah mode.
+            # None = kembali ke mode otomatis.
+            new_interval = device['expected_interval']
+            new_manual = device['interval_manual'] or 0
+            if 'expected_interval' in data:
+                requested = data['expected_interval']
+                if requested is None:
+                    new_interval, new_manual = None, 0
+                elif requested != device['expected_interval']:
+                    new_interval, new_manual = requested, 1
+
             updates = {
                 'device_name': data.get('device_name', device['device_name']),
                 'device_type': data.get('device_type', device['device_type']),
@@ -562,7 +606,8 @@ def update_device(device_id):
                 'latitude': data.get('latitude', device['latitude']),
                 'longitude': data.get('longitude', device['longitude']),
                 'offline_timeout': new_offline_timeout,
-                'expected_interval': data.get('expected_interval', device['expected_interval']),
+                'expected_interval': new_interval,
+                'interval_manual': new_manual,
                 'offline_alert_severity': data.get('offline_alert_severity', device['offline_alert_severity']),
                 'alert_rules': alert_rules_json,
             }
@@ -573,6 +618,7 @@ def update_device(device_id):
                     description = ?, firmware_version = ?,
                     latitude = ?, longitude = ?,
                     offline_timeout = ?, expected_interval = ?,
+                    interval_manual = ?,
                     offline_alert_severity = ?, alert_rules = ?
                 WHERE device_id = ?
             ''', (
@@ -580,6 +626,7 @@ def update_device(device_id):
                 updates['description'], updates['firmware_version'],
                 updates['latitude'], updates['longitude'],
                 updates['offline_timeout'], updates['expected_interval'],
+                updates['interval_manual'],
                 updates['offline_alert_severity'], updates['alert_rules'], device_id
             ))
             conn.commit()
@@ -1091,7 +1138,7 @@ def export_device_data(device_id):
         writer = csv.DictWriter(output, fieldnames=headers, extrasaction='ignore')
         writer.writeheader()
         for r in records:
-            writer.writerow(r)
+            writer.writerow({k: csv_safe(v) for k, v in r.items()})
 
         filename = f"{device_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
         return Response(output.getvalue(), mimetype='text/csv',
@@ -1125,11 +1172,17 @@ def add_cardholder():
         if not payload:
             return jsonify({'success': False, 'error': 'Invalid JSON'}), 400
 
-        uid = payload.get('uid', '').strip()
-        nama = payload.get('nama', '').strip()
-
-        if not uid or not nama:
+        raw_nama = payload.get('nama', '')
+        nama = raw_nama.strip() if isinstance(raw_nama, str) else ''
+        if not payload.get('uid') or not nama:
             return jsonify({'success': False, 'error': 'uid dan nama wajib diisi'}), 400
+
+        uid = normalize_uid(payload.get('uid'))
+        if uid is None:
+            return jsonify({
+                'success': False,
+                'error': 'Format UID tidak valid (hex 4-32 karakter, boleh awalan 0x)',
+            }), 400
 
         with get_db_context() as conn:
             existing = conn.execute(
@@ -1280,9 +1333,11 @@ def get_attendance_stats():
     tomorrow_start = today_start + timedelta(days=1)
 
     with get_db_context() as conn:
+        # Hanya kartu yang terdaftar; kartu asing dihitung di kartu_belum_terdaftar.
         hadir_hari_ini = conn.execute('''
-            SELECT COUNT(DISTINCT uid) FROM attendance
-            WHERE timestamp >= ? AND timestamp < ?
+            SELECT COUNT(DISTINCT a.uid) FROM attendance a
+            JOIN cardholders c ON c.uid = a.uid
+            WHERE a.timestamp >= ? AND a.timestamp < ?
         ''', (today_start, tomorrow_start)).fetchone()[0]
 
         total_kartu_aktif = conn.execute('SELECT COUNT(*) FROM cardholders').fetchone()[0]
@@ -1422,10 +1477,10 @@ def export_attendance():
     writer.writerow(['ID', 'UID', 'Nama', 'Device ID', 'Timestamp'])
 
     for r in rows:
-        writer.writerow([
+        writer.writerow([csv_safe(v) for v in (
             r['id'], r['uid'], r['nama'], r['device_id'],
             _clean_timestamp(r['timestamp'])
-        ])
+        )])
 
     filename = f"attendance_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
     return Response(

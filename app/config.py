@@ -27,6 +27,8 @@ class Config:
     #   - Jika env SESSION_COOKIE_SECURE di-set eksplisit -> pakai nilai itu.
     #   - Jika tidak di-set -> ikut ENABLE_HSTS (HTTPS aktif => cookie Secure).
     # ENABLE_HSTS = penanda bahwa aplikasi diakses lewat HTTPS.
+    # Batas ukuran body khusus /api/v1/data (byte). Di atasnya -> 413.
+    DATA_MAX_BYTES = int(os.getenv('DATA_MAX_BYTES', 8192))
     ENABLE_HSTS = _env_bool('ENABLE_HSTS', False)
     SESSION_COOKIE_SECURE = _env_bool('SESSION_COOKIE_SECURE', ENABLE_HSTS)
     SESSION_COOKIE_HTTPONLY = True

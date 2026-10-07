@@ -1,6 +1,7 @@
 """
 NEXUS IoT - Authentication (Multi-User)
 """
+import hmac
 import time
 from functools import wraps
 from flask import (
@@ -111,54 +112,52 @@ def admin_required(f):
 
 
 def _authenticate(username, password):
-    config = get_config()
+    """Autentikasi HANYA lewat hash di tabel users.
 
-    if config.IOT_USERNAME and config.IOT_PASSWORD:
-        if username == config.IOT_USERNAME and password == config.IOT_PASSWORD:
-            with get_db_context() as conn:
-                user = conn.execute(
-                    'SELECT id, password_hash FROM users WHERE username = ?',
-                    (username,)
-                ).fetchone()
-
-                if user:
-                    try:
-                        if not check_password_hash(user['password_hash'], password):
-                            new_hash = generate_password_hash(password)
-                            conn.execute(
-                                'UPDATE users SET password_hash = ? WHERE id = ?',
-                                (new_hash, user['id'])
-                            )
-                            conn.commit()
-                            current_app.logger.info(
-                                f"Password hash synced for user '{username}'"
-                            )
-                    except Exception as e:
-                        current_app.logger.error(f"Password sync failed: {e}")
-
-                    return user['id']
-
-                try:
-                    pw_hash = generate_password_hash(password)
-                    cur = conn.execute('''
-                        INSERT INTO users (username, password_hash, display_name, is_admin)
-                        VALUES (?, ?, 'Administrator', 1)
-                    ''', (username, pw_hash))
-                    conn.commit()
-                    return cur.lastrowid
-                except Exception as e:
-                    current_app.logger.error(f"Gagal create user: {e}")
-                    return None
-
+    IOT_USERNAME/IOT_PASSWORD (.env) hanya dipakai sekali sebagai seed admin
+    pertama, yaitu ketika tabel users masih kosong. Setelah ada user, password
+    .env tidak pernah menimpa atau menggantikan hash yang tersimpan.
+    """
     with get_db_context() as conn:
         user = conn.execute(
             'SELECT id, password_hash FROM users WHERE username = ?', (username,)
         ).fetchone()
 
-    if user and check_password_hash(user['password_hash'], password):
-        return user['id']
+        if user:
+            try:
+                if check_password_hash(user['password_hash'], password):
+                    return user['id']
+            except Exception as e:
+                current_app.logger.error(f"Verifikasi password gagal: {e}")
+            return None
 
-    return None
+        total_users = conn.execute('SELECT COUNT(*) FROM users').fetchone()[0]
+        if total_users > 0:
+            return None
+
+        # Seed admin pertama dari .env (perbandingan timing-safe).
+        config = get_config()
+        env_user = config.IOT_USERNAME or ''
+        env_pass = config.IOT_PASSWORD or ''
+        if not env_user or not env_pass:
+            return None
+        same_user = hmac.compare_digest(username.encode('utf-8'), env_user.encode('utf-8'))
+        same_pass = hmac.compare_digest(password.encode('utf-8'), env_pass.encode('utf-8'))
+        if not (same_user and same_pass):
+            return None
+
+        try:
+            cur = conn.execute(
+                '''INSERT INTO users (username, password_hash, display_name, is_admin)
+                   VALUES (?, ?, 'Administrator', 1)''',
+                (username, generate_password_hash(password))
+            )
+            conn.commit()
+            current_app.logger.info(f"Admin awal '{username}' dibuat dari .env (seed)")
+            return cur.lastrowid
+        except Exception as e:
+            current_app.logger.error(f"Gagal membuat admin awal: {e}")
+            return None
 
 
 def ensure_user_dashboard(user_id, username):

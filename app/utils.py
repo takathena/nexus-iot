@@ -33,6 +33,19 @@ def verify_api_key(api_key_plain, api_key_hash):
     return hmac.compare_digest(computed, api_key_hash)
 
 
+_CSV_FORMULA_PREFIXES = ('=', '+', '-', '@', '\t', '\r')
+
+
+def csv_safe(value):
+    """Cegah CSV/formula injection: sel string berawalan = + - @ TAB CR diberi awalan '.
+
+    Hanya string yang diubah; angka/None dikembalikan apa adanya.
+    """
+    if isinstance(value, str) and value and value[0] in _CSV_FORMULA_PREFIXES:
+        return "'" + value
+    return value
+
+
 def safe_json_loads(data, default=None):
     if default is None:
         default = {}

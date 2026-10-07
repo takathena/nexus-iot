@@ -1774,6 +1774,7 @@ async function submitEditConfig(){
   };
   const interval = document.getElementById('editInterval').value;
   if(interval && parseInt(interval) >= 10) payload.expected_interval = parseInt(interval);
+  else if(interval === '') payload.expected_interval = null; // kosong = kembali ke mode otomatis
   const to = document.getElementById('editTimeout').value;
   if(to) payload.offline_timeout = parseInt(to);
   else payload.offline_timeout = null;

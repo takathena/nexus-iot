@@ -1408,3 +1408,22 @@ pip install -r requirements.txt pytest ruff
 make test     # pytest -q
 make lint     # ruff check / pyflakes (cek undefined name)
 ```
+
+## Password admin (H3)
+
+`IOT_USERNAME` / `IOT_PASSWORD` di `.env` hanya dipakai **sekali** untuk membuat admin pertama (saat tabel `users` masih kosong; instalasi lama sudah punya admin dari migrasi v12).
+Setelah itu login hanya memakai hash di database. Untuk mengganti password admin gunakan UI (**Ganti Password**); mengubah `IOT_PASSWORD` di `.env` tidak berpengaruh pada admin yang sudah ada.
+
+## Interval device: manual vs otomatis (N2)
+
+- Mengisi **Expected Interval** (saat tambah/edit device) menandai interval sebagai **manual**; auto-detect tidak akan menimpanya.
+- Mengosongkan field di form edit mengembalikan device ke mode **otomatis**.
+- Auto-detect hanya untuk device non-manual: butuh minimal 5 data terakhir, selisih < 2 detik diabaikan, hasil tidak di bawah 10 detik, dan hanya menulis bila berubah > 20%.
+- Menyimpan form edit dengan nilai yang sama dengan hasil auto-detect tidak mengubah mode.
+
+## Payload `/api/v1/data` (M1) dan UID kartu (N4)
+
+- Body maksimal `DATA_MAX_BYTES` (default 8192 byte), lebih dari itu HTTP 413.
+- `data` harus object datar, maks 32 key (`[a-zA-Z0-9_]{1,32}`); nilai berupa angka finite, boolean, atau string maks 64 karakter. `sensor_type` memakai `[A-Za-z0-9_-]{1,32}`.
+- UID RFID wajib string heksadesimal 4-32 karakter (boleh awalan `0x`, pemisah `:` atau `-`), mis. `0x010dd605`. Huruf besar/kecil dipertahankan apa adanya.
+- Ekspor CSV menetralkan sel berawalan `= + - @` (diberi awalan `'`).
