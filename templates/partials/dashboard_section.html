@@ -1,0 +1,244 @@
+<div id="dashboardSection">
+
+    <section class="nx-onboarding" id="onboardingCard" hidden data-needs="editor" aria-labelledby="onboardingTitle">
+        <h2 class="nx-onboarding__title" id="onboardingTitle">Mulai dengan perangkat pertama</h2>
+        <ol class="nx-onboarding__steps">
+            <li class="nx-onboarding__step">
+                <div class="nx-onboarding__num">1</div>
+                <div class="nx-onboarding__body">
+                    <div class="nx-onboarding__label">Tambah perangkat</div>
+                    <div class="nx-onboarding__hint">Beri nama dan pilih jenis perangkat.</div>
+                    <button class="nx-btn nx-btn--primary" type="button" data-action="add-device">
+                        <i class="fa-solid fa-plus"></i> Tambah perangkat
+                    </button>
+                </div>
+            </li>
+            <li class="nx-onboarding__step">
+                <div class="nx-onboarding__num">2</div>
+                <div class="nx-onboarding__body">
+                    <div class="nx-onboarding__label">Salin API key ke firmware</div>
+                    <div class="nx-onboarding__hint">Key hanya tampil sekali saat perangkat dibuat.</div>
+                </div>
+            </li>
+            <li class="nx-onboarding__step">
+                <div class="nx-onboarding__num">3</div>
+                <div class="nx-onboarding__body">
+                    <div class="nx-onboarding__label">Menunggu data pertama</div>
+                    <div class="nx-onboarding__hint">Kartu ini hilang otomatis begitu data pertama masuk.</div>
+                    <div class="nx-onboarding__wait"><span class="nx-pulse" aria-hidden="true"></span> Menunggu perangkat mengirim data…</div>
+                </div>
+            </li>
+        </ol>
+    </section>
+
+    <div class="overview-grid">
+        <div class="ring-card">
+            <div class="ring-wrap">
+                <svg viewBox="0 0 150 150" width="150" height="150">
+                    <circle class="ring-track" cx="75" cy="75" r="63"/>
+                    <circle class="ring-progress" id="healthRingProgress" cx="75" cy="75" r="63"
+                            stroke-dasharray="395.8" stroke-dashoffset="395.8"/>
+                </svg>
+                <div class="ring-center">
+                    <div class="pct" id="ringPct">0%</div>
+                    <div class="lbl">Sehat</div>
+                </div>
+            </div>
+            <div class="ring-caption" id="ringCaption">0 / 0 perangkat sehat</div>
+        </div>
+
+        <div class="nx-metrics nx-metrics--2">
+
+            <div class="nx-metric-card clickable" data-goto="devices" data-filter="all">
+                <div class="nx-metric-head">
+                    <span class="nx-metric-title">Total Perangkat</span>
+                    <div class="nx-metric-menu">
+                        <button class="nx-metric-menu-btn" type="button" aria-label="Menu">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <div class="nx-metric-menu__list">
+                            <button class="nx-metric-menu__item" data-action="view" data-key="totalDevices">
+                                <i class="fa-regular fa-eye"></i> Lihat detail
+                            </button>
+                            <button class="nx-metric-menu__item" data-action="copy" data-key="totalDevices">
+                                <i class="fa-regular fa-copy"></i> Salin nilai
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="nx-metric-body">
+                    <div class="nx-metric-value" id="totalDevices" data-value="totalDevices">0</div>
+                    <div class="nx-metric-spark" data-spark="totalDevices"></div>
+                </div>
+                <div class="nx-metric-foot">
+                    <span class="nx-metric-trend neutral" data-trend="totalDevices">
+                        <i class="fa-solid fa-minus"></i> 0%
+                    </span>
+                    <span class="nx-metric-trend-label" data-trend-label="totalDevices">vs 24 jam lalu</span>
+                </div>
+            </div>
+
+            <div class="nx-metric-card clickable" data-goto="alerts">
+                <div class="nx-metric-head">
+                    <span class="nx-metric-title">Notifikasi Aktif</span>
+                    <div class="nx-metric-menu">
+                        <button class="nx-metric-menu-btn" type="button" aria-label="Menu">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <div class="nx-metric-menu__list">
+                            <button class="nx-metric-menu__item" data-action="view" data-key="activeAlerts">
+                                <i class="fa-regular fa-eye"></i> Lihat detail
+                            </button>
+                            <button class="nx-metric-menu__item" data-action="copy" data-key="activeAlerts">
+                                <i class="fa-regular fa-copy"></i> Salin nilai
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="nx-metric-body">
+                    <div class="nx-metric-value warn" id="activeAlerts" data-value="activeAlerts">0</div>
+                    <div class="nx-metric-spark" data-spark="activeAlerts"></div>
+                </div>
+                <div class="nx-metric-foot">
+                    <span class="nx-metric-trend neutral" data-trend="activeAlerts">
+                        <i class="fa-solid fa-minus"></i> 0%
+                    </span>
+                    <span class="nx-metric-trend-label" data-trend-label="activeAlerts">vs 24 jam lalu</span>
+                </div>
+            </div>
+
+            <div class="nx-metric-card clickable" data-goto="devices" data-filter="online">
+                <div class="nx-metric-head">
+                    <span class="nx-metric-title">Online</span>
+                    <div class="nx-metric-menu">
+                        <button class="nx-metric-menu-btn" type="button" aria-label="Menu">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <div class="nx-metric-menu__list">
+                            <button class="nx-metric-menu__item" data-action="view" data-key="onlineDevices">
+                                <i class="fa-regular fa-eye"></i> Lihat detail
+                            </button>
+                            <button class="nx-metric-menu__item" data-action="copy" data-key="onlineDevices">
+                                <i class="fa-regular fa-copy"></i> Salin nilai
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="nx-metric-body">
+                    <div class="nx-metric-value ok" id="onlineDevices" data-value="onlineDevices">0</div>
+                    <div class="nx-metric-spark" data-spark="onlineDevices"></div>
+                </div>
+                <div class="nx-metric-foot">
+                    <span class="nx-metric-trend neutral" data-trend="onlineDevices">
+                        <i class="fa-solid fa-minus"></i> 0%
+                    </span>
+                    <span class="nx-metric-trend-label" data-trend-label="onlineDevices">vs 24 jam lalu</span>
+                </div>
+            </div>
+
+            <div class="nx-metric-card clickable" data-goto="devices" data-filter="offline">
+                <div class="nx-metric-head">
+                    <span class="nx-metric-title">Offline</span>
+                    <div class="nx-metric-menu">
+                        <button class="nx-metric-menu-btn" type="button" aria-label="Menu">
+                            <i class="fa-solid fa-ellipsis-vertical"></i>
+                        </button>
+                        <div class="nx-metric-menu__list">
+                            <button class="nx-metric-menu__item" data-action="view" data-key="offlineDevices">
+                                <i class="fa-regular fa-eye"></i> Lihat detail
+                            </button>
+                            <button class="nx-metric-menu__item" data-action="copy" data-key="offlineDevices">
+                                <i class="fa-regular fa-copy"></i> Salin nilai
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="nx-metric-body">
+                    <div class="nx-metric-value crit" id="offlineDevices" data-value="offlineDevices">0</div>
+                    <div class="nx-metric-spark" data-spark="offlineDevices"></div>
+                </div>
+                <div class="nx-metric-foot">
+                    <span class="nx-metric-trend neutral" data-trend="offlineDevices">
+                        <i class="fa-solid fa-minus"></i> 0%
+                    </span>
+                    <span class="nx-metric-trend-label" data-trend-label="offlineDevices">vs 24 jam lalu</span>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="activity-card">
+            <div class="activity-header">
+                <div class="activity-title">
+                    <i class="fa-solid fa-bolt"></i>
+                    <span>Aktivitas Terbaru</span>
+                </div>
+                <button class="activity-refresh" id="activityRefreshBtn" title="Refresh" aria-label="Refresh">
+                    <i class="fa-solid fa-rotate"></i>
+                </button>
+            </div>
+            <div class="activity-list" id="activityList">
+                <div class="activity-empty">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Memuat...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="devices-toolbar">
+        <div class="filter-bar" id="deviceFilterBar">
+            <button class="filter-btn active" data-filter="all">
+                <i class="fa-solid fa-server"></i>
+                <span>Semua</span>
+                <span class="count" id="filterCountAll">0</span>
+            </button>
+            <button class="filter-btn" data-filter="online">
+                <i class="fa-solid fa-wifi"></i>
+                <span>Online</span>
+                <span class="count" id="filterCountOnline">0</span>
+            </button>
+            <button class="filter-btn offline" data-filter="offline">
+                <i class="fa-solid fa-power-off"></i>
+                <span>Offline</span>
+                <span class="count" id="filterCountOffline">0</span>
+            </button>
+            <button class="filter-btn warning" data-filter="alert">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Alert</span>
+                <span class="count" id="filterCountAlert">0</span>
+            </button>
+        </div>
+        <button class="btn btn-primary" data-action="add-device">
+            <i class="fa-solid fa-plus"></i>
+            <span>Tambah Perangkat</span>
+        </button>
+    </div>
+
+    <div class="section-card">
+        <div class="section-body" style="padding:0;">
+            <div class="table-wrapper">
+                <table class="device-table">
+                    <thead>
+                        <tr>
+                            <th>Status</th>
+                            <th>ID</th>
+                            <th>Nama</th>
+                            <th>WiFi</th>
+                            <th>Uptime</th>
+                            <th>Terakhir</th>
+                            <th>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deviceTableBody">
+                        <tr>
+                            <td colspan="7" style="text-align:center;padding:40px;color:var(--text-3);">
+                                Memuat...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+</div>
