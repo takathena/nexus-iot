@@ -3757,3 +3757,15 @@
   .bulk-result-stat-value { font-size: 22px; }
   .bulk-result-stat-label { font-size: 9.5px; }
 }
+.chat-online-badge {
+    background: var(--accent-ok) !important;
+    color: #fff !important;
+    width: 16px;
+    height: 16px;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50% !important;
+    min-width: 16px;
+}

@@ -1,8 +1,3 @@
-<!-- ============================================================
-     NEXUS AI CHAT — Right-side panel (minimizable)
-     Tombol buka/tutup ada di topbar (id: chatToggleBtn)
-     ============================================================ -->
-
 <aside id="chatPanel" class="chat-panel" aria-hidden="true">
     <header class="chat-header">
         <div class="chat-brand">
@@ -30,7 +25,7 @@
     <div class="chat-messages" id="chatMessages">
         <div class="chat-welcome" id="chatWelcome">
             <div class="chat-welcome-icon">
-                <i class="fa-solid fa-sparkles"></i>
+                <i class="fa-solid fa-wand-magic-sparkles"></i>
             </div>
             <h4>Selamat Datang di NEXUS</h4>
             <p>Tanyakan apa saja tentang perangkat, absensi, atau alert Anda.</p>
@@ -56,17 +51,53 @@
         </div>
     </div>
 
-    <div class="chat-input-wrap">
-        <textarea
-            id="chatInput"
-            placeholder="Tanya apa saja…"
-            rows="1"
-            autocomplete="off"
-            autocorrect="off"
-            spellcheck="false"></textarea>
-        <button id="chatSend" class="chat-send" onclick="NexusChat.send()" aria-label="Kirim">
-            <i class="fa-solid fa-arrow-up"></i>
+    <!-- ============================================================
+         COMPOSER (mengikuti design Message action advanced)
+         ============================================================ -->
+    <div class="chat-composer" id="chatComposer">
+        <textarea id="chatInput"
+                  placeholder="Tanya apa saja…"
+                  rows="1"
+                  autocomplete="off" autocorrect="off" spellcheck="false"></textarea>
+
+        <button class="chat-composer-mic" id="chatMicBtn" type="button" title="Voice input (segera)">
+            <i class="fa-solid fa-microphone"></i>
         </button>
+
+        <div class="chat-composer-bar">
+            <button class="chat-composer-user" id="chatComposerUser" type="button" title="Identitas Anda">
+                <span class="chat-composer-user-avatar">Y</span>
+                <span class="chat-composer-user-name">You</span>
+                <i class="fa-solid fa-chevron-down"></i>
+            </button>
+
+            <div class="chat-composer-actions">
+                <div class="chat-shortcuts-wrap">
+                    <button class="chat-composer-btn" id="chatShortcutsBtn" type="button" title="Shortcuts">
+                        <i class="fa-regular fa-keyboard"></i>
+                        <span class="chat-composer-btn-label">Shortcuts</span>
+                    </button>
+                    <div class="chat-shortcuts-menu" id="chatShortcutsMenu" role="menu">
+                        <div class="chat-shortcuts-head">
+                            <span>Shortcuts</span>
+                            <button class="chat-shortcuts-close" id="chatShortcutsClose" type="button" title="Tutup">
+                                <i class="fa-solid fa-xmark"></i>
+                            </button>
+                        </div>
+                        <div class="chat-shortcuts-list" id="chatShortcutsList"></div>
+                    </div>
+                </div>
+
+                <button class="chat-composer-btn" id="chatAttachBtn" type="button" title="Lampirkan file (segera)">
+                    <i class="fa-solid fa-paperclip"></i>
+                    <span class="chat-composer-btn-label">Attach</span>
+                </button>
+
+                <button class="chat-send" id="chatSend" type="button" onclick="NexusChat.send()" aria-label="Kirim">
+                    <i class="fa-solid fa-arrow-up"></i>
+                </button>
+            </div>
+        </div>
     </div>
 </aside>
 

@@ -100,6 +100,15 @@
             dashboardRole: curDash ? curDash.role : null,
             permissions: userState.permissions || [],
         });
+
+        // Sinkronkan context ke command palette (agar 'needs' difilter sesuai peran)
+        if (window.NexusCommandPalette && typeof window.NexusCommandPalette.updateContext === 'function') {
+            window.NexusCommandPalette.updateContext({
+                isAdmin: userState.currentIsAdmin === true,
+                dashboardRole: curDash ? curDash.role : null,
+                permissions: userState.permissions || [],
+            });
+        }
     }
 
     const $ = (id) => document.getElementById(id);
@@ -2172,6 +2181,13 @@
         if (window.NexusUI) {
             NexusUI.applyNeeds({ isAdmin: isAdminMeta(), dashboardRole: curDash ? curDash.role : null,
                                  permissions: userState.permissions || [] });
+        }
+        if (window.NexusCommandPalette && typeof window.NexusCommandPalette.updateContext === 'function') {
+            window.NexusCommandPalette.updateContext({
+                isAdmin: isAdminMeta(),
+                dashboardRole: curDash ? curDash.role : null,
+                permissions: userState.permissions || [],
+            });
         }
         if (iconEl) {
             const cls = 'fa-solid ' + (state.currentDashboardIcon || 'fa-layer-group');
