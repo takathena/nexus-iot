@@ -861,12 +861,98 @@
                 statusClass = d.top_alert_severity;
                 statusLabel = d.top_alert_severity === 'danger' ? 'BAHAYA' : d.top_alert_severity === 'warning' ? 'PERINGATAN' : d.top_alert_severity.toUpperCase();
             } else { statusClass = d.status || 'online'; statusLabel = (d.status || 'online').toUpperCase(); }
-            return `<tr data-device-id="${escapeHtml(d.device_id)}"><td><span class="status-badge ${statusClass}"><span class="status-dot-inline"></span>${escapeHtml(statusLabel)}</span></td><td><span class="device-id">${escapeHtml(d.device_id)}</span></td><td><span class="device-name">${escapeHtml(d.device_name)}</span>${isViewAllMode() && d.dashboard_name ? `<span class="ws-badge" title="Dashboard · pemilik">${escapeHtml(d.dashboard_name)} · ${escapeHtml(d.owner_name || "-")}</span>` : ''}</td>${full ? `<td>${escapeHtml(d.device_type || '-')}</td>` : ''}<td>${wifi}</td><td>${uptime}</td>${full ? `<td>${escapeHtml(d.location || '-')}</td>` : ''}<td>${lastSeen}</td><td><div class="device-actions"><button class="action-btn view" data-action="view" data-device-id="${escapeHtml(d.device_id)}" title="Detail"><i class="fa-solid fa-eye"></i></button><button class="action-btn config" data-action="config" data-device-id="${escapeHtml(d.device_id)}" title="Konfigurasi"><i class="fa-solid fa-sliders"></i></button><button class="action-btn regenerate" data-action="regenerate-key" data-device-id="${escapeHtml(d.device_id)}" title="Regen Key"><i class="fa-solid fa-key"></i></button><button class="action-btn delete" data-action="delete" data-device-id="${escapeHtml(d.device_id)}" title="Hapus"><i class="fa-solid fa-trash"></i></button></div></td></tr>`;
+            return `<tr data-device-id="${escapeHtml(d.device_id)}"><td><span class="status-badge ${statusClass}"><span class="status-dot-inline"></span>${escapeHtml(statusLabel)}</span></td><td><span class="device-id">${escapeHtml(d.device_id)}</span></td><td><span class="device-name">${escapeHtml(d.device_name)}</span>${isViewAllMode() && d.dashboard_name ? `<span class="ws-badge" title="Dashboard · pemilik">${escapeHtml(d.dashboard_name)} · ${escapeHtml(d.owner_name || "-")}</span>` : ''}</td>${full ? `<td>${escapeHtml(d.device_type || '-')}</td>` : ''}<td>${wifi}</td><td>${uptime}</td>${full ? `<td>${escapeHtml(d.location || '-')}</td>` : ''}<td>${lastSeen}</td><td><div class="device-actions"><button class="action-btn more" data-action="more" data-device-id="${escapeHtml(d.device_id)}" title="Aksi lainnya" aria-label="Aksi lainnya"><i class="fa-solid fa-ellipsis-vertical"></i></button></div></td></tr>`;
         }).join('');
-        tbody.querySelectorAll('[data-action="view"]').forEach(b => b.addEventListener('click', () => viewDevice(b.dataset.deviceId)));
-        tbody.querySelectorAll('[data-action="config"]').forEach(b => b.addEventListener('click', () => openEditDeviceConfig(b.dataset.deviceId)));
-        tbody.querySelectorAll('[data-action="regenerate-key"]').forEach(b => b.addEventListener('click', () => regenerateApiKey(b.dataset.deviceId)));
-        tbody.querySelectorAll('[data-action="delete"]').forEach(b => b.addEventListener('click', () => openDeleteModal(b.dataset.deviceId)));
+
+        tbody.querySelectorAll('[data-action="more"]').forEach(b => {
+            b.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openDeviceActionMenu(b, b.dataset.deviceId);
+            });
+        });
+    }
+
+    // ==========================================
+    // DEVICE ACTION MENU (⋯ popup)
+    // ==========================================
+    function openDeviceActionMenu(anchorEl, deviceId) {
+        closeDeviceActionMenu();
+
+        const menu = document.createElement('div');
+        menu.className = 'device-action-menu';
+        menu.id = 'deviceActionMenu';
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML = `
+            <button type="button" class="device-action-menu__item" data-menu-action="view" role="menuitem">
+                <i class="fa-solid fa-eye"></i> Detail
+            </button>
+            <button type="button" class="device-action-menu__item" data-menu-action="config" role="menuitem">
+                <i class="fa-solid fa-sliders"></i> Konfigurasi
+            </button>
+            <button type="button" class="device-action-menu__item" data-menu-action="regenerate" role="menuitem">
+                <i class="fa-solid fa-key"></i> Regenerate API Key
+            </button>
+            <div class="device-action-menu__divider"></div>
+            <button type="button" class="device-action-menu__item device-action-menu__item--danger" data-menu-action="delete" role="menuitem">
+                <i class="fa-solid fa-trash"></i> Hapus Perangkat
+            </button>
+        `;
+        document.body.appendChild(menu);
+
+        const rect = anchorEl.getBoundingClientRect();
+        const menuRect = menu.getBoundingClientRect();
+
+        let top = rect.bottom + 6;
+        let left = rect.right - menuRect.width;
+
+        if (top + menuRect.height > window.innerHeight - 10) {
+            top = rect.top - menuRect.height - 6;
+        }
+        if (left < 10) left = 10;
+        if (left + menuRect.width > window.innerWidth - 10) {
+            left = window.innerWidth - menuRect.width - 10;
+        }
+
+        menu.style.top = top + 'px';
+        menu.style.left = left + 'px';
+
+        menu.querySelectorAll('[data-menu-action]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const action = btn.dataset.menuAction;
+                closeDeviceActionMenu();
+                if (action === 'view') viewDevice(deviceId);
+                else if (action === 'config') openEditDeviceConfig(deviceId);
+                else if (action === 'regenerate') regenerateApiKey(deviceId);
+                else if (action === 'delete') openDeleteModal(deviceId);
+            });
+        });
+
+        anchorEl.classList.add('menu-open');
+
+        setTimeout(() => {
+            document.addEventListener('mousedown', _handleDeviceMenuOutside, true);
+            document.addEventListener('keydown', _handleDeviceMenuKey, true);
+        }, 0);
+    }
+
+    function _handleDeviceMenuOutside(e) {
+        const menu = document.getElementById('deviceActionMenu');
+        if (!menu) return;
+        if (menu.contains(e.target)) return;
+        closeDeviceActionMenu();
+    }
+
+    function _handleDeviceMenuKey(e) {
+        if (e.key === 'Escape') closeDeviceActionMenu();
+    }
+
+    function closeDeviceActionMenu() {
+        const menu = document.getElementById('deviceActionMenu');
+        if (menu) menu.remove();
+        document.querySelectorAll('.action-btn.menu-open').forEach(b => b.classList.remove('menu-open'));
+        document.removeEventListener('mousedown', _handleDeviceMenuOutside, true);
+        document.removeEventListener('keydown', _handleDeviceMenuKey, true);
     }
 
     function filterDevices() {
