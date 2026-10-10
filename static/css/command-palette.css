@@ -126,7 +126,7 @@
     width: 100%;
     padding: 9px 12px;
     background: transparent;
-    border: 1px solid transparent;
+    border: none;
     border-radius: var(--radius-md);
     color: var(--text-2);
     font-size: 13px;
@@ -140,12 +140,10 @@
 .nx-cmdk-item:hover { background: var(--surface-2); color: var(--text); }
 .nx-cmdk-item.nx-cmdk-active {
     background: var(--surface-2);
-    border-color: var(--hairline);
     color: var(--text);
 }
 [data-theme="light"] .nx-cmdk-item.nx-cmdk-active {
     background: var(--surface-3);
-    border-color: var(--text-3);
 }
 
 .nx-cmdk-item-icon {
@@ -266,4 +264,25 @@
 }
 @media (max-width: 768px) {
     .search-box-kbd { display: none; }
+}
+/* ============================================================
+   OVERRIDE — hapus border yang dipaksa fixes.css
+   ============================================================ */
+.nx-cmdk-input,
+.nx-cmdk-input:hover,
+.nx-cmdk-input:focus,
+.nx-cmdk-input:focus-visible,
+.nx-cmdk-input:active {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+
+/* Container search — pastikan tidak ada border juga */
+.nx-cmdk-search input,
+.nx-cmdk-search input:focus {
+    border: none !important;
+    outline: none !important;
+    box-shadow: none !important;
 }

@@ -83,6 +83,55 @@
           action: () => _click('systemInfoBtn') },
     ];
 
+        // ============================================================
+    // DEVICE SEARCH — data dinamis dari /api/v1/devices
+    // ============================================================
+    const DEVICES = {
+        list: [],
+        loaded: false,
+        loading: false,
+    };
+
+    async function loadDevices() {
+        if (DEVICES.loaded || DEVICES.loading) return;
+        DEVICES.loading = true;
+        try {
+            const res = await fetch('/api/v1/devices?per_page=500', {
+                credentials: 'same-origin',
+            });
+            const data = await res.json();
+            if (data.success && Array.isArray(data.devices)) {
+                DEVICES.list = data.devices.map(d => ({
+                    id: 'device-' + d.device_id,
+                    group: 'Perangkat',
+                    label: d.device_name || d.device_id,
+                    icon: 'fa-microchip',
+                    keywords: [
+                        d.device_id,
+                        d.location || '',
+                        d.device_type || '',
+                        d.status || '',
+                    ].filter(Boolean),
+                    hint: d.status === 'online' ? '● online' : (d.status === 'offline' ? '○ offline' : ''),
+                    action: () => _openDevice(d.device_id),
+                }));
+            }
+        } catch (e) {
+            console.warn('[CmdK] device fetch failed', e);
+        } finally {
+            DEVICES.loading = false;
+            DEVICES.loaded = true;
+        }
+    }
+
+    function _openDevice(deviceId) {
+        close();
+        setTimeout(() => {
+            try { sessionStorage.setItem('nexus_back_url', '/#' + (window.location.hash || '#dashboard').replace('#','')); } catch (e) {}
+            window.location.href = '/device/' + encodeURIComponent(deviceId);
+        }, 80);
+    }
+
     // ============================================================
     // State
     // ============================================================
@@ -202,12 +251,9 @@
     function _match(cmd, q) {
         if (!q) return { score: 0, matchIdx: -1 };
         const label = _normalize(cmd.label);
-        // Exact prefix
         if (label.startsWith(q)) return { score: 100, matchIdx: 0 };
-        // Contains in label
         const idx = label.indexOf(q);
         if (idx >= 0) return { score: 80 - idx, matchIdx: idx };
-        // Keywords
         if (Array.isArray(cmd.keywords)) {
             for (const kw of cmd.keywords) {
                 const k = _normalize(kw);
@@ -215,7 +261,7 @@
                 if (k.indexOf(q) >= 0) return { score: 40, matchIdx: -1 };
             }
         }
-        // Fuzzy: semua karakter query muncul berurutan di label
+        // Fuzzy: karakter query harus muncul berurutan di label
         let qi = 0;
         for (let i = 0; i < label.length && qi < q.length; i++) {
             if (label[i] === q[qi]) qi++;
@@ -243,17 +289,32 @@
         const q = _normalize(state.query);
         const scored = [];
 
+        // 1. Command statis (halaman + aksi)
         for (const cmd of COMMANDS) {
             if (!_allowed(cmd)) continue;
             const m = _match(cmd, q);
             if (!m) continue;
-            scored.push({ cmd, score: m.score });
+            scored.push({ cmd, score: m.score, isDevice: false });
         }
 
-        // Urutkan: skor tertinggi dulu, lalu pertahankan urutan asli
+        // 2. Devices (hanya kalau query minimal 1 karakter)
+        if (q.length >= 1) {
+            // Load device pertama kali user buka palette
+            if (!DEVICES.loaded) loadDevices();
+
+            for (const dev of DEVICES.list) {
+                const m = _match(dev, q);
+                if (!m) continue;
+                // Device selalu di bawah command jika score sama
+                scored.push({ cmd: dev, score: m.score - 5, isDevice: true });
+            }
+        }
+
         scored.sort((a, b) => {
             if (b.score !== a.score) return b.score - a.score;
-            return COMMANDS.indexOf(a.cmd) - COMMANDS.indexOf(b.cmd);
+            // Kalau score sama, command menang atas device
+            if (a.isDevice !== b.isDevice) return a.isDevice ? 1 : -1;
+            return 0;
         });
 
         state.filtered = scored.map(x => x.cmd);
@@ -380,9 +441,11 @@
 
         if (inputEl) {
             inputEl.value = '';
-            // Delay focus sampai transisi selesai
             requestAnimationFrame(() => inputEl.focus());
         }
+
+        // Pre-load device biar kalau user langsung ketik, sudah tersedia
+        loadDevices();
 
         applyFilter();
     }
@@ -499,7 +562,7 @@
                     '<input type="text" class="nx-cmdk-input" placeholder="Cari halaman, aksi, atau perangkat…" ' +
                         'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" ' +
                         'aria-label="Cari perintah">' +
-                    '<span class="nx-cmdk-kbd">⌘K</span>' +
+                    '<span class="nx-cmdk-kbd">ctrl K</span>' +
                 '</div>' +
                 '<div class="nx-cmdk-list" role="listbox"></div>' +
                 '<div class="nx-cmdk-footer">' +
