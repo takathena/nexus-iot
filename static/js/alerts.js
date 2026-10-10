@@ -1,7 +1,8 @@
 /* ==========================================
-   NEXUS IoT - Alert Center (v8)
+   NEXUS IoT - Alert Center (v9)
    + Alert Trend Chart (stacked bar per jam)
    + Alert History Viewer (modal audit trail)
+   + Date Range Picker
    + Test Notifikasi Telegram
    ========================================== */
 
@@ -23,6 +24,7 @@
         trendHours: 24,
         trendChart: null,
         historyOpen: false,
+        alertDRP: null,
     };
 
     const STORAGE_KEYS = {
@@ -755,10 +757,7 @@
     }
 
     function clearDateFilter() {
-        const startEl = $('alertStartDate');
-        const endEl = $('alertEndDate');
-        if (startEl) startEl.value = '';
-        if (endEl) endEl.value = '';
+        if (state.alertDRP) state.alertDRP.setValue(null, null);
         state.dateStart = '';
         state.dateEnd = '';
         applyFilter();
@@ -990,6 +989,20 @@
             loadAlerts();
         });
 
+        // Date range picker untuk alert
+        const drpEl = document.getElementById('alertDateRange');
+        if (drpEl && window.NexusDateRangePicker) {
+            state.alertDRP = new window.NexusDateRangePicker.DateRangePicker(drpEl, {
+                placeholder: 'Filter tanggal...',
+                onChange: (start, end) => {
+                    state.dateStart = start || '';
+                    state.dateEnd = end || '';
+                    applyFilter();
+                    updateFilterInfo();
+                }
+            });
+        }
+
         const refreshBtn = $('refreshAlertsBtn');
         if (refreshBtn) refreshBtn.addEventListener('click', loadAlerts);
 
@@ -1013,22 +1026,6 @@
 
         const bulkAckBtn = $('bulkAckBtn');
         if (bulkAckBtn) bulkAckBtn.addEventListener('click', bulkAcknowledge);
-
-        const clearBtn = $('alertClearFilter');
-        if (clearBtn) clearBtn.addEventListener('click', clearDateFilter);
-
-        ['alertStartDate', 'alertEndDate'].forEach(id => {
-            const el = $(id);
-            if (el) {
-                el.addEventListener('change', applyDateFilter);
-                el.addEventListener('keydown', e => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        applyDateFilter();
-                    }
-                });
-            }
-        });
 
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.ios-dropdown')) {
@@ -1110,5 +1107,5 @@
         init();
     }
 
-    console.log('[Alerts] Initialized v8 (trend + history)');
+    console.log('[Alerts] Initialized v9 (trend + history + date range)');
 })();

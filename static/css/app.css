@@ -3769,3 +3769,256 @@
     border-radius: 50% !important;
     min-width: 16px;
 }
+/* ============================================================
+   RING GAUGE — Multi-ring (replace single ring)
+   ============================================================ */
+.ring-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px 16px;
+    gap: 18px;
+    min-height: 300px;
+}
+
+.ring-wrap {
+    position: relative;
+    width: 160px;
+    height: 160px;
+    flex-shrink: 0;
+}
+
+.ring-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    overflow: visible;
+}
+
+.ring-track {
+    fill: none;
+    stroke: var(--surface-2);
+    stroke-width: 7;
+    transition: stroke 0.2s var(--ease);
+}
+
+.ring-progress {
+    fill: none;
+    stroke-width: 7;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.9s cubic-bezier(0.16, 1, 0.3, 1),
+                stroke-width 0.2s var(--ease),
+                opacity 0.25s var(--ease),
+                filter 0.2s var(--ease);
+}
+
+.ring-total   { stroke: var(--text-3); }
+.ring-online  { stroke: var(--accent-ok); }
+.ring-healthy { stroke: #3b82f6; }
+
+/* Dim ring lain saat satu ring di-hover */
+.ring-svg.has-hover .ring-progress:not(.highlighted) {
+    opacity: 0.35;
+}
+
+/* Highlight ring aktif */
+.ring-progress.highlighted {
+    stroke-width: 9;
+}
+
+/* Center */
+.ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    text-align: center;
+}
+
+.ring-value {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+    letter-spacing: -0.045em;
+    font-variant-numeric: tabular-nums;
+    transition: opacity 0.15s var(--ease), transform 0.15s var(--ease);
+}
+.ring-value.updating {
+    opacity: 0.4;
+    transform: translateY(-2px);
+}
+
+.ring-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-3);
+    margin-top: 6px;
+    transition: color 0.2s var(--ease);
+}
+
+/* Legend */
+.ring-legend {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    width: 100%;
+    max-width: 220px;
+}
+
+.ring-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 10px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    color: var(--text-3);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s var(--ease), color 0.15s var(--ease),
+                border-color 0.15s var(--ease);
+}
+
+.ring-legend-item:hover {
+    background: var(--surface-2);
+    color: var(--text-2);
+}
+
+.ring-legend-item.active {
+    background: var(--surface-2);
+    border-color: var(--hairline);
+    color: var(--text);
+}
+
+.ring-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    transition: transform 0.2s var(--ease);
+}
+.ring-legend-item.active .ring-legend-dot {
+    transform: scale(1.25);
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 15%, transparent);
+}
+
+.ring-legend-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ring-legend-value {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    color: var(--text);
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+    .ring-wrap { width: 140px; height: 140px; }
+    .ring-value { font-size: 28px; }
+}
+
+/* Empty state (0 total) — semua ring abu-abu */
+.ring-card.is-empty .ring-progress {
+    stroke: var(--surface-3) !important;
+    opacity: 0.5;
+    filter: none;
+}
+.ring-card.is-empty .ring-value {
+    color: var(--text-3);
+}
+/* ============================================================
+   SYMMETRIC OVERVIEW GRID
+   ============================================================ */
+.overview-grid {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1.05fr) minmax(0, 1.15fr);
+    gap: 14px;
+    margin-bottom: 18px;
+    align-items: stretch;
+}
+
+.overview-grid > .ring-card,
+.overview-grid > .nx-metrics,
+.overview-grid > .activity-card {
+    height: 100%;
+    min-height: 320px;
+}
+
+/* Metrics 2x2 mengisi penuh */
+.nx-metrics--2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 12px;
+    height: 100%;
+}
+
+.nx-metric-card {
+    height: 100%;
+    min-height: 0;
+}
+
+/* Ring card isi penuh */
+.ring-card {
+    height: 100%;
+    min-height: 0;
+    padding: 20px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+/* Activity card isi penuh */
+.activity-card {
+    height: 100%;
+    max-height: none;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (max-width: 1280px) {
+    .overview-grid {
+        grid-template-columns: 220px minmax(0, 1fr);
+        grid-auto-rows: auto;
+    }
+    .overview-grid > .activity-card {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 768px) {
+    .overview-grid {
+        grid-template-columns: 1fr;
+    }
+    .overview-grid > .ring-card,
+    .overview-grid > .nx-metrics,
+    .overview-grid > .activity-card {
+        min-height: 0;
+    }
+    .ring-card { padding: 16px; }
+}

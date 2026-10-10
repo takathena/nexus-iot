@@ -198,13 +198,11 @@
                 </div>
             </div>
 
-            <div class="alert-date-inline">
-                <input type="date" id="alertStartDate" autocomplete="off" aria-label="Dari tanggal">
-                <input type="date" id="alertEndDate" autocomplete="off" aria-label="Sampai tanggal">
-                <button class="adf-reset" id="alertClearFilter" title="Reset filter tanggal" aria-label="Reset">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
+        <div class="alert-date-range" style="min-width: 240px;">
+            <div id="alertDateRange"></div>
+            <input type="hidden" id="alertStartDate" value="">
+            <input type="hidden" id="alertEndDate" value="">
+        </div>
 
         </div>
 

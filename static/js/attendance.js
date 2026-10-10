@@ -1,6 +1,7 @@
 /* ==========================================
-   NEXUS IoT v5.0 - Attendance filter & export
-   Sparkline real dari /api/v1/metrics/attendance-history
+   NEXUS IoT v5.1 - Attendance filter & export
+   + Date Range Picker integration
+   + Sparkline real dari /api/v1/metrics/attendance-history
    ========================================== */
 
 (function() {
@@ -73,10 +74,12 @@
     }
 
     function clearDateFilter() {
-        const startEl = $('attendanceStartDate');
-        const endEl = $('attendanceEndDate');
-        if (startEl) startEl.value = '';
-        if (endEl) endEl.value = '';
+        const drp = window.__nexusAttendanceDRP;
+        if (drp) drp.setValue(null, null);
+        const s = $('attendanceStartDate');
+        const e = $('attendanceEndDate');
+        if (s) s.value = '';
+        if (e) e.value = '';
         applyDateFilter();
     }
 
@@ -90,25 +93,31 @@
         window.location.href = url;
     }
 
-    function bind() {
-        const applyBtn = $('attendanceApplyFilter');
-        if (applyBtn) applyBtn.addEventListener('click', applyDateFilter);
+    function initDateRangePicker() {
+        const el = document.getElementById('attendanceDateRange');
+        if (!el || !window.NexusDateRangePicker) return;
+        window.__nexusAttendanceDRP = new window.NexusDateRangePicker.DateRangePicker(el, {
+            placeholder: 'Pilih periode...',
+            onChange: (start, end) => {
+                const s = document.getElementById('attendanceStartDate');
+                const e = document.getElementById('attendanceEndDate');
+                if (s) s.value = start || '';
+                if (e) e.value = end || '';
+                applyDateFilter();
+            }
+        });
+    }
 
-        const clearBtn = $('attendanceClearFilter');
-        if (clearBtn) clearBtn.addEventListener('click', clearDateFilter);
+    function bind() {
+        initDateRangePicker();
 
         const exportBtn = $('attendanceExportBtn');
         if (exportBtn) exportBtn.addEventListener('click', exportCSV);
-
-        ['attendanceStartDate', 'attendanceEndDate'].forEach(id => {
-            const el = $(id);
-            if (el) el.addEventListener('change', applyDateFilter);
-        });
     }
 
     function init() {
         bind();
-        console.log('[Attendance] v5.0 ready');
+        console.log('[Attendance] v5.1 ready (date range picker)');
     }
 
     if (document.readyState === 'loading') {

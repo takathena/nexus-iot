@@ -348,6 +348,204 @@ def get_devices():
         }
     }), 200
 
+# ==========================================
+# METRICS HISTORY (sparkline Dashboard & Absensi)
+# ==========================================
+@api_bp.route('/metrics/devices-history', methods=['GET'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+def get_devices_metrics_history():
+    """Kumulatif device per bucket jam + alerts baru per jam."""
+    hours = min(max(request.args.get('hours', 24, type=int), 1), 168)
+    since = get_wib_time() - timedelta(hours=hours)
+
+    with get_db_context() as conn:
+        scope = ws.resolve_scope(conn)
+        if scope['error']:
+            return ws.scope_error_response(scope)
+
+        dev_sql, dev_params = ws.dashboard_in_sql(scope, 'dv.dashboard_id')
+        st_sql, st_params = ws.device_in_sql(scope, 'sl.device_id')
+        al_sql, al_params = ws.device_in_sql(scope, 'a.device_id')
+
+        all_devices = conn.execute(f'''
+            SELECT dv.device_id, dv.created_at, dv.status
+            FROM devices dv WHERE {dev_sql}
+        ''', dev_params).fetchall()
+
+        buckets = []
+        cursor = since.replace(minute=0, second=0, microsecond=0)
+        end = get_wib_time().replace(minute=0, second=0, microsecond=0)
+        guard = 0
+        while cursor <= end and guard < 200:
+            buckets.append(cursor)
+            cursor += timedelta(hours=1)
+            guard += 1
+
+        if not buckets:
+            return jsonify({
+                'success': True, 'hours': hours, 'buckets': [],
+                'total': [], 'online': [], 'offline': [], 'alerts': [],
+            }), 200
+
+        n = len(buckets)
+
+        total_series = []
+        for b in buckets:
+            b_str = b.strftime('%Y-%m-%d %H:%M:%S')
+            cnt = 0
+            for d in all_devices:
+                cr = d['created_at']
+                if cr and str(cr) <= b_str:
+                    cnt += 1
+            total_series.append(cnt)
+
+        log_rows = conn.execute(f'''
+            SELECT
+                strftime('%Y-%m-%d %H:00', sl.created_at) AS bucket,
+                sl.device_id,
+                sl.status
+            FROM device_status_log sl
+            WHERE sl.created_at >= ?
+              AND sl.status IN ('online', 'offline')
+              AND {st_sql}
+        ''', [since] + st_params).fetchall()
+
+        trans_map = {}
+        for r in log_rows:
+            bkey = r['bucket']
+            trans_map.setdefault(bkey, {})
+            trans_map[bkey][r['device_id']] = r['status']
+
+        online_series = [0] * n
+        for d in all_devices:
+            did = d['device_id']
+            cur_status = d['status'] or 'offline'
+            cr = d['created_at']
+            if not cr:
+                continue
+
+            first_idx = n
+            for i, b in enumerate(buckets):
+                b_str = b.strftime('%Y-%m-%d %H:%M:%S')
+                if str(cr) <= b_str:
+                    first_idx = i
+                    break
+            if first_idx >= n:
+                continue
+
+            states = [0] * n
+            states[n - 1] = 1 if cur_status == 'online' else 0
+
+            for i in range(n - 2, -1, -1):
+                next_bkey = buckets[i + 1].strftime('%Y-%m-%d %H:00')
+                trans = trans_map.get(next_bkey, {}).get(did)
+                if trans == 'online':
+                    states[i] = max(0, states[i + 1] - 1)
+                elif trans == 'offline':
+                    states[i] = min(1, states[i + 1] + 1)
+                else:
+                    states[i] = states[i + 1]
+
+            for i in range(first_idx, n):
+                online_series[i] += states[i]
+
+        for i in range(n):
+            online_series[i] = min(online_series[i], total_series[i])
+
+        offline_series = [max(0, total_series[i] - online_series[i]) for i in range(n)]
+
+        alert_rows = conn.execute(f'''
+            SELECT
+                strftime('%Y-%m-%d %H:00', a.created_at) AS bucket,
+                COUNT(*) AS n
+            FROM alerts a
+            WHERE a.created_at >= ?
+              AND a.alert_type != 'uid'
+              AND {al_sql}
+            GROUP BY bucket
+        ''', [since] + al_params).fetchall()
+        alert_map = {r['bucket']: r['n'] for r in alert_rows}
+        alerts_series = [alert_map.get(b.strftime('%Y-%m-%d %H:00'), 0) for b in buckets]
+
+    return jsonify({
+        'success': True,
+        'hours': hours,
+        'buckets': [b.strftime('%Y-%m-%d %H:00') for b in buckets],
+        'total': total_series,
+        'online': online_series,
+        'offline': offline_series,
+        'alerts': alerts_series,
+    }), 200
+
+
+@api_bp.route('/metrics/attendance-history', methods=['GET'])
+@login_required
+@limiter.limit(lambda: get_config().RATE_LIMIT_DEFAULT)
+@perm.permission_required(perm.PERM_ATTENDANCE_VIEW)
+def get_attendance_metrics_history():
+    """History harian untuk sparkline Absensi."""
+    days = min(max(request.args.get('days', 7, type=int), 1), 90)
+    today = get_wib_time().replace(hour=0, minute=0, second=0, microsecond=0)
+    since = today - timedelta(days=days - 1)
+
+    with get_db_context() as conn:
+        scope = ws.resolve_scope(conn)
+        if scope['error']:
+            return ws.scope_error_response(scope)
+
+        dev_sql, dev_params = ws.device_in_sql(scope, 'a.device_id')
+        card_sql, card_params = ws.dashboard_in_sql(scope, 'c.dashboard_id')
+
+        buckets = [(since + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(days)]
+
+        hadir_rows = conn.execute(f'''
+            SELECT DATE(a.timestamp) AS day, COUNT(DISTINCT a.uid) AS n
+            FROM attendance a
+            WHERE a.timestamp >= ? AND {dev_sql}
+            GROUP BY day
+        ''', [since] + dev_params).fetchall()
+        hadir_map = {r['day']: r['n'] for r in hadir_rows}
+
+        unknown_rows = conn.execute(f'''
+            SELECT DATE(a.timestamp) AS day, COUNT(DISTINCT a.uid) AS n
+            FROM attendance a
+            WHERE a.timestamp >= ?
+              AND NOT EXISTS (SELECT 1 FROM cardholders c WHERE c.uid = a.uid)
+              AND {dev_sql}
+            GROUP BY day
+        ''', [since] + dev_params).fetchall()
+        unknown_map = {r['day']: r['n'] for r in unknown_rows}
+
+        card_rows = conn.execute(f'''
+            SELECT DATE(c.created_at) AS day, COUNT(*) AS n
+            FROM cardholders c
+            WHERE {card_sql}
+            GROUP BY day
+        ''', card_params).fetchall()
+        card_add_map = {r['day']: r['n'] for r in card_rows}
+
+        total_cards_now = conn.execute(
+            f'SELECT COUNT(*) FROM cardholders c WHERE {card_sql}', card_params
+        ).fetchone()[0] or 0
+
+        card_series = [0] * days
+        card_series[-1] = total_cards_now
+        for i in range(days - 2, -1, -1):
+            added_next = card_add_map.get(buckets[i + 1], 0)
+            card_series[i] = max(0, card_series[i + 1] - added_next)
+
+        hadir_series = [hadir_map.get(b, 0) for b in buckets]
+        unknown_series = [unknown_map.get(b, 0) for b in buckets]
+
+    return jsonify({
+        'success': True,
+        'days': days,
+        'buckets': buckets,
+        'hadir': hadir_series,
+        'kartu': card_series,
+        'unknown': unknown_series,
+    }), 200
 
 @api_bp.route('/devices', methods=['POST'])
 @login_required

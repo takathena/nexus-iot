@@ -114,27 +114,15 @@
         </div>
     </div>
 
-    <div class="attendance-filter-bar" id="attendanceFilterBar">
-        <div class="attendance-filter-group">
-            <label for="attendanceStartDate">Dari</label>
-            <input type="date" id="attendanceStartDate">
-        </div>
-        <div class="attendance-filter-group">
-            <label for="attendanceEndDate">Sampai</label>
-            <input type="date" id="attendanceEndDate">
-        </div>
-        <div class="attendance-filter-actions">
-            <button class="btn btn-secondary" id="attendanceApplyFilter">
-                <i class="fa-solid fa-filter"></i>
-                <span>Terapkan</span>
-            </button>
-            <button class="btn btn-secondary" id="attendanceClearFilter">
-                <i class="fa-solid fa-xmark"></i>
-                <span>Reset</span>
-            </button>
-        </div>
-        <span class="attendance-filter-info" id="attendanceFilterInfo"></span>
+<div class="attendance-filter-bar" id="attendanceFilterBar">
+    <div class="attendance-filter-group" style="flex: 1; min-width: 240px;">
+        <label>Periode</label>
+        <div id="attendanceDateRange"></div>
+        <input type="hidden" id="attendanceStartDate" value="">
+        <input type="hidden" id="attendanceEndDate" value="">
     </div>
+    <span class="attendance-filter-info" id="attendanceFilterInfo"></span>
+</div>
 
     <div class="section-card">
         <div class="section-body" style="padding:0;">
