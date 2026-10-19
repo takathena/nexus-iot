@@ -46,6 +46,8 @@ def _is_api_polling_request():
         '/api/v1/analytics-tabs',
         '/api/v1/system',
         '/api/v1/notifications',
+        '/api/v1/metrics',
+        '/api/v1/chat',
     )
     return path.startswith(polling_prefixes)
 

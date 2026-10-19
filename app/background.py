@@ -26,7 +26,16 @@ _bg_lock = threading.Lock()
 
 LOCK_RETRY_SECONDS = 30
 BACKUP_STARTUP_DELAY = 30          # jeda kecil saat boot sebelum backup pertama
-BACKUP_PATTERN = 'iot_*.db'        # satu-satunya pola yang boleh dihapus otomatis
+# Backup otomatis yang boleh di-prune. File manual / file lain TIDAK disentuh.
+# pre-delete_* dan pre-restore-* dibuat otomatis oleh aplikasi, jadi ikut
+# dibersihkan setelah lewat retensi supaya disk tidak penuh.
+AUTO_BACKUP_PATTERNS = ('iot_*.db', 'pre-delete_*.db', 'pre-restore-*.db')
+# Backup terjadwal — dipakai untuk menghitung kapan backup berikutnya jatuh tempo.
+SCHEDULED_BACKUP_PATTERNS = ('iot_*.db',)
+
+
+def _matches_backup_pattern(name, patterns):
+    return any(fnmatch.fnmatch(name, p) for p in patterns)
 HEARTBEAT_PREFIX = 'bg_hb_'
 STALE_FACTOR = 3                   # stale bila heartbeat lebih tua dari 3x interval
 CLEANUP_INTERVAL = 86400
@@ -435,8 +444,8 @@ def prune_backups(backup_dir, retention_days, min_keep, now=None):
     """Hapus backup otomatis yang kedaluwarsa.
 
     Aturan keselamatan:
-      - hanya file berpola `iot_*.db` yang boleh dihapus (pre-restore-*.db, file manual,
-        dan file lain tidak pernah disentuh);
+      - hanya file yang cocok AUTO_BACKUP_PATTERNS (iot_*, pre-delete_*, pre-restore-*)
+        yang boleh dihapus; file manual dan file lain tidak pernah disentuh;
       - `min_keep` backup terbaru selalu dipertahankan walau sudah lewat retensi.
     Return daftar nama file yang dihapus.
     """
@@ -447,7 +456,7 @@ def prune_backups(backup_dir, retention_days, min_keep, now=None):
     candidates = []
     for name in os.listdir(backup_dir):
         path = os.path.join(backup_dir, name)
-        if fnmatch.fnmatch(name, BACKUP_PATTERN) and os.path.isfile(path):
+        if _matches_backup_pattern(name, AUTO_BACKUP_PATTERNS) and os.path.isfile(path):
             candidates.append((os.path.getmtime(path), name, path))
     candidates.sort(reverse=True)          # terbaru dulu
 
@@ -463,7 +472,7 @@ def prune_backups(backup_dir, retention_days, min_keep, now=None):
 def seconds_until_next_backup(backup_dir, interval_hours, now=None):
     """0 bila backup sudah jatuh tempo (atau belum ada), selain itu sisa detik.
 
-    Jatuh tempo = backup `iot_*.db` terbaru lebih tua dari min(interval, 24 jam), jadi
+    Jatuh tempo = backup terjadwal (`iot_*.db`) terbaru lebih tua dari min(interval, 24 jam), jadi
     setelah restart tidak ada backup ganda, dan tidak menunggu tanpa syarat.
     """
     now = time.time() if now is None else now
@@ -472,7 +481,7 @@ def seconds_until_next_backup(backup_dir, interval_hours, now=None):
     try:
         for name in os.listdir(backup_dir):
             path = os.path.join(backup_dir, name)
-            if fnmatch.fnmatch(name, BACKUP_PATTERN) and os.path.isfile(path):
+            if _matches_backup_pattern(name, SCHEDULED_BACKUP_PATTERNS) and os.path.isfile(path):
                 mt = os.path.getmtime(path)
                 newest = mt if newest is None else max(newest, mt)
     except OSError:
