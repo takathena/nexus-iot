@@ -22,8 +22,7 @@ from app import workspace as ws
 
 logger = logging.getLogger('nexus')
 
-SEVERITY_ORDER = ['healthy', 'warning', 'danger']
-VALID_SEVERITIES = ['healthy', 'info', 'warning', 'danger']
+SEVERITY_ORDER = ['healthy', 'info', 'warning', 'danger']
 DEFAULT_HYSTERESIS = 0.5
 
 # Rank untuk perbandingan severity (makin tinggi makin bahaya)
@@ -134,46 +133,39 @@ def _get_global_rules(conn=None):
 
 
 def _validate_rule(rule):
-    if not isinstance(rule, dict):
-        return False
-    for severity, range_dict in rule.items():
-        if severity.startswith('_'):
-            continue
-        if severity not in VALID_SEVERITIES:
-            return False
-        if not isinstance(range_dict, dict):
-            return False
-        if 'min' not in range_dict or 'max' not in range_dict:
-            return False
-        try:
-            float(range_dict['min'])
-            float(range_dict['max'])
-        except (TypeError, ValueError):
-            return False
-    return True
+    # Satu sumber aturan validasi (termasuk min <= max) dengan API.
+    from app.utils import validate_single_alert_rule
+    ok, _ = validate_single_alert_rule(rule)
+    return ok
+
+
+def _band(rule, severity):
+    """Return (min, max) float untuk satu band, atau None bila tidak ada/invalid."""
+    r = rule.get(severity)
+    if not isinstance(r, dict):
+        return None
+    try:
+        return float(r['min']), float(r['max'])
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def _evaluate_severity(value, rule):
+    """Tentukan severity dari band yang memuat `value`.
+
+    Band di ALERT_RULES bersarang (healthy ⊂ info ⊂ warning ⊂ danger), jadi band
+    PERTAMA (dari paling ringan) yang memuat value adalah severity-nya. Bila value
+    tidak masuk band mana pun, itu berarti melampaui band terlebar → 'danger'.
+    """
     if not _validate_rule(rule):
         return None, None
 
     for severity in SEVERITY_ORDER:
-        r = rule.get(severity)
-        if not r:
+        bounds = _band(rule, severity)
+        if bounds is None:
             continue
-        try:
-            rmin = float(r['min'])
-            rmax = float(r['max'])
-        except (TypeError, ValueError):
-            continue
-
-        if rmin <= value <= rmax:
-            if severity == 'healthy':
-                return 'healthy', None
-            elif severity == 'warning':
-                return 'warning', None
-            elif severity == 'danger':
-                return 'danger', None
+        if bounds[0] <= value <= bounds[1]:
+            return severity, None
 
     return 'danger', None
 
@@ -208,28 +200,46 @@ def _apply_hysteresis(new_severity, old_severity, value, rule):
     return old_severity
 
 
+_BAND_LABELS = {'healthy': 'normal', 'info': 'info', 'warning': 'warning', 'danger': 'danger'}
+
+
+def _reference_band(value, rule):
+    """Band dengan severity TERTINGGI yang tidak memuat `value`.
+
+    Band bersarang, jadi band ini adalah batas yang benar-benar dilanggar.
+    Contoh suhu 36 °C: healthy (6–28) dan warning (0–32) tidak memuat 36 →
+    acuannya warning, bukan healthy. Return (nama, min, max) atau None.
+    """
+    ref = None
+    for severity in SEVERITY_ORDER:
+        bounds = _band(rule, severity)
+        if bounds is None:
+            continue
+        if bounds[0] <= value <= bounds[1]:
+            continue
+        ref = (severity, bounds[0], bounds[1])
+    return ref
+
+
 def _format_alert_message(key, value, severity, rule):
     """Format pesan alert TANPA nilai aktual.
 
-    Nilai aktual (mis. "32.1°C") sudah ditampilkan sebagai badge
-    `.alert-val` di frontend. Message hanya menjelaskan KENAPA alert
-    (di luar batas normal apa). Ini mencegah duplikasi seperti:
-        "32.1°C — 32.1°C di luar batas normal (20–32°C)"
+    Nilai aktual (mis. "32.1°C") dan label sensor sudah ditampilkan frontend
+    sebagai badge `.alert-val` + teks sensor, jadi pesan hanya menyebut batas
+    yang benar-benar dilanggar agar tidak duplikat:
+        (suhu, 36) → "Melewati batas warning (32°C)"
     """
-    label, unit = _get_sensor_label(key)
+    ref = _reference_band(value, rule) if isinstance(value, (int, float)) else None
+    if ref is not None:
+        ref_sev, r_min, r_max = ref
+        _, unit = _get_sensor_label(key)
+        name = _BAND_LABELS.get(ref_sev, ref_sev)
+        if value > r_max:
+            return f"Melewati batas {name} ({r_max:g}{unit})"
+        if value < r_min:
+            return f"Di bawah batas {name} ({r_min:g}{unit})"
 
-    healthy = rule.get('healthy', {})
-    h_min = healthy.get('min')
-    h_max = healthy.get('max')
-
-    if h_min is not None and h_max is not None:
-        try:
-            normal_str = f"{float(h_min):g}–{float(h_max):g}{unit}"
-            return f"Di luar batas normal ({normal_str})"
-        except (TypeError, ValueError):
-            pass
-
-    return "Di luar batas normal"
+    return "Di luar batas yang ditentukan"
 
 
 def _format_recovery_message(key, value):

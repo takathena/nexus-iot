@@ -128,30 +128,43 @@ def process_lock(name, blocking=True):
                 pass
 
 
+VALID_ALERT_SEVERITIES = ['healthy', 'info', 'warning', 'danger']
+
+
+def validate_single_alert_rule(rule):
+    """Validasi satu rule sensor. Return (bool, pesan_error|None).
+
+    Satu-satunya sumber aturan validitas rule, dipakai oleh API (lewat
+    validate_alert_rules) dan oleh mesin alert (alerts._validate_rule).
+    """
+    if not isinstance(rule, dict):
+        return False, 'harus berupa object'
+    for severity, range_dict in rule.items():
+        if severity.startswith('_'):
+            continue
+        if severity not in VALID_ALERT_SEVERITIES:
+            return False, f"severity '{severity}' tidak valid"
+        if not isinstance(range_dict, dict):
+            return False, f"'{severity}' harus berupa object"
+        if 'min' not in range_dict or 'max' not in range_dict:
+            return False, f"'{severity}' wajib punya 'min' dan 'max'"
+        try:
+            lo = float(range_dict['min'])
+            hi = float(range_dict['max'])
+        except (TypeError, ValueError):
+            return False, f"'{severity}' min/max harus angka"
+        if lo > hi:
+            return False, f"'{severity}' min tidak boleh > max"
+    return True, None
+
+
 def validate_alert_rules(rules):
     if not isinstance(rules, dict):
         return False, "alert_rules harus berupa object"
 
-    valid_severities = ['healthy', 'info', 'warning', 'danger']
-
     for sensor_key, rule in rules.items():
-        if not isinstance(rule, dict):
-            return False, f"Rule untuk '{sensor_key}' harus berupa object"
-        for severity, range_dict in rule.items():
-            if severity.startswith('_'):
-                continue
-            if severity not in valid_severities:
-                return False, f"Severity '{severity}' tidak valid"
-            if not isinstance(range_dict, dict):
-                return False, f"'{sensor_key}.{severity}' harus berupa object"
-            if 'min' not in range_dict or 'max' not in range_dict:
-                return False, f"'{sensor_key}.{severity}' wajib punya 'min' dan 'max'"
-            try:
-                float(range_dict['min'])
-                float(range_dict['max'])
-            except (TypeError, ValueError):
-                return False, f"'{sensor_key}.{severity}' min/max harus angka"
-            if float(range_dict['min']) > float(range_dict['max']):
-                return False, f"'{sensor_key}.{severity}' min tidak boleh > max"
+        ok, reason = validate_single_alert_rule(rule)
+        if not ok:
+            return False, f"Rule '{sensor_key}' {reason}"
 
     return True, None
