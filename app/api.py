@@ -587,6 +587,16 @@ def add_device():
         if offline_timeout is None and 'rfid' in device_type.lower():
             offline_timeout = 86400
 
+        # offline_timeout tidak boleh lebih pendek dari interval kirim device,
+        # kalau tidak device akan tampak offline padahal baru saja mengirim data.
+        if (offline_timeout is not None and expected_interval is not None
+                and offline_timeout < expected_interval):
+            return jsonify({
+                'success': False,
+                'error': (f'Offline Timeout minimal {expected_interval} detik '
+                          f'(= interval kirim device). Kosongkan untuk mode otomatis.')
+            }), 400
+
         alert_rules_json = json.dumps(alert_rules) if alert_rules else None
         offline_severity = data.get('offline_alert_severity', 'danger')
 
@@ -2180,6 +2190,26 @@ def delete_user(user_id):
             (_current_user_id(),)
         ).fetchone()
         target_dash = acting['id'] if acting else None
+
+        # Kalau admin pelaku tidak punya dashboard tujuan, device/kartu milik
+        # user yang dihapus akan jadi yatim (dashboard_id=NULL) → lenyap dari
+        # semua halaman. Tolak dulu supaya datanya tidak hilang diam-diam.
+        if target_dash is None and dash_ids:
+            orphan = 0
+            for did in dash_ids:
+                orphan += conn.execute(
+                    'SELECT COUNT(*) FROM devices WHERE dashboard_id = ?', (did,)
+                ).fetchone()[0]
+                orphan += conn.execute(
+                    'SELECT COUNT(*) FROM cardholders WHERE dashboard_id = ?', (did,)
+                ).fetchone()[0]
+            if orphan:
+                return jsonify({
+                    'success': False,
+                    'error': (f'Anda belum punya dashboard tujuan untuk menampung '
+                              f'{orphan} perangkat/kartu milik user ini. Buat '
+                              f'dashboard dulu, lalu hapus ulang user.'),
+                }), 409
 
         moved_devices = 0
         from app.dashboards import purge_dashboard

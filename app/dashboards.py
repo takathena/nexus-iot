@@ -363,6 +363,20 @@ def delete_dashboard(dashboard_id):
                 'device_count': device_count,
             }), 409
 
+        # purge_dashboard() juga menghapus cardholders. Tanpa guard ini kartu +
+        # riwayat absensinya hilang diam-diam saat dashboard dihapus.
+        cardholder_count = conn.execute(
+            'SELECT COUNT(*) FROM cardholders WHERE dashboard_id = ?', (dashboard_id,)
+        ).fetchone()[0]
+        if cardholder_count:
+            return jsonify({
+                'success': False,
+                'error': (f'Dashboard masih berisi {cardholder_count} kartu RFID. '
+                          'Hapus atau pindahkan kartunya dulu supaya riwayat '
+                          'absensi tidak hilang tanpa disengaja.'),
+                'cardholder_count': cardholder_count,
+            }), 409
+
         purge_dashboard(conn, dashboard_id)
         ws.audit(conn, 'dashboard.delete', f'dashboard_id={dashboard_id}')
         conn.commit()
@@ -912,7 +926,14 @@ def save_dashboard_layout(dashboard_id):
             return denied
 
         now = get_wib_time()
-        for item in layout:
+        for idx, item in enumerate(layout):
+            # Tanpa cek ini, elemen non-dict (mis. string) membuat item.get()
+            # melempar AttributeError → 500, padahal input pengguna → 400.
+            if not isinstance(item, dict):
+                return jsonify({
+                    'success': False,
+                    'error': f'layout[{idx}] harus berupa object',
+                }), 400
             wid = item.get('id')
             if not wid:
                 continue

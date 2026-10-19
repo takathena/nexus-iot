@@ -52,6 +52,35 @@ def validate_sensor_data(data):
         raise ValidationError(f"Nilai '{key}' harus angka, boolean, atau string pendek")
 
 
+class OfflineTimeoutField(fields.Field):
+    """`offline_timeout` detik: None/'' (mode otomatis) atau int 10..604800.
+
+    Dipakai POST /devices, PUT /devices/<id>, dan bulk-import supaya aturannya
+    persis sama di semua jalur. Batas ≥ `expected_interval` tetap dicek di
+    handler karena butuh nilai interval dari payload/DB.
+    """
+
+    OFFLINE_TIMEOUT_MIN = 10
+    OFFLINE_TIMEOUT_MAX = 604800
+
+    def _deserialize(self, value, attr, data, **kwargs):
+        if value is None or value == '':
+            return None
+        try:
+            ival = int(value)
+        except (TypeError, ValueError):
+            raise ValidationError(
+                'Offline Timeout harus berupa angka atau dikosongkan')
+        if ival < self.OFFLINE_TIMEOUT_MIN:
+            raise ValidationError(
+                f'Offline Timeout minimal {self.OFFLINE_TIMEOUT_MIN} detik. '
+                'Kosongkan untuk mode otomatis.')
+        if ival > self.OFFLINE_TIMEOUT_MAX:
+            raise ValidationError(
+                f'Offline Timeout maksimal {self.OFFLINE_TIMEOUT_MAX} detik (7 hari).')
+        return ival
+
+
 class DeviceCreateSchema(Schema):
     device_id = fields.Str(
         required=True,
@@ -67,7 +96,7 @@ class DeviceCreateSchema(Schema):
     description = fields.Str(load_default='', validate=validate.Length(max=1000))
     firmware_version = fields.Str(load_default='', validate=validate.Length(max=64))
     expected_interval = fields.Int(load_default=60, validate=validate.Range(min=10, max=86400))
-    offline_timeout = fields.Raw(load_default=None, allow_none=True)
+    offline_timeout = OfflineTimeoutField(load_default=None, allow_none=True)
     offline_alert_severity = fields.Str(
         load_default='danger',
         validate=validate.OneOf(['info', 'warning', 'danger'])
@@ -85,7 +114,7 @@ class DeviceUpdateSchema(Schema):
     longitude = fields.Float(validate=validate.Range(min=-180, max=180))
     # None = kembali ke mode otomatis (auto-detect)
     expected_interval = fields.Int(allow_none=True, validate=validate.Range(min=10, max=86400))
-    offline_timeout = fields.Raw(allow_none=True)
+    offline_timeout = OfflineTimeoutField(allow_none=True)
     offline_alert_severity = fields.Str(validate=validate.OneOf(['info', 'warning', 'danger']))
     alert_rules = fields.Dict(allow_none=True)
 
@@ -118,7 +147,7 @@ class BulkImportItemSchema(Schema):
     location = fields.Str(load_default='', validate=validate.Length(max=255))
     description = fields.Str(load_default='', validate=validate.Length(max=1000))
     firmware_version = fields.Str(load_default='', validate=validate.Length(max=64))
-    offline_timeout = fields.Raw(load_default=None, allow_none=True)
+    offline_timeout = OfflineTimeoutField(load_default=None, allow_none=True)
     offline_alert_severity = fields.Str(
         load_default='danger',
         validate=validate.OneOf(['info', 'warning', 'danger'])
