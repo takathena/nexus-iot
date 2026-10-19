@@ -106,7 +106,7 @@ Rilis yang menggabungkan perbaikan fase 1–5 (sebelumnya 6.0.0). Rincian teknis
 
 ## Perbaikan Pascabedah (Fase A)
 
-R recounted dari audit kode + verifikasi di staging (2026-10-19).
+Dari hasil audit kode + verifikasi di staging (2026-10-19).
 
 ### Diperbaiki
 
@@ -122,3 +122,26 @@ R recounted dari audit kode + verifikasi di staging (2026-10-19).
 ### Diketahui masih terbuka (Fase B/C)
 
 Severity alert memakai pita "first match" sehingga 39 °C dilabeli `danger` dan pesannya masih menyebut pita *healthy*. Validasi `offline_timeout` belum dipakai pada `POST /devices` dan bulk-import. `PUT /dashboards/<id>/layout` belum divalidasi per-elemen. Backup `pre-delete_*`/`pre-restore_*` tidak pernah di-prune. Hapus dashboard diam-diam menghapus kartu absensi. Session idle timeout tidak pernah aktif karena `/api/v1/metrics` belum terdaftar sebagai polling.
+
+## Perbaikan Pascabedah (Fase B)
+
+Dead code + logika backend. Baseline test: 323 lulus → 335 lulus, 0 gagal.
+
+### Diperbaiki
+
+| Area | Perbaikan |
+|---|---|
+| Mesin alert | `SEVERITY_ORDER` kini memuat `info`, jadi rule info-only tidak lagi dilaporkan `danger`. Pesan alert memakai band bersarang untuk menyebut batas yang benar-benar dilanggar: 36 °C → "Melewati batas warning (32°C)", bukan lagi "Di luar batas normal (6–28°C)". Validasi rule disatukan ke `utils.validate_single_alert_rule` (termasuk `min <= max`). |
+| `offline_timeout` | `OfflineTimeoutField` dipakai di POST/PUT/bulk-import (10–604800 detik) plus syarat ≥ `expected_interval`. Sebelumnya POST menerima `-5`. |
+| Hapus dashboard | Dashboard yang masih berisi kartu RFID ditolak 409 — sebelumnya kartu + riwayat absensi terhapus diam-diam. |
+| `PUT /layout` | Elemen non-dict ditolak 400 (sebelumnya 500). |
+| Hapus user | Ditolak bila admin pelaku tidak punya dashboard tujuan, supaya device/kartu tidak jadi yatim. |
+| Backup | `pre-delete_*` dan `pre-restore_*` ikut di-prune (file manual tetap aman). Sebelumnya menumpuk selamanya. |
+| Session | `/api/v1/metrics` dan `/api/v1/chat` didaftarkan sebagai polling agar idle timeout benar-benar aktif. |
+| Restore | `_db_in_use()` membedakan `database is locked` (True) dari DB rusak (False) — restore tidak lagi ditolak selamanya saat DB korup. |
+| Halaman error | 404/401/403/429/500 untuk route halaman merender `error.html`; endpoint `/api/*` tetap JSON. |
+| Dead code | `app/decorators.py`, `role_required`, `can_access_dashboard`, `default_dashboard_for_admin`, route `/alerts` + template, dan sisa JS/CSS untuk id yang tidak ada (`mapPreview`, `pageTitle`, `mapListCount`, `alertFilterInfo`, `chatTab`, `updateJsonPreview`) dihapus. |
+
+### Diketahui masih terbuka (Fase C)
+
+`PUT /dashboards/<id>/layout` belum dipanggil frontend (layout masih localStorage). 8 method `API.*` dan `dashboard_store.js` belum dikonsolidasikan. Dedup notifikasi masih per-proses.
