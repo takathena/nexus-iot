@@ -3,7 +3,7 @@ NEXUS IoT - Application Factory
 """
 import os
 import sys
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 
 from app.config import get_config
 from app.logging_config import setup_logging
@@ -146,21 +146,37 @@ def create_app(config_override=None):
 
         return response
 
+    def _error_response(status, api_error, title, message):
+        """JSON untuk endpoint API, halaman error HTML untuk route halaman."""
+        logger.info(f"HTTP {status} {request.method} {request.path}")
+        if request.path.startswith('/api/'):
+            return jsonify({'success': False, 'error': api_error}), status
+        return render_template('error.html', code=status,
+                               title=title, message=message), status
+
     @app.errorhandler(400)
     def bad_request(e):
-        return jsonify({'success': False, 'error': 'Bad request'}), 400
+        return _error_response(400, 'Bad request',
+                               'Permintaan Tidak Valid',
+                               'Permintaan tidak bisa diproses. Coba ulangi.')
 
     @app.errorhandler(401)
     def unauthorized(e):
-        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        return _error_response(401, 'Unauthorized',
+                               'Perlu Masuk',
+                               'Sesi Anda tidak valid. Silakan masuk kembali.')
 
     @app.errorhandler(403)
     def forbidden(e):
-        return jsonify({'success': False, 'error': 'Forbidden'}), 403
+        return _error_response(403, 'Forbidden',
+                               'Akses Ditolak',
+                               'Anda tidak punya izin untuk membuka halaman ini.')
 
     @app.errorhandler(404)
     def not_found(e):
-        return jsonify({'success': False, 'error': 'Not found'}), 404
+        return _error_response(404, 'Not found',
+                               'Halaman Tidak Ditemukan',
+                               'Alamat yang Anda tuju tidak ada di sistem ini.')
 
     @app.errorhandler(413)
     def payload_too_large(e):
@@ -177,10 +193,9 @@ def create_app(config_override=None):
 
     @app.errorhandler(429)
     def rate_limit_exceeded(e):
-        return jsonify({
-            'success': False,
-            'error': 'Rate limit exceeded. Coba lagi nanti.',
-        }), 429
+        return _error_response(429, 'Rate limit exceeded. Coba lagi nanti.',
+                               'Terlalu Banyak Permintaan',
+                               'Anda mengirim terlalu banyak permintaan. Coba lagi nanti.')
 
     @app.errorhandler(500)
     def internal_error(e):
@@ -191,7 +206,9 @@ def create_app(config_override=None):
             db.rollback()
         except Exception:
             pass
-        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        return _error_response(500, 'Internal server error',
+                               'Terjadi Kesalahan',
+                               'Ada gangguan di server. Coba beberapa saat lagi.')
 
     @app.errorhandler(Exception)
     def unhandled_exception(e):
@@ -199,13 +216,9 @@ def create_app(config_override=None):
         if isinstance(e, HTTPException):
             return e
         logger.error(f"Unhandled exception on {request.method} {request.path}: {e}", exc_info=True)
-        if request.path.startswith('/api/'):
-            return jsonify({
-                'success': False,
-                'error': 'Internal server error',
-                'type': type(e).__name__,
-            }), 500
-        return jsonify({'success': False, 'error': 'Internal server error'}), 500
+        return _error_response(500, 'Internal server error',
+                               'Terjadi Kesalahan',
+                               'Ada gangguan di server. Coba beberapa saat lagi.')
 
     @app.route('/health')
     @limiter.exempt
