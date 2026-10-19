@@ -15,7 +15,6 @@
         globalTimeMinutes: 1440,
         deviceFilter: 'all',
         deviceFilterFull: 'all',
-        mapPreview: null,
         mapFull: null,
         markerCluster: null,
         marker: null,
@@ -252,9 +251,6 @@
             else { el.style.display = 'none'; el.setAttribute('hidden', ''); }
         });
 
-        const titles = { dashboard: 'Dashboard', map: 'Peta Interaktif', graph: 'Analitik Sensor', devices: 'Manajemen Perangkat', attendance: 'Absensi', alerts: 'Alert Center', settings: 'Pengaturan' };
-        const titleEl = $('pageTitle');
-        if (titleEl) titleEl.textContent = titles[section] || 'Dashboard';
 
         $$('.sidebar .nav-item[data-section]').forEach(item => {
             item.classList.toggle('active', item.getAttribute('data-section') === section);
@@ -290,7 +286,7 @@
             }, 100);
         }
         if (section === 'dashboard') {
-            setTimeout(() => { if (state.mapPreview) state.mapPreview.invalidateSize(); loadActivityFeed(); }, 100);
+            setTimeout(() => { loadActivityFeed(); }, 100);
         }
         if (section === 'graph') {
             setTimeout(() => {
@@ -357,7 +353,6 @@
         const onboarding = $('onboardingCard');
         if (onboarding) onboarding.hidden = (summary.total_devices || 0) > 0;
         updateHealthRing(summary);
-        loadMarkers(state.mapPreview);
         if (state.mapFull) loadMarkers(state.mapFull, true);
         updateFilterCounts();
         renderFilteredDevices();
@@ -624,14 +619,6 @@
     // ==========================================
     // MAP
     // ==========================================
-    function initMapPreview() {
-        if (state.mapPreview) return;
-        const el = $('mapPreview'); if (!el) return;
-        state.mapPreview = L.map('mapPreview', { zoomControl: true, attributionControl: false }).setView([-2.5489, 118.0149], 5);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(state.mapPreview);
-        registerMapInstance(state.mapPreview);
-    }
-
     function initFullMap() {
         if (state.mapFull) return;
         const el = $('mapFull'); if (!el) return;
@@ -771,7 +758,6 @@
         else if (filter === 'offline') list = list.filter(d => d.status === 'offline');
         else if (filter === 'alert') list = list.filter(d => d.has_alert === true);
         if (term) list = list.filter(d => (d.device_name || '').toLowerCase().includes(term) || (d.device_id || '').toLowerCase().includes(term) || (d.location || '').toLowerCase().includes(term));
-        const countEl = $('mapListCount'); if (countEl) countEl.textContent = list.length;
         if (list.length === 0) { container.innerHTML = `<div class="map-empty-list">${term ? 'Tidak ada device yang cocok' : 'Tidak ada device di filter ini'}</div>`; return; }
         container.innerHTML = list.map(d => {
             const style = getDeviceMapStyle(d);
@@ -4306,7 +4292,6 @@
             } catch (e) {}
         }
         state.currentSection = initialSection;
-        initMapPreview();
         await loadCurrentUser();
         await loadCurrentDashboardInfo();
         await loadDashboard();

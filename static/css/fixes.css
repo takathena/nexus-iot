@@ -401,8 +401,7 @@ textarea:focus {
 }
 .map-wrap,
 #mMapFull,
-#mapFull,
-#mapPreview {
+#mapFull {
   isolation: isolate;
   position: relative;
   z-index: 0;

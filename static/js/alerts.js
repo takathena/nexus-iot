@@ -489,19 +489,6 @@
         updateBulkBar();
     }
 
-    function updateFilterInfo() {
-        const infoEl = $('alertFilterInfo');
-        if (!infoEl) return;
-        if (!state.dateStart && !state.dateEnd) {
-            infoEl.textContent = '';
-            return;
-        }
-        const parts = [];
-        if (state.dateStart) parts.push(`dari ${state.dateStart}`);
-        if (state.dateEnd) parts.push(`sampai ${state.dateEnd}`);
-        infoEl.textContent = `Filter aktif: ${parts.join(' ')}`;
-    }
-
     function renderAlerts() {
         const container = $('alertsList');
         if (!container) return;
@@ -753,7 +740,6 @@
         state.dateStart = startEl ? startEl.value : '';
         state.dateEnd = endEl ? endEl.value : '';
         applyFilter();
-        updateFilterInfo();
     }
 
     function clearDateFilter() {
@@ -761,7 +747,6 @@
         state.dateStart = '';
         state.dateEnd = '';
         applyFilter();
-        updateFilterInfo();
     }
 
     // ==========================================
@@ -998,7 +983,6 @@
                     state.dateStart = start || '';
                     state.dateEnd = end || '';
                     applyFilter();
-                    updateFilterInfo();
                 }
             });
         }

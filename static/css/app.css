@@ -1630,7 +1630,7 @@
 }
 .map-selected-banner-right { display: flex; gap: 6px; flex-shrink: 0; }
 
-#mapFull, #mapPreview, #mMapFull {
+#mapFull, #mMapFull {
   height: 70vh;
   min-height: 480px;
   width: 100%;
@@ -1639,12 +1639,6 @@
   overflow: hidden;
   display: block;
 }
-#mapPreview {
-  height: 480px;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--hairline);
-}
-
 /* Map reset — 36x36 uniform */
 .map-reset-btn {
   position: absolute;

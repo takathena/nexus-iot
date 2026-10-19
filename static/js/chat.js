@@ -192,7 +192,6 @@
     // ============================================================
     function init() {
         els.panel = document.getElementById('chatPanel');
-        els.tab = document.getElementById('chatTab');
         els.messages = document.getElementById('chatMessages');
         els.input = document.getElementById('chatInput');
         els.send = document.getElementById('chatSend');
@@ -283,7 +282,6 @@
                 toggle();
             });
         }
-        if (els.tab) els.tab.addEventListener('click', toggle);
 
         if (els.input) {
             els.input.addEventListener('keydown', (e) => {
@@ -359,7 +357,6 @@
         if (!animate && els.panel) els.panel.style.transition = 'none';
 
         if (els.panel) els.panel.classList.add('open');
-        if (els.tab) els.tab.classList.add('hidden');
         if (els.toggleBtn) els.toggleBtn.classList.add('active');
         document.body.classList.add('chat-open');
 
@@ -379,7 +376,6 @@
         state.isOpen = false;
         closeShortcutsMenu();
         if (els.panel) els.panel.classList.remove('open');
-        if (els.tab) els.tab.classList.remove('hidden');
         if (els.toggleBtn) els.toggleBtn.classList.remove('active');
         document.body.classList.remove('chat-open');
 
@@ -540,7 +536,7 @@
     function disableWidget() {
         if (state.healthTimer) { clearInterval(state.healthTimer); state.healthTimer = null; }
         if (state.isOpen) close();
-        [els.panel, els.tab, els.toggleBtn, document.getElementById('chatBackdrop'),
+        [els.panel, els.toggleBtn, document.getElementById('chatBackdrop'),
          document.querySelector('.chat-fab-mobile')].forEach(el => { if (el) el.style.display = 'none'; });
     }
 

@@ -20,7 +20,7 @@ import logging
 
 from flask import g, jsonify, request, session
 
-from app.database import get_db_context, get_wib_time
+from app.database import get_wib_time
 
 logger = logging.getLogger('nexus')
 
@@ -72,10 +72,6 @@ def get_dashboard_role(conn, dashboard_id, user_id):
 
 def role_allows(role, minimum):
     return bool(role) and ROLE_RANK.get(role, 0) >= ROLE_RANK[minimum]
-
-
-def can_access_dashboard(conn, dashboard_id, user_id, minimum='viewer'):
-    return role_allows(get_dashboard_role(conn, dashboard_id, user_id), minimum)
 
 
 def accessible_dashboard_ids(conn, user_id, minimum='viewer'):
@@ -341,13 +337,3 @@ def audit(conn, action, detail=''):
         logger.warning(f'Gagal menulis audit log: {e}')
     logger.warning(f"AUDIT {action} by={session.get('username')} {detail}")
 
-
-def default_dashboard_for_admin(conn):
-    """Dashboard default milik admin pertama (tujuan migrasi/pemindahan data lama)."""
-    row = conn.execute('''
-        SELECT d.id FROM dashboards d
-        JOIN users u ON u.id = d.user_id
-        WHERE u.is_admin = 1
-        ORDER BY d.is_default DESC, u.id ASC, d.id ASC LIMIT 1
-    ''').fetchone()
-    return row['id'] if row else None

@@ -137,21 +137,3 @@ def permission_required(permission):
         return decorated
     return decorator
 
-
-def role_required(*roles):
-    """Batasi route ke peran tertentu. Pasang SETELAH @login_required."""
-    def decorator(f):
-        @wraps(f)
-        def decorated(*args, **kwargs):
-            uid = session.get('user_id')
-            with get_db_context() as conn:
-                info = get_user_info(conn, uid)
-            if not info or info['role'] not in roles:
-                return jsonify({
-                    'success': False,
-                    'error': 'Peran Anda tidak mengizinkan aksi ini',
-                    'code': 'ROLE_DENIED',
-                }), 403
-            return f(*args, **kwargs)
-        return decorated
-    return decorator
