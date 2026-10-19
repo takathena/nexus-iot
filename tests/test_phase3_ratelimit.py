@@ -16,6 +16,12 @@ def test_limiter_uses_storage_from_config(monkeypatch):
     import flask_limiter
     import app.extensions as ext
 
+    # reload() membuat objek Limiter BARU di app.extensions. Tapi app/__init__.py
+    # meng-import `limiter` sekali saat modul dimuat, jadi setelah reload ada dua
+    # singleton: yang dipakai create_app (yang lama) dan yang ada di app.extensions
+    # (yang baru, _storage=None). Test lain yang meng-import dari app.extensions
+    # akan dapat yang baru dan gagal. Simpan & pasang kembali yang asli.
+    original = ext.limiter
     seen = {}
 
     class _Spy(flask_limiter.Limiter):
@@ -30,7 +36,8 @@ def test_limiter_uses_storage_from_config(monkeypatch):
     finally:
         monkeypatch.undo()
         importlib.reload(ext)
-    assert seen['storage_uri'] == TestingConfig.RATE_LIMIT_STORAGE
+        ext.limiter = original
+    assert seen['storage_uri'] == 'memory://'
 
 
 def test_warns_on_memory_storage_with_multiple_workers():

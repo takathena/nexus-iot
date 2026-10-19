@@ -220,7 +220,7 @@
   opacity: 0.55;
   cursor: not-allowed;
 }
-.nx-disabled:hover { background: transparent !important; color: var(--text-3) !important; }
+.nx-disabled:hover { background: transparent; color: var(--text-3); }
 .nx-chip-sm {
   display: inline-flex;
   align-items: center;

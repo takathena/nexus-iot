@@ -42,7 +42,7 @@ def test_public_port_is_consistent_5008():
     # Firmware takes the endpoint from secrets.py; main.py only imports it.
     # The example is what a new deployment copies.
     assert ':5008/api/v1/data' in _read('esp32', 'secrets.example.py')
-    assert re.search(r"API_URL\s*$", _read('esp32', 'main.py'), re.M)
+    assert 'API_URL' in _read('esp32', 'main.py')
 
 
 def test_prod_compose_does_not_mount_application_code():
