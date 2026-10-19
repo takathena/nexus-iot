@@ -103,3 +103,22 @@ Rilis yang menggabungkan perbaikan fase 1–5 (sebelumnya 6.0.0). Rincian teknis
 - Apakah tool absensi chat (`get_present_today`, `get_absent_today`, `get_attendance_range`, `get_cardholders`) dibatasi hanya untuk admin? Belum diubah.
 - Chat dianggap terkonfigurasi hanya bila `LLM_API_KEY` terisi (sesuai N7). Pengguna LLM lokal yang selama ini mengandalkan default `sk-no-key` perlu mengisi nilai apa saja.
 
+
+## Perbaikan Pascabedah (Fase A)
+
+R recounted dari audit kode + verifikasi di staging (2026-10-19).
+
+### Diperbaiki
+
+| Area | Perbaikan |
+|---|---|
+| Manage user | Modal legacy dihapus. `settings_section.html` dan `modals.html` sama-sama merender 7 `id` form yang sama, sehingga `getElementById()` menulis ke drawer Pengaturan dan Command Palette → "Kelola user" selalu gagal. Sekarang satu-satunya pintu masuk `NexusUsers.open()`. |
+| Notifikasi | `POST /api/v1/notifications/test` melaporkan `success: true` walau tidak ada channel aktif (`all([])` atas generator kosong). Kini menyaring kunci `_` lebih dulu dan membalas 503 bila memang belum siap. |
+| NEXUS AI | Menu, panel, dan `chat.js` hilang total saat `LLM_API_KEY` kosong. Menu kini tetap terlihat dengan status "belum aktif" + penjelasan cara mengaktifkannya. |
+| Mobile | `historyChartMobile is not defined` setiap ganti tema. |
+| Markup | `</nav>` ganda di `dashboard.html`. |
+| Test | 5 test failure → 0. `PYTHON_DOTENV_DISABLED=1` di `conftest.py` membuat test hermetik terhadap `.env` sungguhan; `importlib.reload(app.extensions)` kini memulihkan singleton `limiter` sehingga tidak merusak test lain. |
+
+### Diketahui masih terbuka (Fase B/C)
+
+Severity alert memakai pita "first match" sehingga 39 °C dilabeli `danger` dan pesannya masih menyebut pita *healthy*. Validasi `offline_timeout` belum dipakai pada `POST /devices` dan bulk-import. `PUT /dashboards/<id>/layout` belum divalidasi per-elemen. Backup `pre-delete_*`/`pre-restore_*` tidak pernah di-prune. Hapus dashboard diam-diam menghapus kartu absensi. Session idle timeout tidak pernah aktif karena `/api/v1/metrics` belum terdaftar sebagai polling.
