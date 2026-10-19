@@ -19,6 +19,12 @@ os.environ['LOG_FILE'] = os.path.join(_TMP, 'nexus.log')
 os.environ['NEXUS_LOCK_DIR'] = _TMP
 os.environ['BACKUP_DIR'] = os.path.join(_TMP, 'backup')
 
+# app/config.py memanggil load_dotenv() saat import. Tanpa ini, file .env
+# sungguhan di root repo ikut terbaca dan test yang bergantung pada "env var
+# tidak di-set" ikut gagal (mis. test SESSION_COOKIE_SECURE vs ENABLE_HSTS).
+# Test harus hermetik: hanya env yang disetel di sini/oleh monkeypatch yang berlaku.
+os.environ['PYTHON_DOTENV_DISABLED'] = '1'
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import pytest  # noqa: E402

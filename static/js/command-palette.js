@@ -56,7 +56,8 @@
         // ---------- ADMIN ----------
         { id: 'manage-users', group: 'Admin', label: 'Kelola user',
           icon: 'fa-users', keywords: ['user', 'pengguna', 'kelola', 'manage', 'admin'],
-          action: () => _click('manageUsersBtn'),
+          action: () => (window.NexusUsers ? window.NexusUsers.open()
+                                           : _click('manageUsersBtn')),
           needs: 'admin' },
         { id: 'global-rules', group: 'Admin', label: 'Global alert rules',
           icon: 'fa-sliders', keywords: ['global', 'rules', 'alert', 'aturan'],

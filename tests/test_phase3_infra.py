@@ -39,7 +39,10 @@ def test_public_port_is_consistent_5008():
     assert 'NGINX_PORT:-5008' in _read('docker-compose.yml')
     cors = re.search(r'^CORS_ORIGINS=(.*)$', env, re.M).group(1)
     assert ':5008' in cors and ':8080' not in cors
-    assert ':5008/api/v1/data' in _read('esp32', 'main.py')
+    # Firmware takes the endpoint from secrets.py; main.py only imports it.
+    # The example is what a new deployment copies.
+    assert ':5008/api/v1/data' in _read('esp32', 'secrets.example.py')
+    assert re.search(r"API_URL\s*$", _read('esp32', 'main.py'), re.M)
 
 
 def test_prod_compose_does_not_mount_application_code():

@@ -248,9 +248,12 @@ def test_chat_refuses_attendance_tool_call_without_permission(app):
         from flask import session
         session['user_id'] = uid
         session['logged_in'] = True
-        _, args, result = chat._run_tool_call({
+        # _run_tool_call mengembalikan (nama, args, hasil, file_meta) sejak
+        # fitur generate-file ditambahkan.
+        _, args, result, file_meta = chat._run_tool_call({
             'function': {'name': 'get_cardholders', 'arguments': '{}'}
         })
+        assert file_meta is None
     assert 'error' in result
     assert 'karyawan' not in result and 'total' not in result
 

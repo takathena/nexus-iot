@@ -91,6 +91,10 @@ def test_two_devices_same_ip_do_not_share_quota(app, make_device, monkeypatch):
         'WTF_CSRF_ENABLED': False, 'SESSION_COOKIE_SECURE': False,
     })
     try:
+        # `limiter` adalah singleton modul; init_app() dari app lain (fixture `app`
+        # memakai RATELIMIT_ENABLED=False) menimpa flag `enabled`. Set eksplisit
+        # supaya tes ini tidak bergantung urutan pembuatan app.
+        limiter.enabled = True
         limiter.reset()
         key_a, key_b = make_device('rl-a'), make_device('rl-b')
         client = limited.test_client()
@@ -100,6 +104,7 @@ def test_two_devices_same_ip_do_not_share_quota(app, make_device, monkeypatch):
         assert code_b == 200
     finally:
         limiter.reset()
+        limiter.enabled = False
 
 
 # ---------- throttle login (storage DB) ----------

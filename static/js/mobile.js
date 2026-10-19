@@ -198,11 +198,11 @@ document.addEventListener('keydown', e => {
 
 /* ===== Theme ===== */
 updateThemeIcon();
-window.ThemeManager.onChange(function(theme){
+window.ThemeManager.onChange(function(){
   updateThemeIcon();
-  if(document.getElementById('s-analytics').classList.contains('active')) loadCharts();
-  if(mobileTrendChart) loadMobileTrend();
-  if(historyChartMobile) loadMobileHistoryChart();
+  const analytics = document.getElementById('s-analytics');
+  if(analytics && analytics.classList.contains('active')) loadCharts();
+  if(typeof mobileTrendChart !== 'undefined' && mobileTrendChart) loadMobileTrend();
 });
 function updateThemeIcon(){
   const i = document.getElementById('themeIcon');

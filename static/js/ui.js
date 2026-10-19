@@ -69,6 +69,17 @@
     if (trigger) trigger.parentElement.classList.toggle('nx-open');
   });
 
+  // ---------- Kontrol yang belum siap dipakai ----------
+  // Elemen dengan aria-disabled="true" tetap terlihat (fitur ada, tapi belum
+  // dikonfigurasi) dan memberi penjelasan saat diklik, bukan diam saja.
+  document.addEventListener('click', function (e) {
+    const el = e.target.closest('[aria-disabled="true"][data-hint]');
+    if (!el) return;
+    e.preventDefault();
+    const msg = el.getAttribute('data-hint');
+    if (typeof global.showToast === 'function') global.showToast(msg, 'warning');
+  });
+
   global.NexusUI = {
     applyNeeds: applyNeeds,
     _allowed: allowed,

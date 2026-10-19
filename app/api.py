@@ -1886,12 +1886,14 @@ def get_system_info():
 def test_notification():
     try:
         results = send_test_notification()
-        all_success = all(
-            r.get('success', False)
-            for k, r in results.items()
-            if not k.startswith('_')
+        # Kunci berawalan '_' adalah info diagnostik (mis. "Telegram not enabled"),
+        # bukan hasil pengiriman. Kalau semua channel kosong, TIDAK boleh dianggap sukses.
+        channels = {k: r for k, r in results.items() if not k.startswith('_')}
+        all_success = bool(channels) and all(
+            r.get('success', False) for r in channels.values()
         )
-        return jsonify({'success': all_success, 'results': results}), 200 if all_success else 500
+        status = 200 if all_success else 503
+        return jsonify({'success': all_success, 'results': results}), status
     except Exception as e:
         logger.error(f"Test notification failed: {e}", exc_info=True)
         return jsonify({'success': False, 'error': 'Terjadi kesalahan internal. Detail ada di log server.'}), 500

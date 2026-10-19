@@ -357,5 +357,14 @@
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind);
   else bind();
 
-  global.NexusUsers = { load: load };
+  // Satu-satunya pintu masuk kelola pengguna (dipakai command palette & tombol
+  // legacy). Membuka tab Pengaturan > Pengguna, lalu drawer form.
+  function open(u) {
+    if (location.hash !== '#settings/pengguna') location.hash = '#settings/pengguna';
+    document.dispatchEvent(new CustomEvent('nexus:settings-tab', { detail: { tab: 'pengguna' } }));
+    load();
+    if (u !== undefined) openForm(u || null);
+  }
+
+  global.NexusUsers = { load: load, open: open, openForm: openForm };
 })(window);
